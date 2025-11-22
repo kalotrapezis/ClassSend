@@ -1,74 +1,50 @@
 # ClassSend
 
-## 📦 How to Transfer
-1. Copy the entire `ClassSend` folder to the new computer.
-2. **Tip**: You can delete the `node_modules` folders inside `client` and `server` before copying to make the transfer much faster. You will reinstall them in the next step.
+**ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🛠️ Prerequisites
-- Install [Node.js](https://nodejs.org/) (LTS version).
+## 🚀 Features
+- **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
+- **File Sharing**: Drag-and-drop file sharing directly in the chat.
+- **Class Management**: Teachers can create classes; students can join multiple classes.
+- **Local Network**: Runs entirely on your local network (LAN). No internet required.
+- **Cross-Platform**: Windows (exe), Mac, and Linux support via Electron.
 
-## ⚙️ Setup on New Computer
-1. **Install Server Dependencies**:
-   Open a terminal in `ClassSend/server` and run:
-   ```bash
-   npm install
-   ```
-2. **Install Client Dependencies**:
-   Open a terminal in `ClassSend/client` and run:
-   ```bash
-   npm install
-   ```
+## 📦 Download & Install
+Go to the [Releases](../../releases) page (if applicable) or check the `out/make` folder if you built it locally.
 
-## 📦 How to Run (Windows Executable)
-The easiest way to run ClassSend!
+- **Windows Installer**: `ClassSend-3.0.0 Setup.exe`
+- **Portable Zip**: `ClassSend-win32-x64-3.0.0.zip`
 
-1. Go to `ClassSend/server/dist`.
-2. Double-click **`ClassSend.exe`**.
-3. Open `http://localhost:3000` in your browser.
-   - (Or `http://YOUR_IP:3000` for other devices on the network).
+## 🛠️ How to Run (Development)
+If you want to modify the code or contribute:
 
-## 🚀 How to Run (Source Code)
-Use this if you want to modify the code.
+1.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
+    *(This installs dependencies for both client and server)*
 
-1. **Start Server**:
-   In `ClassSend/server`:
-   ```bash
-   npm start
-   ```
-2. **Start Client**:
-   In `ClassSend/client`:
-   ```bash
-   npm run dev
-   ```
-3. Open `http://localhost:5173` in your browser.
+2.  **Start the App**:
+    ```bash
+    npm start
+    ```
+    This will launch the Electron application window.
 
-## 🌐 How to Run on Local Network
-Use this to connect multiple computers (e.g., Teacher on Laptop, Students on Phones/Tablets).
+3.  **Build for Production**:
+    To create the `.exe` installer:
+    ```bash
+    npm run make
+    ```
 
-1. **Find Server IP**:
-   - Windows: Run `ipconfig` in terminal. Look for "IPv4 Address" (e.g., `192.168.1.X`).
-   - Mac/Linux: Run `ifconfig`.
+## 🏗️ Architecture
+ClassSend is built with:
+- **Electron**: For the desktop application wrapper.
+- **Node.js & Express**: For the internal server that handles socket connections.
+- **Socket.IO**: For real-time bidirectional communication.
+- **Vanilla JS / HTML / CSS**: For the frontend interface.
 
-2. **Update Client Config**:
-   Open `client/main.js` and replace `localhost` with your IP:
-   ```javascript
-   // Before
-   const socket = io("http://localhost:3000");
-   
-   // After (Example)
-   const socket = io("http://192.168.1.5:3000");
-   ```
-
-3. **Start Server**:
-   ```bash
-   npm start
-   ```
-
-4. **Start Client (Exposed)**:
-   In `ClassSend/client`, run this special command to allow network access:
-   ```bash
-   npm run dev:host
-   ```
-
-5. **Connect**:
-   On other devices, open `http://YOUR_IP:5173` (e.g., `http://192.168.1.5:5173`).
+### Why Electron?
+We use Electron to bundle the Node.js server *inside* the application. This means:
+1.  **Zero Configuration**: Users don't need to install Node.js or configure IP addresses manually.
+2.  **Standalone**: It runs as a single `.exe` file.
+3.  **Offline Capable**: It creates its own local server, perfect for schools with restricted internet.
