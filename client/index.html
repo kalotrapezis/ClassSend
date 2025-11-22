@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClassSend</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+  <div id="app">
+    <!-- Role Selection Screen -->
+    <div id="role-selection" class="screen">
+      <div class="screen-content">
+        <h1>ClassSend</h1>
+        <h2>Select Your Role</h2>
+        <div class="card-container">
+          <button id="btn-teacher" class="role-card teacher-card">
+            <span class="role-icon">👨‍🏫</span>
+            <span class="role-label">Teacher</span>
+          </button>
+          <button id="btn-student" class="role-card student-card">
+            <span class="role-icon">👨‍🎓</span>
+            <span class="role-label">Student</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Class Setup Screen (Teacher/Student) -->
+    <div id="class-setup" class="screen hidden">
+      <div class="screen-content">
+        <h1>ClassSend</h1>
+        <div id="setup-form">
+          <h2 id="setup-title">Create Class</h2>
+          <div class="input-group">
+            <label for="class-id-input">Class ID</label>
+            <input type="text" id="class-id-input" placeholder="e.g., MATH101" autocomplete="off">
+          </div>
+          <div class="input-group">
+            <label for="user-name-input">Your Name</label>
+            <input type="text" id="user-name-input" placeholder="e.g., John Doe" autocomplete="off">
+          </div>
+          <button id="btn-submit-setup" class="primary-btn">Create Class</button>
+          <button id="btn-back" class="secondary-btn">Back</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Interface -->
+    <div id="chat-interface" class="hidden">
+      <!-- Header -->
+      <header class="chat-header">
+        <div class="header-left">
+          <h1 class="app-title">ClassSend</h1>
+          <div class="class-badge">
+            <span id="current-class-name">MATH101</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="user-menu">
+            <button id="user-name-btn" class="user-name-display">Your Name ▼</button>
+            <div id="user-name-dropdown" class="dropdown-menu hidden">
+              <input type="text" id="new-name-input" placeholder="Enter new name">
+              <button id="btn-change-name" class="dropdown-btn">Change Name</button>
+            </div>
+          </div>
+          <div id="connection-status" class="status disconnected">●</div>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <div class="chat-main">
+        <!-- Left Sidebar - Classes & Users -->
+        <aside class="sidebar-left">
+          <div class="sidebar-header">
+            <h3>Classes</h3>
+          </div>
+          <div class="classes-list">
+            <div class="class-item active">
+              <span class="class-icon">📚</span>
+              <span class="class-name" id="sidebar-class-name">MATH101</span>
+            </div>
+          </div>
+
+          <div class="sidebar-divider"></div>
+
+          <div class="sidebar-header">
+            <h3>Users (<span id="user-count">0</span>)</h3>
+          </div>
+          <div id="users-list" class="users-list">
+            <!-- Users will be dynamically added here -->
+          </div>
+        </aside>
+
+        <!-- Center - Messages -->
+        <main class="chat-area">
+          <div id="messages-container" class="messages-container">
+            <!-- Messages will be dynamically added here -->
+          </div>
+          <div class="message-input-area">
+            <button id="btn-attach-file" class="attach-btn" title="Attach file">
+              📎
+            </button>
+            <input type="file" id="file-input" class="hidden">
+            <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+            <button id="btn-send-message" class="send-btn">
+              Send
+            </button>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/main.js"></script>
+</body>
+
+</html>
