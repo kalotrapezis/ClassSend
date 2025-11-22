@@ -1,4 +1,4 @@
-# ClassSend
+# ClassSend Vibecoded application (for fan!)
 
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
