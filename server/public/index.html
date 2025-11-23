@@ -6,8 +6,8 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ClassSend</title>
-  <script type="module" crossorigin src="/assets/index-yxQE3XK1.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-iGG8PHvC.css">
+  <script type="module" crossorigin src="/assets/index-eDGrZ-x6.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DjvGMlhI.css">
 </head>
 
 <body>
@@ -55,12 +55,14 @@
       <!-- Header -->
       <header class="chat-header">
         <div class="header-left">
+          <button id="btn-menu-toggle" class="header-btn menu-btn mobile-only">
+            ☰
+          </button>
+          <div id="connection-status" class="status disconnected" title="Connection Status">Disconnected</div>
           <h1 class="app-title">ClassSend</h1>
           <div class="class-badge">
             <span id="current-class-name">MATH101</span>
           </div>
-        </div>
-        <div class="header-right">
           <div class="user-menu">
             <button id="user-name-btn" class="user-name-display">Your Name ▼</button>
             <div id="user-name-dropdown" class="dropdown-menu hidden">
@@ -68,14 +70,33 @@
               <button id="btn-change-name" class="dropdown-btn">Change Name</button>
             </div>
           </div>
-          <div id="connection-status" class="status disconnected">●</div>
+          <button id="btn-media-toggle" class="header-btn media-btn" title="Media Library">
+            🖼️ Library
+          </button>
         </div>
       </header>
 
+      <!-- Media Modal (Outside Header for better positioning) -->
+      <div id="media-popup" class="media-modal hidden">
+        <div class="modal-content">
+          <div class="popup-header">
+            <h3>Media Library</h3>
+            <button id="btn-close-media" class="close-btn">×</button>
+          </div>
+          <div id="media-list" class="media-list">
+            <!-- Media items will be dynamically added here -->
+            <div class="empty-media-state">No media shared yet</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Main Content -->
       <div class="chat-main">
+        <!-- Mobile Sidebar Overlay -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
         <!-- Left Sidebar - Classes & Users -->
-        <aside class="sidebar-left">
+        <aside id="sidebar-left" class="sidebar-left">
           <div class="sidebar-header">
             <h3>Classes</h3>
           </div>
@@ -102,9 +123,17 @@
             <!-- Messages will be dynamically added here -->
           </div>
           <div class="message-input-area">
-            <button id="btn-attach-file" class="attach-btn" title="Attach file">
-              📎
-            </button>
+            <div class="input-actions-left">
+              <button id="btn-attach-file" class="attach-btn" title="Attach file">
+                📎
+              </button>
+              <button id="btn-emoji" class="emoji-btn" title="Insert Emoji">
+                😀
+              </button>
+              <div id="emoji-picker" class="emoji-picker hidden">
+                <!-- Emojis will be injected here -->
+              </div>
+            </div>
             <input type="file" id="file-input" class="hidden">
             <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
             <button id="btn-send-message" class="send-btn">

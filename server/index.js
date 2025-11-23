@@ -215,6 +215,32 @@ io.on('connection', (socket) => {
     callback();
   });
 
+  // Delete class (Teacher only)
+  socket.on('delete-class', ({ classId }, callback) => {
+    if (!activeClasses.has(classId)) {
+      return callback({ success: false, message: 'Class not found' });
+    }
+
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) {
+      return callback({ success: false, message: 'Only the teacher can delete the class' });
+    }
+
+    // Notify all students that the class has ended
+    io.to(classId).emit('class-ended', { message: 'Teacher has deleted the class', classId });
+
+    activeClasses.delete(classId);
+    broadcastActiveClasses();
+    console.log(`Class ${classId} deleted by teacher ${classData.teacherName} (${socket.id})`);
+
+    // Disconnect all sockets in the room from the room? 
+    // Actually, clients will handle the 'class-ended' event and leave/reset.
+    // But good practice to clear the room.
+    io.in(classId).socketsLeave(classId);
+
+    callback({ success: true });
+  });
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
 

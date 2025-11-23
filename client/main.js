@@ -37,17 +37,140 @@ const fileInput = document.getElementById("file-input");
 const usersList = document.getElementById("users-list");
 const userCount = document.getElementById("user-count");
 
+// Media History
+const mediaList = document.getElementById("media-list");
+const btnMediaToggle = document.getElementById("btn-media-toggle");
+const mediaPopup = document.getElementById("media-popup");
+
+// Emoji Picker
+const btnEmoji = document.getElementById("btn-emoji");
+const emojiPicker = document.getElementById("emoji-picker");
+const emojis = [
+    "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃",
+    "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😗", "😚", "😙",
+    "😋", "😛", "😜", "🤪", "😝", "🤑", "🤗", "🤭", "🤫", "🤔",
+    "🤐", "🤨", "😐", "😑", "😶", "😏", "😒", "🙄", "😬", "🤥",
+    "😌", "😔", "😪", "🤤", "😴", "😷", "🤒", "🤕", "🤢", "🤮",
+    "🤧", "🥵", "🥶", "🥴", "😵", "🤯", "🤠", "🥳", "😎", "🤓",
+    "🧐", "😕", "😟", "🙁", "😮", "😯", "😲", "😳", "🥺", "😦",
+    "😧", "😨", "😰", "😥", "😢", "😭", "😱", "😖", "😣", "😞",
+    "😓", "😩", "😫", "🥱", "😤", "😡", "😠", "🤬", "😈", "👿",
+    "💀", "☠️", "💩", "🤡", "👹", "👺", "👻", "👽", "👾", "🤖",
+    "👋", "🤚", "🖐", "✋", "🖖", "👌", "🤏", "✌️", "🤞", "🤟",
+    "🤘", "🤙", "👈", "👉", "👆", "🖕", "👇", "☝️", "👍", "👎",
+    "✊", "👊", "🤛", "🤜", "👏", "🙌", "👐", "🤲", "🤝", "🙏",
+    "✍️", "💅", "🤳", "💪", "🦾", "🦿", "🦵", "🦶", "👂", "🦻",
+    "👃", "🧠", "🫀", "🫁", "🦷", "🦴", "👀", "👁", "👅", "👄"
+];
+
+// Initialize Emoji Picker
+function initEmojiPicker() {
+    emojiPicker.innerHTML = "";
+    emojis.forEach(emoji => {
+        const span = document.createElement("span");
+        span.textContent = emoji;
+        span.classList.add("emoji-item");
+        span.addEventListener("click", () => {
+            insertEmoji(emoji);
+            emojiPicker.classList.add("hidden");
+        });
+        emojiPicker.appendChild(span);
+    });
+}
+
+initEmojiPicker();
+
+btnEmoji.addEventListener("click", (e) => {
+    e.stopPropagation();
+    emojiPicker.classList.toggle("hidden");
+});
+
+document.addEventListener("click", (e) => {
+    if (!btnEmoji.contains(e.target) && !emojiPicker.contains(e.target)) {
+        emojiPicker.classList.add("hidden");
+    }
+});
+
+function insertEmoji(emoji) {
+    const start = messageInput.selectionStart;
+    const end = messageInput.selectionEnd;
+    const text = messageInput.value;
+    const before = text.substring(0, start);
+    const after = text.substring(end, text.length);
+    messageInput.value = before + emoji + after;
+    messageInput.selectionStart = messageInput.selectionEnd = start + emoji.length;
+    messageInput.focus();
+}
+
+// Hamburger Menu & Mobile Sidebar
+const btnMenuToggle = document.getElementById("btn-menu-toggle");
+const sidebarLeft = document.getElementById("sidebar-left");
+const sidebarOverlay = document.getElementById("sidebar-overlay");
+
+if (btnMenuToggle) {
+    btnMenuToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        sidebarLeft.classList.toggle("active");
+        sidebarOverlay.classList.toggle("active");
+    });
+}
+
+if (sidebarOverlay) {
+    sidebarOverlay.addEventListener("click", () => {
+        sidebarLeft.classList.remove("active");
+        sidebarOverlay.classList.remove("active");
+    });
+}
+
+// Close sidebar when selecting a class on mobile
+function closeMobileSidebar() {
+    if (window.innerWidth <= 768) {
+        sidebarLeft.classList.remove("active");
+        sidebarOverlay.classList.remove("active");
+    }
+}
+
+// Media Modal Toggle
+const btnCloseMedia = document.getElementById("btn-close-media");
+
+btnMediaToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    mediaPopup.classList.remove("hidden");
+});
+
+btnCloseMedia.addEventListener("click", () => {
+    mediaPopup.classList.add("hidden");
+});
+
+// Close modal when clicking outside the content (on the backdrop)
+mediaPopup.addEventListener("click", (e) => {
+    if (e.target === mediaPopup) {
+        mediaPopup.classList.add("hidden");
+    }
+});
+
 // Socket Connection
 socket.on("connect", () => {
     connectionStatus.classList.remove("disconnected");
     connectionStatus.classList.add("connected");
-    console.log("Connected to server:", socket.id);
+    connectionStatus.textContent = "Connected";
+    connectionStatus.title = "Connected";
+
+    // Re-join if we were in a class
+    if (currentClassId && userName) {
+        console.log("Reconnecting to class", currentClassId);
+        joinClass(currentClassId, userName);
+    }
+
+    // Refresh active classes
     socket.emit("get-active-classes");
 });
 
 socket.on("disconnect", () => {
     connectionStatus.classList.remove("connected");
     connectionStatus.classList.add("disconnected");
+    connectionStatus.textContent = "Disconnected";
+    connectionStatus.title = "Disconnected";
 });
 
 socket.on("active-classes", (classes) => {
@@ -149,7 +272,40 @@ function switchClass(id) {
     renderSidebar();
     renderMessages();
     renderUsersList();
+    renderMediaHistory(); // Render media history
     messageInput.focus();
+
+    closeMobileSidebar(); // Close sidebar on mobile
+}
+
+function deleteClass(id) {
+    if (!confirm(`Are you sure you want to DELETE class ${id}? This will remove the class for everyone.`)) return;
+
+    socket.emit("delete-class", { classId: id }, (response) => {
+        if (response.success) {
+            joinedClasses.delete(id);
+            if (currentClassId === id) {
+                currentClassId = null;
+                // If no classes left, go back to setup
+                if (joinedClasses.size === 0) {
+                    chatInterface.classList.add("hidden");
+                    classSetup.classList.remove("hidden");
+                    // Reset to role selection if completely empty? Or stay in setup?
+                    // Requirement: "returns the app state to the class creation"
+                    // Let's go back to role selection to be safe/clean
+                    classSetup.classList.add("hidden");
+                    roleSelection.classList.remove("hidden");
+                    currentRole = null;
+                } else {
+                    switchClass(joinedClasses.keys().next().value);
+                }
+            } else {
+                renderSidebar();
+            }
+        } else {
+            alert(response.message);
+        }
+    });
 }
 
 function leaveClass(id) {
@@ -194,10 +350,17 @@ function renderSidebar() {
         // Icon logic
         let iconHtml = '';
         if (isJoined) {
-            iconHtml = `
-                <span class="class-icon status-icon joined-icon">✅</span>
-                <span class="class-icon status-icon leave-icon" title="Leave Class">❌</span>
-            `;
+            // Check if I am the teacher of this class
+            const classData = joinedClasses.get(id);
+            const isTeacher = classData.users.find(u => u.id === socket.id && u.role === 'teacher');
+
+            iconHtml = `<span class="class-icon status-icon joined-icon">✅</span>`;
+
+            if (isTeacher) {
+                iconHtml += `<span class="class-icon status-icon delete-icon" title="Delete Class">🗑️</span>`;
+            } else {
+                iconHtml += `<span class="class-icon status-icon leave-icon" title="Leave Class">❌</span>`;
+            }
         } else {
             iconHtml = `<span class="class-icon status-icon">➕</span>`;
         }
@@ -213,6 +376,9 @@ function renderSidebar() {
                 if (e.target.classList.contains("leave-icon")) {
                     e.stopPropagation();
                     leaveClass(id);
+                } else if (e.target.classList.contains("delete-icon")) {
+                    e.stopPropagation();
+                    deleteClass(id);
                 } else {
                     switchClass(id);
                 }
@@ -348,6 +514,9 @@ socket.on("new-message", (message) => {
         if (currentClassId === message.classId) {
             renderMessage(message);
             scrollToBottom();
+            if (message.type === 'file') {
+                renderMediaHistory(); // Update history on new file
+            }
         }
     }
 });
@@ -377,8 +546,8 @@ function renderMessage(message) {
           <div class="file-name">${escapeHtml(message.fileData.name)}</div>
           <div class="file-size">${formatFileSize(message.fileData.size)}</div>
         </div>
-        <button class="file-download" onclick="downloadFile('${message.fileData.data}', '${escapeHtml(message.fileData.name)}')">
-          Download
+        <button class="file-download-btn" onclick="downloadFile('${message.fileData.data}', '${escapeHtml(message.fileData.name)}')">
+          ⬇️
         </button>
       </div>
     `;
@@ -394,6 +563,42 @@ function renderMessage(message) {
     }
 
     messagesContainer.appendChild(messageDiv);
+}
+
+function renderMediaHistory() {
+    mediaList.innerHTML = "";
+    if (!currentClassId || !joinedClasses.has(currentClassId)) {
+        mediaList.innerHTML = '<div class="empty-media-state">No media shared yet</div>';
+        return;
+    }
+
+    const messages = joinedClasses.get(currentClassId).messages;
+    const fileMessages = messages.filter(msg => msg.type === 'file');
+
+    if (fileMessages.length === 0) {
+        mediaList.innerHTML = '<div class="empty-media-state">No media shared yet</div>';
+        return;
+    }
+
+    // Show newest first
+    fileMessages.slice().reverse().forEach(msg => {
+        const item = document.createElement("div");
+        item.classList.add("media-item");
+        item.innerHTML = `
+            <div class="media-icon">📄</div>
+            <div class="media-info">
+                <div class="media-name" title="${escapeHtml(msg.fileData.name)}">${escapeHtml(msg.fileData.name)}</div>
+                <div class="media-meta">
+                    <span>${formatFileSize(msg.fileData.size)}</span>
+                    <span>${msg.senderName}</span>
+                </div>
+            </div>
+            <button class="media-download-btn" title="Download" onclick="downloadFile('${msg.fileData.data}', '${escapeHtml(msg.fileData.name)}')">
+                ⬇️
+            </button>
+        `;
+        mediaList.appendChild(item);
+    });
 }
 
 function highlightMentions(text) {
@@ -519,7 +724,10 @@ socket.on("class-ended", ({ message, classId }) => {
                 switchClass(joinedClasses.keys().next().value);
             } else {
                 chatInterface.classList.add("hidden");
-                classSetup.classList.remove("hidden");
+                // Reset to role selection
+                classSetup.classList.add("hidden");
+                roleSelection.classList.remove("hidden");
+                currentRole = null;
             }
         } else {
             renderSidebar();
