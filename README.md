@@ -1,4 +1,4 @@
-# ClassSend (v3.8.0) Vibe Codes with Antigravity Gemini 3 pro and Claude 4.5
+# ClassSend (v3.8.0 Laterst) Vibe Codes with Antigravity Gemini 3 pro and Claude 4.5
 
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
@@ -19,9 +19,10 @@
 ## 📦 Download & Install
 Go to the [Releases](../../releases) page or check the `out/make` folder.
 
-- **Windows Installer (64-bit)**: `ClassSend-3.6.0 Setup.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-3.6.0.zip`
-- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-3.6.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-3.8.0 Setup64.exe`
+- **Windows Installer (32-bit)**: `ClassSend-3.8.0 Setup32.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-3.8.0.zip`
+- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-3.8.0.zip`
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:
