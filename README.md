@@ -1,8 +1,8 @@
-# ClassSend (v3.6.0) Vibe Codes with Antigravity Gemini 3 pro and Claude 4.5
+# ClassSend (v3.8.0) Vibe Codes with Antigravity Gemini 3 pro and Claude 4.5
 
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 New Features (v3.6.0)
+## 🚀 New Features (v3.8.0)
 - **Automatic Network Discovery**: Server automatically broadcasts on LAN. No need to type IP addresses!
 - **Zero-Typing Join**: Students see available classes automatically and join with one click.
 - **Drag-and-Drop**: Share files by dragging them directly into the chat. (it doesn't work yet)
