@@ -1,19 +1,27 @@
-# ClassSend (This App is vibecoded with Gemini 3 just for fun and personal use!)
+# ClassSend (v3.6.0) Vibe Codes with Antigravity Gemini 3 pro and Claude 4.5
 
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 Features
+## 🚀 New Features (v3.6.0)
+- **Automatic Network Discovery**: Server automatically broadcasts on LAN. No need to type IP addresses!
+- **Zero-Typing Join**: Students see available classes automatically and join with one click.
+- **Drag-and-Drop**: Share files by dragging them directly into the chat. (it doesn't work yet)
+- **TLS/HTTPS Encryption**: Optional secure connection mode (toggle in tray menu).
+- **File Sharing**: Students can share files with the class.
+- **The students can connect by using the browser and typing the IP address of the server. No application is needed.**
+
+## 🌟 Core Features
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
-- **File Sharing**: Drag-and-drop file sharing directly in the chat.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
 - **Cross-Platform**: Windows (exe), Mac, and Linux support via Electron.
 
 ## 📦 Download & Install
-Go to the [Releases](../../releases) page (if applicable) or check the `out/make` folder if you built it locally.
+Go to the [Releases](../../releases) page or check the `out/make` folder.
 
-- **Windows Installer**: `ClassSend-3.0.0 Setup.exe`
-- **Portable Zip**: `ClassSend-win32-x64-3.0.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-3.6.0 Setup.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-3.6.0.zip`
+- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-3.6.0.zip`
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:

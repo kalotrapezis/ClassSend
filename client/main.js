@@ -1,6 +1,11 @@
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:3000");
+// Connect to server dynamically - works for both localhost and LAN
+const serverUrl = window.location.origin;
+const socket = io(serverUrl);
+
+console.log(`Connecting to ClassSend server at: ${serverUrl}`);
+
 
 // State
 let currentRole = null; // 'teacher' or 'student'
@@ -12,6 +17,7 @@ let availableClasses = []; // [{ id, teacherName }]
 // DOM Elements - Screens
 const roleSelection = document.getElementById("role-selection");
 const classSetup = document.getElementById("class-setup");
+const availableClassesScreen = document.getElementById("available-classes");
 const chatInterface = document.getElementById("chat-interface");
 
 // DOM Elements - Setup
@@ -20,11 +26,16 @@ const classIdInput = document.getElementById("class-id-input");
 const userNameInput = document.getElementById("user-name-input");
 const btnSubmitSetup = document.getElementById("btn-submit-setup");
 const btnBack = document.getElementById("btn-back");
+const btnBackFromClasses = document.getElementById("btn-back-from-classes");
+
+// DOM Elements - Available Classes
+const availableClassesList = document.getElementById("available-classes-list");
+
+
 
 // DOM Elements - Chat
-const connectionStatus = document.getElementById("connection-status");
-const currentClassName = document.getElementById("current-class-name");
 const classesListContainer = document.querySelector(".classes-list");
+const currentClassName = document.getElementById("current-class-name");
 const userNameBtn = document.getElementById("user-name-btn");
 const userNameDropdown = document.getElementById("user-name-dropdown");
 const newNameInput = document.getElementById("new-name-input");
@@ -41,6 +52,17 @@ const userCount = document.getElementById("user-count");
 const mediaList = document.getElementById("media-list");
 const btnMediaToggle = document.getElementById("btn-media-toggle");
 const mediaPopup = document.getElementById("media-popup");
+const btnShowUrl = document.getElementById("btn-show-url");
+
+// Show Server URL Logic
+if (btnShowUrl) {
+    btnShowUrl.addEventListener("click", () => {
+        socket.emit("get-server-info", (info) => {
+            const url = `http://${info.ip}:${info.port}`;
+            alert(`Students can connect at:\n\n${url}\n\n(Type this in their browser)`);
+        });
+    });
+}
 
 // Emoji Picker
 const btnEmoji = document.getElementById("btn-emoji");
@@ -178,6 +200,10 @@ socket.on("active-classes", (classes) => {
     if (currentRole) {
         renderSidebar();
     }
+    // Update available classes screen if student is viewing it
+    if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
+        renderAvailableClasses();
+    }
 });
 
 // Role Selection
@@ -198,9 +224,13 @@ function showClassSetup() {
     if (currentRole === "teacher") {
         setupTitle.textContent = "Create Class";
         btnSubmitSetup.textContent = "Create Class";
+        // Show Class ID input for teachers
+        classIdInput.parentElement.style.display = 'flex';
     } else {
-        setupTitle.textContent = "Join Class";
-        btnSubmitSetup.textContent = "Join Class";
+        setupTitle.textContent = "Enter Your Name";
+        btnSubmitSetup.textContent = "Continue";
+        // Hide Class ID input for students
+        classIdInput.parentElement.style.display = 'none';
     }
 }
 
@@ -212,23 +242,29 @@ btnBack.addEventListener("click", () => {
     userNameInput.value = "";
 });
 
+btnBackFromClasses.addEventListener("click", () => {
+    availableClassesScreen.classList.add("hidden");
+    classSetup.classList.remove("hidden");
+});
+
 // Class Setup Submit
 btnSubmitSetup.addEventListener("click", () => {
-    const enteredClassId = classIdInput.value.trim();
     const enteredUserName = userNameInput.value.trim();
 
-    if (!enteredClassId) return alert("Please enter a Class ID");
     if (!enteredUserName) return alert("Please enter your name");
-
-    // If already joined, just switch
-    if (joinedClasses.has(enteredClassId)) {
-        switchClass(enteredClassId);
-        return;
-    }
 
     userName = enteredUserName;
 
     if (currentRole === "teacher") {
+        const enteredClassId = classIdInput.value.trim();
+        if (!enteredClassId) return alert("Please enter a Class ID");
+
+        // If already joined, just switch
+        if (joinedClasses.has(enteredClassId)) {
+            switchClass(enteredClassId);
+            return;
+        }
+
         socket.emit("create-class", { classId: enteredClassId, userName }, (response) => {
             if (response.success) {
                 joinedClasses.set(enteredClassId, {
@@ -236,15 +272,58 @@ btnSubmitSetup.addEventListener("click", () => {
                     users: [{ id: socket.id, name: userName, role: "teacher" }],
                     teacherName: userName
                 });
+
+                // Update UI with user name immediately
+                userNameBtn.textContent = `${userName} ▼`;
+
                 switchClass(enteredClassId);
             } else {
                 alert(response.message);
             }
         });
     } else {
-        joinClass(enteredClassId, userName);
+        // Student: show available classes screen
+        classSetup.classList.add("hidden");
+        availableClassesScreen.classList.remove("hidden");
+        // Request active classes from server
+        socket.emit("get-active-classes");
+        renderAvailableClasses();
     }
 });
+
+// Render Available Classes for Students
+function renderAvailableClasses() {
+    availableClassesList.innerHTML = "";
+
+    if (availableClasses.length === 0) {
+        availableClassesList.innerHTML = `
+            <div class="empty-state">
+                <div class="spinner"></div>
+                <div>No classes available. Waiting for teacher...</div>
+            </div>`;
+        return;
+    }
+
+    availableClasses.forEach(classInfo => {
+        const classCard = document.createElement("div");
+        classCard.classList.add("available-class-card");
+
+        classCard.innerHTML = `
+            <div class="class-card-icon">📚</div>
+            <div class="class-card-info">
+                <div class="class-card-name">${escapeHtml(classInfo.id)}</div>
+                <div class="class-card-teacher">Teacher: ${escapeHtml(classInfo.teacherName)}</div>
+            </div>
+            <button class="class-card-join-btn">Join →</button>
+        `;
+
+        classCard.addEventListener("click", () => {
+            joinClass(classInfo.id, userName);
+        });
+
+        availableClassesList.appendChild(classCard);
+    });
+}
 
 function joinClass(classIdToJoin, nameToUse) {
     socket.emit("join-class", { classId: classIdToJoin, userName: nameToUse }, (response) => {
@@ -264,6 +343,7 @@ function joinClass(classIdToJoin, nameToUse) {
 function switchClass(id) {
     currentClassId = id;
     classSetup.classList.add("hidden");
+    availableClassesScreen.classList.add("hidden");
     chatInterface.classList.remove("hidden");
 
     currentClassName.textContent = currentClassId;
@@ -335,25 +415,33 @@ function renderSidebar() {
     classesListContainer.innerHTML = "";
 
     // Combine joined and available classes
-    // Use a Set to track unique IDs to avoid duplicates if a class is in both lists (shouldn't happen logic-wise but good safety)
     const allClassIds = new Set([...joinedClasses.keys(), ...availableClasses.map(c => c.id)]);
 
     allClassIds.forEach(id => {
-        const isJoined = joinedClasses.has(id);
         const isActive = id === currentClassId;
+        // Robust check: We are joined if it's in the map OR if it's the currently active class
+        const isJoined = joinedClasses.has(id) || isActive;
 
         const item = document.createElement("div");
         item.classList.add("class-item");
         if (isActive) item.classList.add("active");
         if (isJoined) item.classList.add("joined");
 
+        // Determine if I am the teacher
+        let isTeacher = false;
+        if (joinedClasses.has(id)) {
+            const classData = joinedClasses.get(id);
+            const users = classData.users || [];
+            isTeacher = users.find(u => u.id === socket.id && u.role === 'teacher');
+        } else if (isActive) {
+            // Fallback: if we are in the class but not in map (rare), use currentRole
+            isTeacher = (currentRole === 'teacher');
+        }
+
         // Icon logic
         let iconHtml = '';
         if (isJoined) {
-            // Check if I am the teacher of this class
-            const classData = joinedClasses.get(id);
-            const isTeacher = classData.users.find(u => u.id === socket.id && u.role === 'teacher');
-
+            // Show checkmark for joined classes
             iconHtml = `<span class="class-icon status-icon joined-icon">✅</span>`;
 
             if (isTeacher) {
@@ -385,13 +473,9 @@ function renderSidebar() {
             });
         } else {
             item.addEventListener("click", () => {
-                // Join with current name if already set, otherwise ask (or go back to setup?)
-                // For now assume we use the name set in setup if available, or prompt?
-                // Actually, if we are in chat view, 'userName' is already set.
                 if (userName) {
                     joinClass(id, userName);
                 } else {
-                    // Should not happen if we are in chat view
                     alert("Please setup your name first");
                 }
             });
@@ -506,6 +590,80 @@ fileInput.addEventListener("change", async (e) => {
     };
     reader.readAsDataURL(file);
 });
+
+// Drag-and-Drop File Upload
+let dragCounter = 0;
+
+// Create drag overlay
+const dragOverlay = document.createElement('div');
+dragOverlay.className = 'drag-overlay hidden';
+dragOverlay.innerHTML = `
+    <div class="drag-overlay-content">
+        <div class="drag-icon">📁</div>
+        <div class="drag-text">Drop files here to send</div>
+    </div>
+`;
+document.body.appendChild(dragOverlay);
+
+// Prevent default drag behavior and handle drag-and-drop
+document.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter++;
+    if (currentClassId && chatInterface && !chatInterface.classList.contains('hidden')) {
+        dragOverlay.classList.remove('hidden');
+    }
+}, false);
+
+document.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter--;
+    if (dragCounter === 0) {
+        dragOverlay.classList.add('hidden');
+    }
+}, false);
+
+document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+}, false);
+
+document.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    dragCounter = 0;
+    dragOverlay.classList.add('hidden');
+
+    if (!currentClassId) return;
+    if (chatInterface.classList.contains('hidden')) return;
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    // Send each file
+    for (const file of files) {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = reader.result;
+
+            socket.emit("send-message", {
+                classId: currentClassId,
+                content: `Shared a file: ${file.name}`,
+                type: "file",
+                fileData: {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    data: base64
+                }
+            });
+        };
+        reader.readAsDataURL(file);
+    }
+}, false);
+
 
 // Receive Message
 socket.on("new-message", (message) => {

@@ -6,8 +6,8 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ClassSend</title>
-  <script type="module" crossorigin src="/assets/index-eDGrZ-x6.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DjvGMlhI.css">
+  <script type="module" crossorigin src="/assets/index-BxTbK3qu.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-jkyk3Bx5.css">
 </head>
 
 <body>
@@ -27,8 +27,11 @@
             <span class="role-label">Student</span>
           </button>
         </div>
+
       </div>
     </div>
+
+
 
     <!-- Class Setup Screen (Teacher/Student) -->
     <div id="class-setup" class="screen hidden">
@@ -47,6 +50,19 @@
           <button id="btn-submit-setup" class="primary-btn">Create Class</button>
           <button id="btn-back" class="secondary-btn">Back</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Available Classes Screen (Student Only) -->
+    <div id="available-classes" class="screen hidden">
+      <div class="screen-content">
+        <h1>ClassSend</h1>
+        <h2>Available Classes</h2>
+        <div id="available-classes-list" class="available-classes-list">
+          <!-- Classes will be dynamically added here -->
+          <div class="empty-state">Looking for classes...</div>
+        </div>
+        <button id="btn-back-from-classes" class="secondary-btn">Back</button>
       </div>
     </div>
 
@@ -70,6 +86,7 @@
               <button id="btn-change-name" class="dropdown-btn">Change Name</button>
             </div>
           </div>
+          <button id="btn-show-url" class="header-btn" title="Show Server URL">🌐</button>
           <button id="btn-media-toggle" class="header-btn media-btn" title="Media Library">
             🖼️ Library
           </button>

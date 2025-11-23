@@ -6,6 +6,17 @@ let mainWindow;
 let tray;
 let isQuitting = false;
 
+// Ignore certificate errors for self-signed certificates (development only)
+app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+    // Only for localhost
+    if (url.startsWith('https://localhost')) {
+        event.preventDefault();
+        callback(true); // Trust the certificate
+    } else {
+        callback(false);
+    }
+});
+
 function createWindow() {
     const iconPath = path.join(__dirname, 'public', 'tray.png');
     mainWindow = new BrowserWindow({
@@ -19,8 +30,13 @@ function createWindow() {
     });
 
     // Load the local server URL
-    // Assuming the server runs on port 3000 by default
-    mainWindow.loadURL('http://localhost:3000');
+    // Use HTTPS if TLS is enabled, otherwise HTTP
+    const protocol = process.env.USE_TLS === 'true' ? 'https' : 'http';
+    const serverUrl = `${protocol}://localhost:3000`;
+
+    console.log(`Loading window from: ${serverUrl}`);
+    mainWindow.loadURL(serverUrl);
+
 
     mainWindow.on('close', (event) => {
         if (!isQuitting) {
@@ -65,6 +81,35 @@ function createTray() {
                     app.setLoginItemSettings({
                         openAtLogin: menuItem.checked
                     });
+                }
+            },
+            {
+                type: 'separator'
+            },
+            {
+                label: 'Enable TLS/HTTPS',
+                type: 'checkbox',
+                checked: process.env.USE_TLS === 'true',
+                click: async (menuItem) => {
+                    const { dialog } = require('electron');
+                    const result = await dialog.showMessageBox({
+                        type: 'question',
+                        buttons: ['Yes', 'No'],
+                        title: 'Restart Required',
+                        message: 'Changing TLS settings requires restarting the application. Continue?'
+                    });
+
+                    if (result.response === 0) {
+                        // Set environment variable
+                        process.env.USE_TLS = menuItem.checked ? 'true' : 'false';
+
+                        // Restart app
+                        app.relaunch();
+                        app.exit(0);
+                    } else {
+                        // Revert checkbox
+                        menuItem.checked = !menuItem.checked;
+                    }
                 }
             },
             {
