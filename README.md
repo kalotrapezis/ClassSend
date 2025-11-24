@@ -1,4 +1,5 @@
 # ClassSend (v3.8.0 Laterst) Vibe Codes with Antigravity Gemini 3 pro and Claude 4.5
+## The moment the models start segmenting their code and compressing their "thoughts" to fit inside the context window vibe coding is not a  thing. Clause it shelf acknowledged that it could not make a single line change I asked it to, and suggested to me to just make it by hand 😊. But all and all is a big improvement, I would consider it a proper app with a few bugs, not a simple mockup of an application.
 
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
