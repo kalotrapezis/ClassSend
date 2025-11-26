@@ -35,7 +35,6 @@ const availableClassesList = document.getElementById("available-classes-list");
 
 // DOM Elements - Chat
 const classesListContainer = document.querySelector(".classes-list");
-const currentClassName = document.getElementById("current-class-name");
 const userNameBtn = document.getElementById("user-name-btn");
 const userNameDropdown = document.getElementById("user-name-dropdown");
 const newNameInput = document.getElementById("new-name-input");
@@ -47,6 +46,7 @@ const btnAttachFile = document.getElementById("btn-attach-file");
 const fileInput = document.getElementById("file-input");
 const usersList = document.getElementById("users-list");
 const userCount = document.getElementById("user-count");
+const connectionStatus = document.getElementById("connection-status");
 
 // Media History
 const mediaList = document.getElementById("media-list");
@@ -154,6 +154,7 @@ function closeMobileSidebar() {
 
 // Media Modal Toggle
 const btnCloseMedia = document.getElementById("btn-close-media");
+const btnDownloadAll = document.getElementById("btn-download-all");
 
 btnMediaToggle.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -162,6 +163,23 @@ btnMediaToggle.addEventListener("click", (e) => {
 
 btnCloseMedia.addEventListener("click", () => {
     mediaPopup.classList.add("hidden");
+});
+
+// Download All Files
+btnDownloadAll.addEventListener("click", () => {
+    if (!currentClassId || !joinedClasses.has(currentClassId)) return;
+
+    const messages = joinedClasses.get(currentClassId).messages;
+    const fileMessages = messages.filter(msg => msg.type === 'file');
+
+    if (fileMessages.length === 0) return;
+
+    // Download each file with a small delay to avoid browser blocking
+    fileMessages.forEach((msg, index) => {
+        setTimeout(() => {
+            downloadFile(msg.fileData.data, msg.fileData.name);
+        }, index * 100); // 100ms delay between downloads
+    });
 });
 
 // Close modal when clicking outside the content (on the backdrop)
@@ -346,7 +364,6 @@ function switchClass(id) {
     availableClassesScreen.classList.add("hidden");
     chatInterface.classList.remove("hidden");
 
-    currentClassName.textContent = currentClassId;
     userNameBtn.textContent = `${userName} ▼`;
 
     renderSidebar();
@@ -727,6 +744,7 @@ function renderMediaHistory() {
     mediaList.innerHTML = "";
     if (!currentClassId || !joinedClasses.has(currentClassId)) {
         mediaList.innerHTML = '<div class="empty-media-state">No media shared yet</div>';
+        btnDownloadAll.disabled = true;
         return;
     }
 
@@ -735,8 +753,12 @@ function renderMediaHistory() {
 
     if (fileMessages.length === 0) {
         mediaList.innerHTML = '<div class="empty-media-state">No media shared yet</div>';
+        btnDownloadAll.disabled = true;
         return;
     }
+
+    // Enable download all button
+    btnDownloadAll.disabled = false;
 
     // Show newest first
     fileMessages.slice().reverse().forEach(msg => {
