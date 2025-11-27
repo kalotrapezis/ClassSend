@@ -1,5 +1,52 @@
 # ClassSend Release Notes
 
+## Version 3.9.1 (2025-11-27)
+
+### Major Features
+
+#### Smart Message Action Buttons
+- **Mobile-Style Design**: Action buttons now appear inline on a second line within messages, similar to modern mobile messaging apps
+- **Context-Aware Buttons**: Different buttons appear based on message content:
+  - **Text Messages**: 📋 Copy to clipboard button (shows ✅ confirmation)
+  - **Messages with Emails**: ✉️ Mailto button to open email client
+  - **Messages with URLs**: 🔗 Open link button (opens in new tab)
+  - **File Messages**: ⬇️ Download button
+  - **Image Files**: 👁️ Open in viewer + ⬇️ Download buttons
+- **Unified Style**: All buttons use consistent 28px height, rounded design, and smooth animations
+- **Hover Effects**: Buttons fade in on hover (60% → 100% opacity) with scale animation
+
+#### Enhanced File Upload System
+- **Inline Upload Progress**: Progress bar now appears as a message bubble in the chat
+  - Shows file name, size, and real-time upload percentage
+  - Automatically disappears 1 second after completion
+  - Smooth animated progress bar with status text
+- **Increased File Size Limit**: Now supports files up to 10MB (increased from ~1MB)
+- **File Size Validation**: Clear error messages for oversized files
+- **Better Error Handling**: Improved feedback for upload failures
+
+#### Improved Reliability
+- **Grace Period for Disconnections**: 10-second grace period before deleting classes when teacher disconnects
+  - Prevents class deletion during temporary network interruptions
+  - Automatic reconnection without losing class data
+  - Seamless file upload experience even with brief disconnections
+- **Message Header Fix**: Sender names and timestamps now display correctly in all messages
+
+### Technical Improvements
+- Increased Socket.IO `maxHttpBufferSize` to 10MB for large file support
+- Added URL detection with regex pattern matching
+- Implemented proper event listeners for all action buttons (no inline onclick)
+- Different icons for images (🖼️) vs documents (📄)
+- Enhanced CSS with mobile-inspired button styles
+
+### UI/UX Enhancements
+- Cleaner message layout with inline action buttons
+- Smaller, more compact button design
+- Consistent spacing and sizing across all button types
+- Smooth scale animations on button interactions
+- Semi-transparent button backgrounds for modern look
+
+---
+
 ## Version 3.9.0 (2025-11-26)
 
 ### New Features

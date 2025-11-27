@@ -710,31 +710,102 @@ function renderMessage(message) {
     messageDiv.classList.add("message");
 
     if (message.type === "file") {
+        const isImage = message.fileData.type && message.fileData.type.startsWith('image/');
+
         messageDiv.innerHTML = `
       <div class="message-header">
         <span class="message-sender ${message.senderRole}">${escapeHtml(message.senderName)}</span>
         <span class="message-time">${formatTime(message.timestamp)}</span>
       </div>
       <div class="file-message">
-        <span class="file-icon">📄</span>
+        <span class="file-icon">${isImage ? '🖼️' : '📄'}</span>
         <div class="file-info">
           <div class="file-name">${escapeHtml(message.fileData.name)}</div>
           <div class="file-size">${formatFileSize(message.fileData.size)}</div>
+          <div class="message-actions">
+            ${isImage ? '<button class="action-btn open-btn" title="Open Image">👁️</button>' : ''}
+            <button class="action-btn download-btn" title="Download">⬇️</button>
+          </div>
         </div>
-        <button class="file-download-btn" onclick="downloadFile('${message.fileData.data}', '${escapeHtml(message.fileData.name)}')">
-          ⬇️
-        </button>
       </div>
     `;
+
+        // Add event listeners
+        const downloadBtn = messageDiv.querySelector('.download-btn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', () => downloadFile(message.fileData.data, message.fileData.name));
+        }
+
+        if (isImage) {
+            const openBtn = messageDiv.querySelector('.open-btn');
+            if (openBtn) {
+                openBtn.addEventListener('click', () => {
+                    const win = window.open();
+                    win.document.write(`<img src="${message.fileData.data}" style="max-width:100%; height:auto;" />`);
+                });
+            }
+        }
     } else {
         const contentWithMentions = highlightMentions(message.content);
+
+        // Detect URLs
+        const urlRegex = /(https?:\/\/[^\s]+)/gi;
+        const hasUrl = urlRegex.test(message.content);
+
+        // Detect emails
+        const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+        const hasEmail = emailRegex.test(message.content);
+
         messageDiv.innerHTML = `
       <div class="message-header">
         <span class="message-sender ${message.senderRole}">${escapeHtml(message.senderName)}</span>
         <span class="message-time">${formatTime(message.timestamp)}</span>
       </div>
-      <div class="message-content">${contentWithMentions}</div>
+      <div class="message-content">
+        ${contentWithMentions}
+        <div class="message-actions">
+          <button class="action-btn copy-btn" title="Copy">📋</button>
+          ${hasEmail ? '<button class="action-btn mailto-btn" title="Email">✉️</button>' : ''}
+          ${hasUrl ? '<button class="action-btn url-btn" title="Open Link">🔗</button>' : ''}
+        </div>
+      </div>
     `;
+
+        // Copy button
+        const copyBtn = messageDiv.querySelector('.copy-btn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(message.content);
+                    copyBtn.textContent = '✅';
+                    setTimeout(() => copyBtn.textContent = '📋', 1500);
+                } catch (err) {
+                    alert('Failed to copy');
+                }
+            });
+        }
+
+        // Mailto button
+        if (hasEmail) {
+            const mailtoBtn = messageDiv.querySelector('.mailto-btn');
+            if (mailtoBtn) {
+                mailtoBtn.addEventListener('click', () => {
+                    const emails = message.content.match(emailRegex);
+                    if (emails) window.location.href = `mailto:${emails[0]}`;
+                });
+            }
+        }
+
+        // URL button
+        if (hasUrl) {
+            const urlBtn = messageDiv.querySelector('.url-btn');
+            if (urlBtn) {
+                urlBtn.addEventListener('click', () => {
+                    const urls = message.content.match(urlRegex);
+                    if (urls) window.open(urls[0], '_blank');
+                });
+            }
+        }
     }
 
     messagesContainer.appendChild(messageDiv);

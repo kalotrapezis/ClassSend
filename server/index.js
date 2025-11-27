@@ -34,11 +34,15 @@ const io = new Server(server, {
   cors: {
     origin: "*", // Allow all origins for local network dev
     methods: ["GET", "POST"]
-  }
+  },
+  maxHttpBufferSize: 10 * 1024 * 1024 // 10MB max message size (for file uploads)
 });
 
-const activeClasses = new Map(); // classId -> { teacherId, students: [] }
+const activeClasses = new Map(); // classId -> { teacherId, students: [], deletionTimeout: null }
 const networkDiscovery = new NetworkDiscovery();
+
+// Grace period for teacher disconnections (10 seconds)
+const TEACHER_DISCONNECT_GRACE_PERIOD = 10000;
 
 
 io.on('connection', (socket) => {
@@ -68,7 +72,8 @@ io.on('connection', (socket) => {
       teacherName: userName,
       students: [],
       messages: [],
-      users: [{ id: socket.id, name: userName, role: 'teacher' }]
+      users: [{ id: socket.id, name: userName, role: 'teacher' }],
+      deletionTimeout: null // Initialize deletion timeout
     });
     socket.join(classId);
     console.log(`Class created: ${classId} by ${userName} (${socket.id})`);
@@ -80,6 +85,13 @@ io.on('connection', (socket) => {
     const classData = activeClasses.get(classId);
     if (!classData) {
       return callback({ success: false, message: 'Class not found' });
+    }
+
+    // If teacher is reconnecting, cancel deletion timeout
+    if (userName === classData.teacherName && classData.deletionTimeout) {
+      console.log(`Teacher ${userName} reconnected to class ${classId}, cancelling deletion`);
+      clearTimeout(classData.deletionTimeout);
+      classData.deletionTimeout = null;
     }
 
     // Check if name is taken
@@ -294,6 +306,12 @@ io.on('connection', (socket) => {
       return callback({ success: false, message: 'Only the teacher can delete the class' });
     }
 
+    // Cancel any pending deletion timeout
+    if (classData.deletionTimeout) {
+      clearTimeout(classData.deletionTimeout);
+      classData.deletionTimeout = null;
+    }
+
     // Notify all students that the class has ended
     io.to(classId).emit('class-ended', { message: 'Teacher has deleted the class', classId });
 
@@ -346,14 +364,23 @@ io.on('connection', (socket) => {
       discoveryBrowser.stop();
     }
 
-    // Check if user was a teacher and remove their class
+    // Check if user was a teacher and schedule class deletion with grace period
     for (const [classId, classData] of activeClasses.entries()) {
       if (classData.teacherId === socket.id) {
-        // Notify all students that the class has ended
-        io.to(classId).emit('class-ended', { message: 'Teacher has disconnected', classId });
-        activeClasses.delete(classId);
-        broadcastActiveClasses();
-        console.log(`Class ${classId} removed (teacher disconnected)`);
+        // Don't delete immediately - give teacher time to reconnect (e.g., during file upload)
+        console.log(`Teacher disconnected from class ${classId}, starting ${TEACHER_DISCONNECT_GRACE_PERIOD}ms grace period`);
+
+        classData.deletionTimeout = setTimeout(() => {
+          // Only delete if class still exists and timeout wasn't cancelled
+          if (activeClasses.has(classId)) {
+            console.log(`Grace period expired for class ${classId}, deleting class`);
+            // Notify all students that the class has ended
+            io.to(classId).emit('class-ended', { message: 'Teacher has disconnected', classId });
+            activeClasses.delete(classId);
+            broadcastActiveClasses();
+          }
+        }, TEACHER_DISCONNECT_GRACE_PERIOD);
+
         return;
       }
 
