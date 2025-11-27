@@ -8,7 +8,7 @@
 - **⚡ Smart Action Buttons**: Copy 📋, Email ✉️, Open Link 🔗, Download ⬇️, and Open Image 👁️ buttons appear automatically based on context.
 - **📊 Inline Progress**: File upload progress is now shown directly inside the message bubble.
 - **📱 Mobile-Friendly**: Improved UI with touch-optimized buttons and cleaner layout.
-- **Automatic Network Discovery**: Server automatically broadcasts on LAN. No need to type IP addresses!
+- **Automatic Network Discovery**: Server automatically broadcasts on LAN. No need to type IP addresses! (not yet)
 - **Zero-Typing Join**: Students see available classes automatically and join with one click.
 - **Drag-and-Drop**: Share files by dragging them directly into the chat.
 - **Web Access**: Students can connect via browser by typing the IP address. No app installation needed.
