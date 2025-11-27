@@ -3,13 +3,15 @@
 
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 New Features (v3.9.0)
+## 🚀 New Features (v4.0.0)
+- **🛡️ Advanced Content Filtering**: Real-time detection of inappropriate content (Greek/English/Turkish). Disables send button and flags users 🚩.
+- **⚡ Smart Action Buttons**: Copy 📋, Email ✉️, Open Link 🔗, Download ⬇️, and Open Image 👁️ buttons appear automatically based on context.
+- **📊 Inline Progress**: File upload progress is now shown directly inside the message bubble.
+- **📱 Mobile-Friendly**: Improved UI with touch-optimized buttons and cleaner layout.
 - **Automatic Network Discovery**: Server automatically broadcasts on LAN. No need to type IP addresses!
 - **Zero-Typing Join**: Students see available classes automatically and join with one click.
-- **Drag-and-Drop**: Share files by dragging them directly into the chat. (it doesn't work yet)
-- **TLS/HTTPS Encryption**: Optional secure connection mode (toggle in tray menu).
-- **File Sharing**: Students can share files with the class.
-- **The students can connect by using the browser and typing the IP address of the server. No application is needed.**
+- **Drag-and-Drop**: Share files by dragging them directly into the chat.
+- **Web Access**: Students can connect via browser by typing the IP address. No app installation needed.
 
 ## 🌟 Core Features
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.

@@ -1,5 +1,35 @@
 # ClassSend Release Notes
 
+## Version 4.0.0 (Major Release)
+**New Features & Enhancements:**
+
+### 🛡️ Advanced Content Filtering
+- **Real-time Detection**: Automatically scans messages for inappropriate content in Greek, English, and Turkish.
+- **Accent-Insensitive**: Smart detection ignores accents (e.g., detects both "malaka" and "μαλάκα").
+- **Prevention**: Disables the "Send" button immediately when inappropriate content is detected.
+- **User Flagging**: Flags users who attempt to send inappropriate messages with a red flag (🚩) visible to everyone.
+- **Visual Feedback**: Displays a warning message and highlights the input field.
+
+### ⚡ Smart Action Buttons
+- **Context-Aware**: Buttons appear based on message content.
+- **Copy (📋)**: Quickly copy text messages.
+- **Email (✉️)**: One-click "mailto" for detected email addresses.
+- **Open Link (🔗)**: Automatically detects URLs and provides a button to open them.
+- **Download (⬇️)**: Easy download for shared files.
+- **Open Image (👁️)**: Preview images directly in a new tab.
+
+### 🚀 Improved File Sharing
+- **Inline Progress Bar**: Upload progress is now shown directly inside the message bubble.
+- **Larger Files**: Support for file uploads up to 10MB.
+- **Drag & Drop**: Enhanced drag-and-drop experience.
+
+### 📱 UI/UX Improvements
+- **Mobile-Friendly**: Action buttons are optimized for touch targets.
+- **Refined Styling**: Cleaner message bubbles and consistent iconography.
+- **Grace Period**: 10-second grace period for teacher disconnections to prevent accidental class deletion.
+
+---
+
 ## Version 3.9.1 (2025-11-27)
 
 ### Major Features

@@ -216,6 +216,15 @@ io.on('connection', (socket) => {
     console.log(`Message from ${user.name} in ${classId}: ${type === 'text' ? content : 'file'}`);
   });
 
+  // User flagged for inappropriate content
+  socket.on('user-flagged', ({ classId, userId, userName }) => {
+    if (!activeClasses.has(classId)) return;
+
+    // Broadcast to all participants in the class
+    io.to(classId).emit('user-was-flagged', { userId, userName });
+    console.log(`User ${userName} (${userId}) flagged in class ${classId}`);
+  });
+
   // Change user name
   socket.on('change-user-name', ({ classId, newName }, callback) => {
     if (!activeClasses.has(classId)) {
