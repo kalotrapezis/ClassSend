@@ -1,5 +1,19 @@
 # ClassSend Release Notes
 
+## Version 4.1.0 (UI & Network Refinements)
+**Enhancements:**
+
+### 🎨 UI Refinements
+- **Centered Modals**: "Media Library" and "Connection Info" are now properly centered overlay windows.
+- **Header Layout**: Moved "Globe" and "Library" buttons to the left side for better accessibility.
+- **Mutual Exclusivity**: Opening one modal automatically closes others to keep the UI clean.
+
+### 🌐 Network Improvements
+- **Simplified Hostnames**: Removed the `C-` prefix from mDNS hostnames (e.g., `math.local` instead of `C-math.local`).
+- **Connection Info**: Added a toggle for "Standard IP" vs "Short Name" to help users on networks that block mDNS (like mobile hotspots).
+
+---
+
 ## Version 4.0.0 (Major Release)
 **New Features & Enhancements:**
 

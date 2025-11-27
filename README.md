@@ -1,17 +1,21 @@
-# ClassSend (v3.9.0 Laterst) Vibe Codes with Antigravity Gemini 3 pro and Claude 4.5
-## The moment the models start segmenting their code and compressing their "thoughts" to fit inside the context window vibe coding is not a  thing. Clause it shelf acknowledged that it could not make a single line change I asked it to, and suggested to me to just make it by hand 😊. But all and all is a big improvement, I would consider it a proper app with a few bugs, not a simple mockup of an application.
-
+# ClassSend (v4.1.0 Latest)
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 New Features (v4.0.0)
-- **🛡️ Advanced Content Filtering**: Real-time detection of inappropriate content (Greek/English/Turkish). Disables send button and flags users 🚩.
-- **⚡ Smart Action Buttons**: Copy 📋, Email ✉️, Open Link 🔗, Download ⬇️, and Open Image 👁️ buttons appear automatically based on context.
-- **📊 Inline Progress**: File upload progress is now shown directly inside the message bubble.
-- **📱 Mobile-Friendly**: Improved UI with touch-optimized buttons and cleaner layout.
-- **Automatic Network Discovery**: Server automatically broadcasts on LAN. No need to type IP addresses!
-- **Zero-Typing Join**: Students see available classes automatically and join with one click.
-- **Drag-and-Drop**: Share files by dragging them directly into the chat.
-- **Web Access**: Students can connect via browser by typing the IP address. No app installation needed.
+## 🚀 New Features (v4.1.0)
+- **🎨 Refined UI**: "Media Library" and "Connection Info" are now beautiful, centered overlay windows.
+- **🌐 Network Flexibility**: New "Connection Info" modal allows switching between **Standard IP** (works everywhere, including hotspots) and **Short Name** (e.g., `math.local`).
+- **🔗 Simplified Addresses**: Class addresses are now shorter and easier to type (removed `C-` prefix).
+- **🛡️ Advanced Content Filtering**: Real-time detection of inappropriate content (Greek/English/Turkish).
+- **⚡ Smart Action Buttons**: Context-aware buttons for Copy 📋, Email ✉️, Open Link 🔗, and Download ⬇️.
+
+## 📖 How to Use
+1.  **Start the App**: Open ClassSend on the teacher's computer.
+2.  **Create a Class**: Enter a Class ID (e.g., "Math") and your name.
+3.  **Connect Students**:
+    *   Click the **Globe Icon (🌐)** in the top header.
+    *   **Option A (Easiest)**: Toggle "Short Name" ON. Students type `http://math.local:3000` in their browser.
+    *   **Option B (Reliable)**: If on a **mobile hotspot** or if Option A fails, toggle "Standard IP" ON. Students type the IP address shown (e.g., `http://192.168.1.5:3000`).
+4.  **Share**: Drag and drop files or type messages. Everything is shared instantly over the local network!
 
 ## 🌟 Core Features
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
@@ -22,10 +26,10 @@
 ## 📦 Download & Install
 Go to the [Releases](../../releases) page or check the `out/make` folder.
 
-- **Windows Installer (64-bit)**: `ClassSend-3.9.0 Setup64.exe`
-- **Windows Installer (32-bit)**: `ClassSend-3.9.0 Setup32.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-3.9.0.zip`
-- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-3.9.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-4.1.0 Setup.exe`
+- **Windows Installer (32-bit)**: `ClassSend-4.1.0 Setup.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-4.1.0.zip`
+- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-4.1.0.zip`
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:

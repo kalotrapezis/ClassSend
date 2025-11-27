@@ -65,9 +65,6 @@ let serverInfo = null; // { ip, port, hostname }
 
 if (btnShowUrl) {
     btnShowUrl.addEventListener("click", () => {
-        // Close Media Library if open
-        mediaPopup.classList.add("hidden");
-
         socket.emit("get-server-info", { classId: currentClassId }, (info) => {
             serverInfo = info;
             updateConnectionUrl();
@@ -209,8 +206,6 @@ const btnDownloadAll = document.getElementById("btn-download-all");
 
 btnMediaToggle.addEventListener("click", (e) => {
     e.stopPropagation();
-    // Close Connection Modal if open
-    connectionModal.classList.add("hidden");
     mediaPopup.classList.remove("hidden");
 });
 

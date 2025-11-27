@@ -77,6 +77,15 @@ io.on('connection', (socket) => {
     });
     socket.join(classId);
     console.log(`Class created: ${classId} by ${userName} (${socket.id})`);
+
+    // Publish mDNS hostname for the class
+    if (networkDiscovery) {
+      // Sanitize classId to be hostname-safe (alphanumeric + hyphens)
+      const safeClassId = classId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+      const hostname = `${safeClassId}.local`;
+      networkDiscovery.publishClassHostname(classId, hostname);
+    }
+
     broadcastActiveClasses();
     callback({ success: true });
   });
@@ -297,10 +306,33 @@ io.on('connection', (socket) => {
   });
 
   // Get Server Info (IP/Port)
-  socket.on('get-server-info', (callback) => {
+  // Get Server Info (IP/Port)
+  socket.on('get-server-info', (arg1, arg2) => {
+    // Handle variable arguments: (callback) or (data, callback)
+    let data = {};
+    let callback = arg1;
+
+    if (typeof arg1 === 'object' && arg1 !== null) {
+      data = arg1;
+      callback = arg2;
+    }
+
+    if (typeof callback !== 'function') {
+      console.error('get-server-info: callback is not a function');
+      return;
+    }
+
+    const { classId } = data;
+    let hostname = null;
+    if (classId) {
+      const safeClassId = classId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+      hostname = `${safeClassId}.local`;
+    }
+
     callback({
       ip: networkDiscovery.localIP || 'localhost',
-      port: process.env.PORT || 3000
+      port: process.env.PORT || 3000,
+      hostname: hostname
     });
   });
 
@@ -325,6 +357,12 @@ io.on('connection', (socket) => {
     io.to(classId).emit('class-ended', { message: 'Teacher has deleted the class', classId });
 
     activeClasses.delete(classId);
+
+    // Unpublish mDNS hostname
+    if (networkDiscovery) {
+      networkDiscovery.unpublishClassHostname(classId);
+    }
+
     broadcastActiveClasses();
     console.log(`Class ${classId} deleted by teacher ${classData.teacherName} (${socket.id})`);
 

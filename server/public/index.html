@@ -6,8 +6,8 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ClassSend</title>
-  <script type="module" crossorigin src="/assets/index-BZwswFFq.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DExX2QiA.css">
+  <script type="module" crossorigin src="/assets/index-0vVH4thE.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BgK72DRD.css">
 </head>
 
 <body>
@@ -30,8 +30,6 @@
 
       </div>
     </div>
-
-
 
     <!-- Class Setup Screen (Teacher/Student) -->
     <div id="class-setup" class="screen hidden">
@@ -83,14 +81,16 @@
               <button id="btn-change-name" class="dropdown-btn">Change Name</button>
             </div>
           </div>
+          <!-- Buttons moved to left -->
           <button id="btn-show-url" class="header-btn" title="Show Server URL">🌐</button>
           <button id="btn-media-toggle" class="header-btn media-btn" title="Media Library">
             🖼️ Library
           </button>
         </div>
+        <!-- header-right removed -->
       </header>
 
-      <!-- Media Modal (Outside Header for better positioning) -->
+      <!-- Media Modal -->
       <div id="media-popup" class="media-modal hidden">
         <div class="modal-content">
           <div class="popup-header">
@@ -99,8 +99,34 @@
             <button id="btn-close-media" class="close-btn">×</button>
           </div>
           <div id="media-list" class="media-list">
-            <!-- Media items will be dynamically added here -->
             <div class="empty-media-state">No media shared yet</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection Info Modal -->
+      <div id="connection-modal" class="modal hidden">
+        <div class="modal-content connection-modal-content">
+          <div class="popup-header">
+            <h3>Connection Info</h3>
+            <button id="btn-close-connection" class="close-btn">×</button>
+          </div>
+          <div class="connection-body">
+            <p>Students can connect at:</p>
+            <div class="url-display-container">
+              <code id="connection-url">http://...</code>
+              <button id="btn-copy-url" class="copy-btn" title="Copy URL">📋</button>
+            </div>
+
+            <div class="toggle-container">
+              <span class="toggle-label">Standard IP</span>
+              <label class="switch">
+                <input type="checkbox" id="hostname-toggle">
+                <span class="slider round"></span>
+              </label>
+              <span class="toggle-label">Short Name</span>
+            </div>
+            <p class="toggle-hint">Use "Short Name" for easier typing.</p>
           </div>
         </div>
       </div>

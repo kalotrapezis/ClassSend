@@ -4,7 +4,8 @@ const os = require('os');
 class NetworkDiscovery {
     constructor() {
         this.bonjour = null;
-        this.service = null;
+        this.mainService = null;
+        this.classServices = new Map(); // classId -> service
         this.localIP = null;
         this.port = null;
         this.getClassesCallback = null;
@@ -35,37 +36,74 @@ class NetworkDiscovery {
         // Initialize Bonjour
         this.bonjour = new Bonjour.default();
 
-        // Publish the service
-        this.publishService();
+        // Publish the main service
+        this.publishMainService();
 
         return this.localIP;
     }
 
-    publishService() {
-        if (this.service) {
-            this.service.stop();
+    publishMainService() {
+        if (this.mainService) {
+            this.mainService.stop();
         }
 
         const classes = this.getClassesCallback ? this.getClassesCallback() : [];
 
-        this.service = this.bonjour.publish({
+        this.mainService = this.bonjour.publish({
             name: 'ClassSend Server',
             type: 'classsend',
             port: this.port,
             txt: {
-                version: '3.6.0',
+                version: '4.0.0',
                 classes: JSON.stringify(classes),
                 ip: this.localIP
             }
         });
 
-        console.log(`Broadcasting ClassSend service on ${this.localIP}:${this.port}`);
+        console.log(`Broadcasting main ClassSend service on ${this.localIP}:${this.port}`);
+    }
+
+    // Publish a hostname for a specific class (e.g., c-math.local)
+    publishClassHostname(classId, hostname) {
+        // Sanitize hostname to ensure it ends with .local
+        if (!hostname.endsWith('.local')) {
+            hostname += '.local';
+        }
+
+        // Stop existing service for this class if any
+        if (this.classServices.has(classId)) {
+            this.classServices.get(classId).stop();
+        }
+
+        console.log(`Publishing hostname ${hostname} for class ${classId}`);
+
+        // Publish a service that advertises this hostname
+        // We use a distinct type or name to avoid confusion, but the key is the 'host' field
+        const service = this.bonjour.publish({
+            name: `ClassSend-${classId}`,
+            type: 'http', // Standard HTTP type
+            port: this.port,
+            host: hostname, // This triggers the A-record for c-math.local
+            txt: {
+                classId: classId
+            }
+        });
+
+        this.classServices.set(classId, service);
+    }
+
+    unpublishClassHostname(classId) {
+        if (this.classServices.has(classId)) {
+            console.log(`Unpublishing hostname for class ${classId}`);
+            this.classServices.get(classId).stop();
+            this.classServices.delete(classId);
+        }
     }
 
     // Update service when classes change
     updateClasses() {
-        if (this.service) {
-            this.publishService();
+        if (this.mainService) {
+            this.publishMainService();
         }
     }
 
@@ -117,13 +155,19 @@ class NetworkDiscovery {
     }
 
     stop() {
-        if (this.service) {
-            this.service.stop();
-            console.log('Stopped broadcasting service');
+        if (this.mainService) {
+            this.mainService.stop();
         }
+
+        for (const service of this.classServices.values()) {
+            service.stop();
+        }
+        this.classServices.clear();
+
         if (this.bonjour) {
             this.bonjour.destroy();
         }
+        console.log('Stopped broadcasting services');
     }
 
     getLocalIP() {
