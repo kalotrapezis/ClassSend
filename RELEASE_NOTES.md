@@ -1,3 +1,19 @@
+## Version 4.5.1 - Build Configuration Fix
+**Release Date:** November 29, 2025
+
+###  Bug Fixes
+- Fixed Electron Forge build configuration
+- Corrected icon path in package.json (setupIcon now points to ./assets/icon.ico)
+- Ensured proper icon.ico file in public directory for builds
+- Clean rebuild of all executables with correct version numbering
+
+###  Distributables
+- **Windows 64-bit Setup:** ClassSend-4.5.1 Setup.exe (143.36 MB)
+- **Windows 64-bit ZIP:** ClassSend-win32-x64-4.5.1.zip (146.7 MB)
+- **Windows 32-bit Setup:** ClassSend-4.5.1 Setup-x32.exe
+- **Windows 32-bit ZIP:** ClassSend-win32-ia32-4.5.1.zip
+
+---
 # ClassSend Release Notes
 
 ## Version 4.5.0 - Hand-Raising & UI Improvements
@@ -111,3 +127,4 @@ Advanced content filtering and smart action buttons.
 ---
 
 **Full Changelog:** [View on GitHub](https://github.com/kalotrapezis/ClassSend/compare/v4.3.0...v4.5.0)
+
