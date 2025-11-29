@@ -48,6 +48,10 @@ const usersList = document.getElementById("users-list");
 const userCount = document.getElementById("user-count");
 const connectionStatus = document.getElementById("connection-status");
 
+// Hand-Raising Elements
+const btnRaiseHand = document.getElementById("btn-raise-hand");
+const btnHandsDown = document.getElementById("btn-hands-down");
+
 // Media History
 const mediaList = document.getElementById("media-list");
 const btnMediaToggle = document.getElementById("btn-media-toggle");
@@ -274,6 +278,52 @@ socket.on("active-classes", (classes) => {
     // Update available classes screen if student is viewing it
     if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
         renderAvailableClasses();
+    }
+});
+
+// Hand-Raising Socket Events
+socket.on("hand-raised", ({ userId, handRaised, users, classId }) => {
+    if (joinedClasses.has(classId)) {
+        const classData = joinedClasses.get(classId);
+        classData.users = users;
+        if (currentClassId === classId) {
+            renderUsersList();
+        }
+
+        if (userId === socket.id && btnRaiseHand) {
+            btnRaiseHand.classList.toggle("active", handRaised);
+            btnRaiseHand.title = handRaised ? "Lower Hand" : "Raise Hand";
+        }
+    }
+});
+
+socket.on("hand-lowered", ({ userId, users, classId }) => {
+    if (joinedClasses.has(classId)) {
+        const classData = joinedClasses.get(classId);
+        classData.users = users;
+        if (currentClassId === classId) {
+            renderUsersList();
+        }
+
+        if (userId === socket.id && btnRaiseHand) {
+            btnRaiseHand.classList.remove("active");
+            btnRaiseHand.title = "Raise Hand";
+        }
+    }
+});
+
+socket.on("all-hands-lowered", ({ users, classId }) => {
+    if (joinedClasses.has(classId)) {
+        const classData = joinedClasses.get(classId);
+        classData.users = users;
+        if (currentClassId === classId) {
+            renderUsersList();
+        }
+
+        if (btnRaiseHand) {
+            btnRaiseHand.classList.remove("active");
+            btnRaiseHand.title = "Raise Hand";
+        }
     }
 });
 
@@ -666,6 +716,21 @@ fileInput.addEventListener("change", async (e) => {
     reader.readAsDataURL(file);
 });
 
+// Hand-Raising Buttons
+if (btnRaiseHand) {
+    btnRaiseHand.addEventListener("click", () => {
+        if (!currentClassId) return;
+        socket.emit("raise-hand", { classId: currentClassId });
+    });
+}
+
+if (btnHandsDown) {
+    btnHandsDown.addEventListener("click", () => {
+        if (!currentClassId) return;
+        socket.emit("lower-all-hands", { classId: currentClassId });
+    });
+}
+
 // Drag-and-Drop File Upload
 let dragCounter = 0;
 
@@ -1008,10 +1073,11 @@ function renderUsersList() {
             userDiv.classList.add('blocked');
         }
 
+        const handIcon = user.handRaised ? ' <span class="hand-raised-icon">🖐️</span>' : '';
+
         userDiv.innerHTML = `
             <span class="user-status"></span>
-            <span class="user-name">${escapeHtml(user.name)}</span>
-            <span class="user-role">${user.role}</span>
+            <span class="user-name">${escapeHtml(user.name)}</span>${handIcon}
         `;
 
         // Add block/unblock button for teachers (only for students)
@@ -1033,6 +1099,26 @@ function renderUsersList() {
 
         usersList.appendChild(userDiv);
     });
+
+    // Show/hide hands-down button for teachers
+    if (btnHandsDown && isTeacher) {
+        const students = users.filter(u => u.role === 'student');
+        const anyHandRaised = students.some(s => s.handRaised);
+        if (anyHandRaised) {
+            btnHandsDown.classList.remove("hidden");
+        } else {
+            btnHandsDown.classList.add("hidden");
+        }
+    }
+
+    // Show/hide raise-hand button based on role
+    if (btnRaiseHand) {
+        if (currentRole === 'student') {
+            btnRaiseHand.classList.remove("hidden");
+        } else {
+            btnRaiseHand.classList.add("hidden");
+        }
+    }
 }
 
 function tagUser(name) {

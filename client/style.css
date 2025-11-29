@@ -515,7 +515,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  width: 300px;
+  width: 350px;
   /* Increased width */
   transition: transform 0.3s ease;
 }
@@ -1012,7 +1012,7 @@ body {
     height: calc(100vh - 60px);
     height: calc(100dvh - 60px);
     width: 80%;
-    max-width: 300px;
+    max-width: 350px;
     transform: translateX(-100%);
     transition: transform 0.3s ease;
     z-index: 1000;
@@ -1793,7 +1793,9 @@ input:checked+.slider:before {
   color: var(--text-secondary);
   opacity: 0.7;
   margin-top: -0.5rem;
-}/* Pinned Messages */
+}
+
+/* Pinned Messages */
 .pinned-messages-container {
   background: rgba(98, 100, 167, 0.1);
   border-bottom: 2px solid var(--accent-primary);
@@ -1858,4 +1860,89 @@ input:checked+.slider:before {
 .unpin-btn:hover {
   opacity: 1;
   color: var(--error);
+}
+
+/* Hand-Raising Styles */
+.raise-hand-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.raise-hand-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-primary);
+}
+
+.raise-hand-btn.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+}
+
+.hand-raised-icon {
+  margin-left: 0.5rem;
+  font-size: 1rem;
+  animation: wave 2s ease-in-out infinite;
+}
+
+@keyframes wave {
+
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-15deg);
+  }
+
+  75% {
+    transform: rotate(15deg);
+  }
+}
+
+#users-header-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-count {
+  background: var(--bg-tertiary);
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.user-role-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.user-name {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

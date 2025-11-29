@@ -72,7 +72,7 @@ io.on('connection', (socket) => {
       teacherName: userName,
       students: [],
       messages: [],
-      users: [{ id: socket.id, name: userName, role: 'teacher' }],
+      users: [{ id: socket.id, name: userName, role: 'teacher', handRaised: false }],
       deletionTimeout: null // Initialize deletion timeout
     });
     socket.join(classId);
@@ -137,7 +137,7 @@ io.on('connection', (socket) => {
       classData.teacherId = socket.id; // Update teacher socket ID
     }
 
-    const newUser = { id: socket.id, name: userName, role };
+    const newUser = { id: socket.id, name: userName, role, handRaised: false };
     if (role === 'student') {
       classData.students.push(newUser);
     }
@@ -482,6 +482,65 @@ io.on('connection', (socket) => {
     classData.blockedUsers = new Set();
     io.to(classId).emit('all-users-unblocked', { classId });
     console.log(`All users unblocked in class ${classId}`);
+  });
+
+  // Hand-Raising Events
+  socket.on('raise-hand', ({ classId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    const user = classData.users.find(u => u.id === socket.id);
+    if (!user) return;
+
+    // Toggle hand raised state
+    user.handRaised = !user.handRaised;
+
+    // Broadcast to all participants
+    io.to(classId).emit('hand-raised', {
+      userId: socket.id,
+      handRaised: user.handRaised,
+      users: classData.users,
+      classId
+    });
+    console.log(`User ${user.name} (${socket.id}) ${user.handRaised ? 'raised' : 'lowered'} hand in class ${classId}`);
+  });
+
+  socket.on('lower-hand', ({ classId, userId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    const user = classData.users.find(u => u.id === userId);
+    if (!user) return;
+
+    user.handRaised = false;
+
+    // Broadcast to all participants
+    io.to(classId).emit('hand-lowered', {
+      userId,
+      users: classData.users,
+      classId
+    });
+    console.log(`Hand lowered for user ${user.name} (${userId}) in class ${classId}`);
+  });
+
+  socket.on('lower-all-hands', ({ classId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+
+    // Only teacher can lower all hands
+    if (classData.teacherId !== socket.id) return;
+
+    // Lower all students' hands
+    classData.users.forEach(user => {
+      if (user.role === 'student') {
+        user.handRaised = false;
+      }
+    });
+
+    // Broadcast to all participants
+    io.to(classId).emit('all-hands-lowered', {
+      users: classData.users,
+      classId
+    });
+    console.log(`All hands lowered in class ${classId} by teacher`);
   });
 
   // Network Discovery Events

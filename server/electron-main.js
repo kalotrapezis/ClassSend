@@ -18,7 +18,7 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
 });
 
 function createWindow() {
-    const iconPath = path.join(__dirname, 'public', 'tray.png');
+    const iconPath = path.join(__dirname, 'assets', 'icon.ico');
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
@@ -49,7 +49,7 @@ function createWindow() {
 
 function createTray() {
     try {
-        const iconPath = path.join(__dirname, 'public', 'tray.png');
+        const iconPath = path.join(__dirname, 'assets', 'icon.ico');
         const icon = require('electron').nativeImage.createFromPath(iconPath);
 
         if (icon.isEmpty()) {

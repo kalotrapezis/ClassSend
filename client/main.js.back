@@ -48,6 +48,10 @@ const usersList = document.getElementById("users-list");
 const userCount = document.getElementById("user-count");
 const connectionStatus = document.getElementById("connection-status");
 
+// Hand-Raising Elements
+const btnRaiseHand = document.getElementById("btn-raise-hand");
+const btnHandsDown = document.getElementById("btn-hands-down");
+
 // Media History
 const mediaList = document.getElementById("media-list");
 const btnMediaToggle = document.getElementById("btn-media-toggle");
@@ -274,6 +278,52 @@ socket.on("active-classes", (classes) => {
     // Update available classes screen if student is viewing it
     if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
         renderAvailableClasses();
+    }
+});
+
+// Hand-Raising Socket Events
+socket.on("hand-raised", ({ userId, handRaised, users, classId }) => {
+    if (joinedClasses.has(classId)) {
+        const classData = joinedClasses.get(classId);
+        classData.users = users;
+        if (currentClassId === classId) {
+            renderUsersList();
+        }
+
+        if (userId === socket.id && btnRaiseHand) {
+            btnRaiseHand.classList.toggle("active", handRaised);
+            btnRaiseHand.title = handRaised ? "Lower Hand" : "Raise Hand";
+        }
+    }
+});
+
+socket.on("hand-lowered", ({ userId, users, classId }) => {
+    if (joinedClasses.has(classId)) {
+        const classData = joinedClasses.get(classId);
+        classData.users = users;
+        if (currentClassId === classId) {
+            renderUsersList();
+        }
+
+        if (userId === socket.id && btnRaiseHand) {
+            btnRaiseHand.classList.remove("active");
+            btnRaiseHand.title = "Raise Hand";
+        }
+    }
+});
+
+socket.on("all-hands-lowered", ({ users, classId }) => {
+    if (joinedClasses.has(classId)) {
+        const classData = joinedClasses.get(classId);
+        classData.users = users;
+        if (currentClassId === classId) {
+            renderUsersList();
+        }
+
+        if (btnRaiseHand) {
+            btnRaiseHand.classList.remove("active");
+            btnRaiseHand.title = "Raise Hand";
+        }
     }
 });
 
@@ -666,6 +716,21 @@ fileInput.addEventListener("change", async (e) => {
     reader.readAsDataURL(file);
 });
 
+// Hand-Raising Buttons
+if (btnRaiseHand) {
+    btnRaiseHand.addEventListener("click", () => {
+        if (!currentClassId) return;
+        socket.emit("raise-hand", { classId: currentClassId });
+    });
+}
+
+if (btnHandsDown) {
+    btnHandsDown.addEventListener("click", () => {
+        if (!currentClassId) return;
+        socket.emit("lower-all-hands", { classId: currentClassId });
+    });
+}
+
 // Drag-and-Drop File Upload
 let dragCounter = 0;
 
@@ -1008,9 +1073,11 @@ function renderUsersList() {
             userDiv.classList.add('blocked');
         }
 
+        const handIcon = user.handRaised ? ' <span class="hand-raised-icon">🖐️</span>' : '';
+
         userDiv.innerHTML = `
             <span class="user-status"></span>
-            <span class="user-name">${escapeHtml(user.name)}</span>
+            <span class="user-name">${escapeHtml(user.name)}</span>${handIcon}
             <span class="user-role">${user.role}</span>
         `;
 
@@ -1033,6 +1100,26 @@ function renderUsersList() {
 
         usersList.appendChild(userDiv);
     });
+
+    // Show/hide hands-down button for teachers
+    if (btnHandsDown && isTeacher) {
+        const students = users.filter(u => u.role === 'student');
+        const anyHandRaised = students.some(s => s.handRaised);
+        if (anyHandRaised) {
+            btnHandsDown.classList.remove("hidden");
+        } else {
+            btnHandsDown.classList.add("hidden");
+        }
+    }
+
+    // Show/hide raise-hand button based on role
+    if (btnRaiseHand) {
+        if (currentRole === 'student') {
+            btnRaiseHand.classList.remove("hidden");
+        } else {
+            btnRaiseHand.classList.add("hidden");
+        }
+    }
 }
 
 function tagUser(name) {
@@ -1277,27 +1364,74 @@ fetch('/filter-words.json')
     .catch(err => console.error('Failed to load filter words:', err));
 
 // Check if text contains inappropriate words
+// Levenshtein distance for fuzzy matching
+function levenshteinDistance(a, b) {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+
+    const matrix = [];
+
+    // increment along the first column of each row
+    for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+    }
+
+    // increment each column in the first row
+    for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+    }
+
+    // Fill in the rest of the matrix
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1, // substitution
+                    Math.min(
+                        matrix[i][j - 1] + 1, // insertion
+                        matrix[i - 1][j] + 1 // deletion
+                    )
+                );
+            }
+        }
+    }
+
+    return matrix[b.length][a.length];
+}
+
+// Check if text contains inappropriate words (Exact + Fuzzy)
 function containsInappropriateContent(text) {
     if (!text || filterWords.length === 0) return false;
 
-    // Normalize input text (remove accents, lowercase)
+    // Normalize input text
     const normalizedInput = normalizeText(text);
 
-    // Check for whole word matches in normalized text
-    return filterWords.some(word => {
-        try {
-            // Use Unicode-aware lookarounds for word boundaries
-            // (?<!\p{L}) - Not preceded by a Unicode letter
-            // (?!\p{L}) - Not followed by a Unicode letter
-            const regex = new RegExp(`(?<!\\p{L})${word}(?!\\p{L})`, 'iu');
-            return regex.test(normalizedInput);
-        } catch (e) {
-            // Fallback for older browsers (though Electron should support it)
-            // or if the regex is invalid for some reason
-            const regex = new RegExp(`(^|[^a-zA-Z0-9\u00C0-\u017F\u0370-\u03FF\u0400-\u04FF])` + word + `([^a-zA-Z0-9\u00C0-\u017F\u0370-\u03FF\u0400-\u04FF]|$)`, 'i');
-            return regex.test(normalizedInput);
+    // Split into words for fuzzy matching
+    // \p{L} matches any Unicode letter, \p{N} matches any number
+    const words = normalizedInput.match(/[\p{L}\p{N}]+/gu) || [];
+
+    for (const inputWord of words) {
+        for (const bannedWord of filterWords) {
+            // 1. Exact match
+            if (inputWord === bannedWord) return true;
+
+            // 2. Fuzzy match (only for words > 3 chars to avoid false positives like 'hell' vs 'hello')
+            if (inputWord.length > 3 && bannedWord.length > 3) {
+                // Optimization: Skip if length difference is > 1
+                if (Math.abs(inputWord.length - bannedWord.length) > 1) continue;
+
+                const distance = levenshteinDistance(inputWord, bannedWord);
+                if (distance <= 1) {
+                    console.log(`Fuzzy match detected: '${inputWord}' ~= '${bannedWord}' (dist: ${distance})`);
+                    return true;
+                }
+            }
         }
-    });
+    }
+
+    return false;
 }
 
 // Real-time input monitoring
