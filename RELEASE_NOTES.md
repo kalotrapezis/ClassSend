@@ -1,5 +1,22 @@
 # ClassSend Release Notes
 
+## Version 4.3.0 (Pinned Messages & Fuzzy Moderation)
+**New Features:**
+
+### 📌 Pinned Messages
+- **Teacher Control**: Teachers can now pin important messages to the top of the chat view.
+- **Persistent Visibility**: Pinned messages remain visible at the top for all users in the class.
+- **Easy Management**: Teachers can unpin messages via the original message action or the "×" button on the pinned card.
+- **Real-time Updates**: Pin/Unpin actions are instantly reflected for all connected users.
+
+### 🛡️ Smart Content Moderation (Fuzzy Matching)
+- **Typo Tolerance**: The content filter now detects words that are "one letter close" to banned terms (e.g., catching "b@d" if "bad" is banned).
+- **Levenshtein Distance**: Implemented advanced string matching to prevent filter evasion.
+- **Multi-language Support**: Verified support for English, Greek, and German character sets.
+- **False Positive Protection**: Short words (≤ 3 chars) are excluded from fuzzy matching to prevent over-blocking.
+
+---
+
 ## Version 4.1.0 (UI & Network Refinements)
 **Enhancements:**
 
