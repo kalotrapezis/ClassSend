@@ -6,8 +6,8 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ClassSend</title>
-  <script type="module" crossorigin src="/assets/index-0vVH4thE.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BgK72DRD.css">
+  <script type="module" crossorigin src="/assets/index-BkUGPYzv.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-Bf73BT8_.css">
 </head>
 
 <body>
@@ -142,16 +142,12 @@
             <h3>Classes</h3>
           </div>
           <div class="classes-list">
-            <div class="class-item active">
-              <span class="class-icon">📚</span>
-              <span class="class-name" id="sidebar-class-name">MATH101</span>
-            </div>
+            <!-- Classes will be dynamically added here -->
           </div>
 
-          <div class="sidebar-divider"></div>
-
-          <div class="sidebar-header">
-            <h3>Users (<span id="user-count">0</span>)</h3>
+          <div class="sidebar-header" id="users-header-container">
+            <h3>Users</h3>
+            <span id="user-count" class="user-count">0</span>
           </div>
           <div id="users-list" class="users-list">
             <!-- Users will be dynamically added here -->
@@ -164,6 +160,9 @@
             <!-- Messages will be dynamically added here -->
           </div>
           <div class="message-input-area">
+            <div id="filter-warning" class="filter-warning hidden">
+              ⚠️ Inappropriate content detected
+            </div>
             <div class="input-actions-left">
               <button id="btn-attach-file" class="attach-btn" title="Attach file">
                 📎

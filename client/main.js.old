@@ -65,6 +65,9 @@ let serverInfo = null; // { ip, port, hostname }
 
 if (btnShowUrl) {
     btnShowUrl.addEventListener("click", () => {
+        // Close Media Library if open
+        mediaPopup.classList.add("hidden");
+
         socket.emit("get-server-info", { classId: currentClassId }, (info) => {
             serverInfo = info;
             updateConnectionUrl();
@@ -206,6 +209,8 @@ const btnDownloadAll = document.getElementById("btn-download-all");
 
 btnMediaToggle.addEventListener("click", (e) => {
     e.stopPropagation();
+    // Close Connection Modal if open
+    connectionModal.classList.add("hidden");
     mediaPopup.classList.remove("hidden");
 });
 
@@ -336,7 +341,8 @@ btnSubmitSetup.addEventListener("click", () => {
                 joinedClasses.set(enteredClassId, {
                     messages: [],
                     users: [{ id: socket.id, name: userName, role: "teacher" }],
-                    teacherName: userName
+                    teacherName: userName,
+                    blockedUsers: new Set() // Initialize empty blocked users set
                 });
 
                 // Update UI with user name immediately
@@ -397,7 +403,8 @@ function joinClass(classIdToJoin, nameToUse) {
             joinedClasses.set(classIdToJoin, {
                 messages: response.messages || [],
                 users: response.users || [],
-                teacherName: response.users.find(u => u.role === 'teacher')?.name || 'Unknown'
+                teacherName: response.users.find(u => u.role === 'teacher')?.name || 'Unknown',
+                blockedUsers: new Set(response.blockedUsers || []) // Store blocked users
             });
             switchClass(classIdToJoin);
         } else {
@@ -919,21 +926,83 @@ function renderUsersList() {
         return;
     }
 
-    const users = joinedClasses.get(currentClassId).users;
+    const classData = joinedClasses.get(currentClassId);
+    const users = classData.users;
+    const blockedUsers = classData.blockedUsers || new Set();
+    const isTeacher = currentRole === 'teacher';
+
     userCount.textContent = users.length;
+
+    // Add teacher controls header if teacher
+    if (isTeacher) {
+        const usersHeader = document.querySelector('#users-header-container h3');
+        // Remove existing controls if any
+        const existingControls = document.querySelector('.teacher-controls');
+        if (existingControls) existingControls.remove();
+
+        const controls = document.createElement('div');
+        controls.className = 'teacher-controls';
+        controls.style.cssText = 'display: flex; gap: 5px; margin-left: auto; font-size: 0.75rem;';
+        controls.innerHTML = `
+            <button class="block-all-btn" style="padding: 2px 6px; font-size: 0.7rem; cursor: pointer; background: #ef4444; color: white; border: none; border-radius: 3px;">Block All</button>
+            <button class="unblock-all-btn" style="padding: 2px 6px; font-size: 0.7rem; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 3px;">Unblock All</button>
+        `;
+
+        controls.querySelector('.block-all-btn').onclick = (e) => {
+            e.stopPropagation();
+            if (confirm('Block all students?')) {
+                socket.emit('block-all-users', { classId: currentClassId });
+            }
+        };
+
+        controls.querySelector('.unblock-all-btn').onclick = (e) => {
+            e.stopPropagation();
+            if (confirm('Unblock all students?')) {
+                socket.emit('unblock-all-users', { classId: currentClassId });
+            }
+        };
+
+        if (usersHeader && usersHeader.parentElement) {
+            usersHeader.parentElement.style.display = 'flex';
+            usersHeader.parentElement.style.alignItems = 'center';
+            usersHeader.parentElement.appendChild(controls);
+        }
+    }
 
     users.forEach(user => {
         const userDiv = document.createElement("div");
         userDiv.classList.add("user-item");
-        userDiv.innerHTML = `
-      <span class="user-status"></span>
-      <span class="user-name">${escapeHtml(user.name)}</span>
-      <span class="user-role">${user.role}</span>
-    `;
 
-        userDiv.addEventListener("click", () => {
-            tagUser(user.name);
-        });
+        const isBlocked = blockedUsers.has(user.id);
+        const isStudent = user.role === 'student';
+
+        // Add blocked class if user is blocked
+        if (isBlocked) {
+            userDiv.classList.add('blocked');
+        }
+
+        userDiv.innerHTML = `
+            <span class="user-status"></span>
+            <span class="user-name">${escapeHtml(user.name)}</span>
+            <span class="user-role">${user.role}</span>
+        `;
+
+        // Add block/unblock button for teachers (only for students)
+        if (isTeacher && isStudent) {
+            const blockBtn = document.createElement('button');
+            blockBtn.textContent = isBlocked ? '✅' : '⛔';
+            blockBtn.title = isBlocked ? 'Unblock user' : 'Block user';
+            blockBtn.style.cssText = 'margin-left: auto; padding: 2px 6px; font-size: 0.9rem; cursor: pointer; background: transparent; border: none;';
+            blockBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (isBlocked) {
+                    socket.emit('unblock-user', { classId: currentClassId, userId: user.id });
+                } else {
+                    socket.emit('block-user', { classId: currentClassId, userId: user.id });
+                }
+            };
+            userDiv.appendChild(blockBtn);
+        }
 
         usersList.appendChild(userDiv);
     });
@@ -1033,6 +1102,89 @@ socket.on("class-ended", ({ message, classId }) => {
         }
     }
 });
+
+// Blocking Events
+socket.on('user-blocked', ({ userId, classId }) => {
+    if (joinedClasses.has(classId)) {
+        const classData = joinedClasses.get(classId);
+        if (!classData.blockedUsers) classData.blockedUsers = new Set();
+        classData.blockedUsers.add(userId);
+
+        if (currentClassId === classId) {
+            renderUsersList();
+            updateChatInputState();
+        }
+    }
+});
+
+socket.on('user-unblocked', ({ userId, classId }) => {
+    if (joinedClasses.has(classId)) {
+        const classData = joinedClasses.get(classId);
+        if (classData.blockedUsers) {
+            classData.blockedUsers.delete(userId);
+        }
+
+        if (currentClassId === classId) {
+            renderUsersList();
+            updateChatInputState();
+        }
+    }
+});
+
+socket.on('all-users-blocked', ({ blockedUserIds, classId }) => {
+    if (joinedClasses.has(classId)) {
+        const classData = joinedClasses.get(classId);
+        classData.blockedUsers = new Set(blockedUserIds);
+
+        if (currentClassId === classId) {
+            renderUsersList();
+            updateChatInputState();
+        }
+    }
+});
+
+socket.on('all-users-unblocked', ({ classId }) => {
+    if (joinedClasses.has(classId)) {
+        const classData = joinedClasses.get(classId);
+        classData.blockedUsers = new Set();
+
+        if (currentClassId === classId) {
+            renderUsersList();
+            updateChatInputState();
+        }
+    }
+});
+
+// Update chat input state based on blocked status
+function updateChatInputState() {
+    if (!currentClassId || !joinedClasses.has(currentClassId)) return;
+
+    const classData = joinedClasses.get(currentClassId);
+    const blockedUsers = classData.blockedUsers || new Set();
+    const isBlocked = blockedUsers.has(socket.id);
+
+    const inputs = [messageInput, btnSendMessage, btnAttachFile, btnEmoji];
+
+    if (isBlocked) {
+        inputs.forEach(el => {
+            if (el) {
+                el.disabled = true;
+                el.style.opacity = '0.5';
+                el.style.cursor = 'not-allowed';
+            }
+        });
+        messageInput.placeholder = "You are blocked from chatting.";
+    } else {
+        inputs.forEach(el => {
+            if (el) {
+                el.disabled = false;
+                el.style.opacity = '1';
+                el.style.cursor = '';
+            }
+        });
+        messageInput.placeholder = "Type a message...";
+    }
+}
 
 // Utility Functions
 function formatTime(timestamp) {

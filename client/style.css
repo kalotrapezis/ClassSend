@@ -576,21 +576,9 @@ body {
   border-left: 3px solid var(--accent-primary);
 }
 
-.class-item.joined .class-name {
-  font-weight: 600;
-}
-
-.class-icon {
-  font-size: 1.1rem;
-  width: 24px;
-  text-align: center;
-}
-
-.status-icon {
-  display: inline-block;
-}
-
 /* Icon Swap Logic */
+/* Removed hover effect - all icons visible all the time */
+/*
 .leave-icon {
   display: none;
   color: var(--error);
@@ -606,6 +594,19 @@ body {
 
 .class-item.joined:hover .leave-icon {
   display: inline-block;
+}
+*/
+
+.leave-icon {
+  color: var(--error);
+}
+
+.delete-icon {
+  color: var(--error);
+}
+
+.joined-icon {
+  color: var(--success);
 }
 
 .class-name {

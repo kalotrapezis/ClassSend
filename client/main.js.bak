@@ -511,26 +511,23 @@ function renderSidebar() {
         }
 
         // Icon logic
-        let leftIcon = '';
-        let rightIcon = '';
-
+        let iconHtml = '';
         if (isJoined) {
             // Show checkmark for joined classes
-            leftIcon = `<span class="class-icon status-icon joined-icon">✅</span>`;
+            iconHtml = `<span class="class-icon status-icon joined-icon">✅</span>`;
 
             if (isTeacher) {
-                rightIcon = `<span class="class-icon status-icon delete-icon" title="Delete Class" style="margin-left: auto;">🗑️ Delete</span>`;
+                iconHtml += `<span class="class-icon status-icon delete-icon" title="Delete Class">🗑️</span>`;
             } else {
-                rightIcon = `<span class="class-icon status-icon leave-icon" title="Leave Class" style="margin-left: auto;">❌ Leave</span>`;
+                iconHtml += `<span class="class-icon status-icon leave-icon" title="Leave Class">❌</span>`;
             }
         } else {
-            leftIcon = `<span class="class-icon status-icon">➕</span>`;
+            iconHtml = `<span class="class-icon status-icon">➕</span>`;
         }
 
         item.innerHTML = `
-            ${leftIcon}
+            ${iconHtml}
             <span class="class-name">${escapeHtml(id)}</span>
-            ${rightIcon}
         `;
 
         // Click handlers

@@ -14,15 +14,30 @@ class NetworkDiscovery {
     // Fallback method to get local IP using os.networkInterfaces()
     getLocalIPFallback() {
         const interfaces = os.networkInterfaces();
+        // Virtual adapter keywords to skip
+        const virtualKeywords = ['virtual', 'vmware', 'vbox', 'hyperv', 'vethernet', 'wsl', 'loopback'];
+
+        let fallbackIP = null;
+
         for (const name of Object.keys(interfaces)) {
+            const lowerName = name.toLowerCase();
+            // Skip virtual adapters
+            const isVirtual = virtualKeywords.some(keyword => lowerName.includes(keyword));
+
             for (const iface of interfaces[name]) {
                 // Skip internal (loopback) and non-IPv4 addresses
                 if (iface.family === 'IPv4' && !iface.internal) {
-                    return iface.address;
+                    if (!isVirtual) {
+                        // Prefer non-virtual adapters (WiFi/Ethernet)
+                        return iface.address;
+                    } else if (!fallbackIP) {
+                        // Keep virtual as fallback
+                        fallbackIP = iface.address;
+                    }
                 }
             }
         }
-        return 'localhost';
+        return fallbackIP || 'localhost';
     }
 
     async initialize(port, getClassesCallback) {
