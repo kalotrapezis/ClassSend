@@ -1,8 +1,12 @@
-# ClassSend (v4.1.0 Latest)
+# ClassSend (v4.2.0 Latest)
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 New Features (v4.1.0)
-- **🎨 Refined UI**: "Media Library" and "Connection Info" are now beautiful, centered overlay windows.
+## 🚀 New Features (v4.2.0)
+- **⛔ User Blocking**: Teachers can now block users individually or **Block All** users at once to prevent distractions.
+- **🎨 UI Improvements**:
+  - **Unified Button Styles**: Consistent, modern look for all action buttons.
+  - **Refined Layout**: Improved placement of class and user action buttons for better usability.
+  - **Visual Clarity**: Clearer status indicators and role-based coloring.
 - **🌐 Network Flexibility**: New "Connection Info" modal allows switching between **Standard IP** (works everywhere, including hotspots) and **Short Name** (e.g., `math.local`).
 - **🔗 Simplified Addresses**: Class addresses are now shorter and easier to type (removed `C-` prefix).
 - **🛡️ Advanced Content Filtering**: Real-time detection of inappropriate content (Greek/English/Turkish).
@@ -26,10 +30,10 @@
 ## 📦 Download & Install
 Go to the [Releases](../../releases) page or check the `out/make` folder.
 
-- **Windows Installer (64-bit)**: `ClassSend-4.1.0 Setup.exe`
-- **Windows Installer (32-bit)**: `ClassSend-4.1.0 Setup.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-4.1.0.zip`
-- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-4.1.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-4.2.0 Setup.exe`
+- **Windows Installer (32-bit)**: `ClassSend-4.2.0 Setup.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-4.2.0.zip`
+- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-4.2.0.zip`
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:
