@@ -1,3 +1,52 @@
+## Version 4.5.2 - Bug Fixes & Pinned Message Enhancements
+**Release Date:** December 2, 2025
+
+### 🐛 Bug Fixes
+
+#### Word Filter Fixed
+- **Issue:** Content filter was not working - inappropriate words were not being detected
+- **Root Cause:** The `content-filter.js` file existed but was never imported in `index.html`
+- **Solution:** Added missing script import to enable word filtering functionality
+- **Impact:** Word filter now properly:
+  - Loads 2875+ filter words on startup
+  - Monitors message input in real-time
+  - Disables send button when inappropriate content detected
+  - Shows warning message to users
+  - Flags users who attempt inappropriate content
+
+### ✨ Enhancements
+
+#### Pinned Message Action Buttons
+- **Feature:** Added action buttons directly to pinned messages displayed at top of chat
+- **Previous Behavior:** Users had to scroll to find original message to interact with it
+- **New Behavior:** Pinned messages now include:
+  - **📋 Copy Button** - Copy message content to clipboard
+  - **✉️ Email Button** - Open mailto link (auto-detected)
+  - **🔗 Link Button** - Open URL in new tab (auto-detected)
+  - **❌ Unpin Button** - Remove pin (teacher only)
+- **Benefits:**
+  - Quick access to common actions without scrolling
+  - Consistent UX with regular messages
+  - Smart detection of URLs and emails
+
+### 📁 File Changes
+
+**Modified Files:**
+- `client/index.html` - Added content-filter.js script import
+- `client/main.js` - Enhanced renderPinnedMessages() with action buttons
+- `server/package.json` - Version bump to 4.5.2
+
+### 🔄 Upgrade Notes
+- Clean install recommended: `npm install` in server directory
+- Rebuild required: Run `npm run build` in client directory
+- Restart application to see all fixes
+
+### 📊 Statistics
+- **Build time:** ~360ms (client)
+- **Bundle size:** 68.56 KB (JavaScript), 23.98 KB (CSS)
+
+---
+
 ## Version 4.5.1 - Build Configuration Fix
 **Release Date:** November 29, 2025
 

@@ -1575,13 +1575,73 @@ function renderPinnedMessages() {
             <span>Pinned Messages</span>
         </div>
         <div class="pinned-messages-list">
-            ${pinnedMessages.map(msg => `
-                <div class="pinned-message">
-                    <span class="pinned-sender">${escapeHtml(msg.senderName)}:</span>
-                    <span class="pinned-text">${escapeHtml(msg.content)}</span>
-                    ${currentRole === 'teacher' ? `<button class="unpin-btn" onclick="window.unpinMessage(${msg.id})">×</button>` : ''}
+            ${pinnedMessages.map(msg => {
+        // Detect URLs and emails
+        const urlRegex = /(https?:\/\/[^\s]+)/gi;
+        const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+        const hasUrl = urlRegex.test(msg.content);
+        const hasEmail = emailRegex.test(msg.content);
+
+        return `
+                <div class="pinned-message" data-message-id="${msg.id}">
+                    <div class="pinned-message-header">
+                        <span class="pinned-sender">${escapeHtml(msg.senderName)}:</span>
+                        <span class="pinned-text">${escapeHtml(msg.content)}</span>
+                    </div>
+                    <div class="pinned-message-actions">
+                        <button class="action-btn copy-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Copy">📋</button>
+                        ${hasEmail ? `<button class="action-btn mailto-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Email">✉️</button>` : ''}
+                        ${hasUrl ? `<button class="action-btn url-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Open Link">🔗</button>` : ''}
+                        ${currentRole === 'teacher' ? `<button class="action-btn unpin-btn" data-message-id="${msg.id}" title="Unpin">❌</button>` : ''}
+                    </div>
                 </div>
-            `).join('')}
+            `}).join('')}
         </div>
     `;
+
+    // Add event listeners for action buttons
+    const pinnedContainer = document.getElementById('pinned-messages-container');
+
+    // Copy buttons
+    pinnedContainer.querySelectorAll('.copy-btn-pinned').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const content = btn.dataset.content;
+            try {
+                await navigator.clipboard.writeText(content);
+                btn.textContent = '✅';
+                setTimeout(() => btn.textContent = '📋', 1500);
+            } catch (err) {
+                alert('Failed to copy');
+            }
+        });
+    });
+
+    // Email buttons
+    pinnedContainer.querySelectorAll('.mailto-btn-pinned').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const content = btn.dataset.content;
+            const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+            const emails = content.match(emailRegex);
+            if (emails) window.location.href = `mailto:${emails[0]}`;
+        });
+    });
+
+    // URL buttons
+    pinnedContainer.querySelectorAll('.url-btn-pinned').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const content = btn.dataset.content;
+            const urlRegex = /(https?:\/\/[^\s]+)/gi;
+            const urls = content.match(urlRegex);
+            if (urls) window.open(urls[0], '_blank');
+        });
+    });
+
+    // Unpin buttons
+    pinnedContainer.querySelectorAll('.unpin-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const messageId = parseFloat(btn.dataset.messageId);
+            unpinMessage(messageId);
+        });
+    });
 }
+
