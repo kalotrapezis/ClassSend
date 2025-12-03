@@ -1,16 +1,21 @@
-# ClassSend (v4.2.0 Latest)
+# ClassSend (v4.5.4 Latest)
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 New Features (v4.2.0)
-- **⛔ User Blocking**: Teachers can now block users individually or **Block All** users at once to prevent distractions.
+## 🚀 Latest Features (v4.5.4)
+- **🐛 Critical Fixes**:
+  - **Content Filtering Restored**: Fixed filtering system that stopped working - now properly blocks inappropriate content
+  - **Pinned Message Actions**: Action buttons now appear directly on pinned messages (no more scrolling!)
+- **📦 Download All as ZIP (Alpha)**: Bulk download all shared files from the gallery as a single ZIP archive
+- **🖐️ Hand Raising System**: Students can raise hands to signal teachers; teachers can lower all hands at once
+- **📌 Enhanced Pinned Messages**: Direct action buttons on pinned comments (Copy, Email, Link, Unpin)
+- **⛔ User Blocking**: Teachers can block users individually or **Block All** users at once
 - **🎨 UI Improvements**:
-  - **Unified Button Styles**: Consistent, modern look for all action buttons.
-  - **Refined Layout**: Improved placement of class and user action buttons for better usability.
-  - **Visual Clarity**: Clearer status indicators and role-based coloring.
-- **🌐 Network Flexibility**: New "Connection Info" modal allows switching between **Standard IP** (works everywhere, including hotspots) and **Short Name** (e.g., `math.local`).
-- **🔗 Simplified Addresses**: Class addresses are now shorter and easier to type (removed `C-` prefix).
-- **🛡️ Advanced Content Filtering**: Real-time detection of inappropriate content (Greek/English/Turkish).
-- **⚡ Smart Action Buttons**: Context-aware buttons for Copy 📋, Email ✉️, Open Link 🔗, and Download ⬇️.
+  - **Unified Button Styles**: Consistent, modern look for all action buttons
+  - **Refined Layout**: Improved placement of class and user action buttons
+  - **Visual Clarity**: Clearer status indicators and role-based coloring
+- **🌐 Network Flexibility**: Switch between **Standard IP** (works everywhere) and **Short Name** (e.g., `math.local`)
+- **🛡️ Advanced Content Filtering**: Real-time detection of inappropriate content (2875+ words, multi-language)
+- **⚡ Smart Action Buttons**: Context-aware buttons for Copy 📋, Email ✉️, Open Link 🔗, and Download ⬇️
 
 ## 📖 How to Use
 1.  **Start the App**: Open ClassSend on the teacher's computer.
@@ -30,10 +35,10 @@
 ## 📦 Download & Install
 Go to the [Releases](../../releases) page or check the `out/make` folder.
 
-- **Windows Installer (64-bit)**: `ClassSend-4.2.0 Setup.exe`
-- **Windows Installer (32-bit)**: `ClassSend-4.2.0 Setup.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-4.2.0.zip`
-- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-4.2.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-4.5.4 Setup.exe`
+- **Windows Installer (32-bit)**: `ClassSend-4.5.4 Setup-x32.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-4.5.4.zip`
+- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-4.5.4.zip`
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:

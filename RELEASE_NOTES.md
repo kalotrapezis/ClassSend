@@ -1,3 +1,80 @@
+## Version 4.5.4 - Critical Bug Fixes & Gallery Enhancements
+**Release Date:** December 3, 2025
+
+### 🐛 Critical Bug Fixes
+
+#### Filtering System Restored
+- **Issue:** Content filtering system completely stopped working in the last build (v4.5.3)
+- **Symptoms:** Inappropriate words were not being detected, send button remained enabled
+- **Root Cause:** Script loading order issue caused filter initialization to fail
+- **Solution:** Fixed script import sequence and dependency chain in `index.html`
+- **Verification:** Tested with 2875+ filter words - all detection working correctly
+- **Impact:** Content filtering now fully operational:
+  - Real-time monitoring of message input
+  - Automatic send button disable on inappropriate content
+  - User warning messages displayed properly
+  - Filter word loading confirmed on startup
+
+#### Pinned Comments Action Buttons Fixed
+- **Issue:** Action buttons (copy, email, link) were not appearing on pinned comments themselves
+- **Previous Behavior:** Users had to scroll down to find the original message to use action buttons
+- **New Behavior:** Pinned messages now display action buttons directly:
+  - **📋 Copy Button** - Copy message content to clipboard
+  - **✉️ Email Button** - Open mailto link (auto-detected from content)
+  - **🔗 Link Button** - Open URL in new tab (auto-detected from content)
+  - **❌ Unpin Button** - Remove pin (teacher only)
+- **Benefits:**
+  - No more scrolling to find original message
+  - Quick access to common actions
+  - Consistent UX with regular chat messages
+  - Smart content detection for context-aware buttons
+
+### ✨ New Features
+
+#### Download All as ZIP (Alpha)
+- **Feature:** Bulk download capability in Media Library/Gallery
+- **Implementation:** Click "Download All" button to download all shared files as a single ZIP archive
+- **Status:** Alpha - initial release for testing
+- **Technical Details:**
+  - Server-side ZIP creation using streaming compression
+  - Automatic filename generation with class name and timestamp
+  - Memory-efficient streaming for large file collections
+  - Progress indication during download
+- **Known Limitations (Alpha):**
+  - Large file collections may take time to compress
+  - Limited error handling for failed downloads
+  - No resume capability for interrupted downloads
+- **Future Improvements:**
+  - Download progress percentage
+  - Selective file download (choose which files to include)
+  - Multiple archive format support (7z, tar.gz)
+
+### 📁 File Changes
+
+**Modified Files:**
+- `client/index.html` - Fixed script loading order for content filter
+- `client/src/main.js` - Enhanced `renderPinnedMessages()` with action buttons
+- `server/index.js` - Added ZIP download endpoint and streaming logic
+- `client/index.html` - Added Download All button to gallery section
+- `server/package.json` - Version bump to 4.5.4
+
+### 🔄 Upgrade Notes
+- **Critical:** Clean install required due to filtering system changes
+- Run `npm install` in server directory
+- Rebuild client: `npm run build` in client directory
+- Full application restart recommended to ensure all fixes are applied
+
+### 📊 Statistics
+- **Build time:** ~360ms (client)
+- **Bundle size:** ~69 KB (JavaScript), ~24 KB (CSS)
+- **Filter database:** 2875+ inappropriate words (multi-language)
+
+### ⚠️ Known Issues
+- Download All feature (alpha) may timeout on very large file collections (>500MB)
+- ZIP compression is CPU-intensive and may briefly slow down the server
+
+---
+
 ## Version 4.5.2 - Bug Fixes & Pinned Message Enhancements
 **Release Date:** December 2, 2025
 
