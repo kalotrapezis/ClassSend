@@ -478,6 +478,11 @@ function switchClass(id) {
     messageInput.focus();
 
     closeMobileSidebar(); // Close sidebar on mobile
+
+    // Update dictionary button visibility for teacher
+    if (typeof updateDictionaryButtonVisibility === 'function') {
+        updateDictionaryButtonVisibility();
+    }
 }
 
 function deleteClass(id) {
@@ -1645,3 +1650,261 @@ function renderPinnedMessages() {
     });
 }
 
+
+// ===== DICTIONARY (FORBIDDEN WORDS) FEATURE =====
+// Custom forbidden words added by teacher
+let customForbiddenWords = [];
+
+// DOM Elements for Dictionary
+const dictionaryModal = document.getElementById('dictionary-modal');
+const btnDictionary = document.getElementById('btn-dictionary');
+const btnCloseDictionary = document.getElementById('btn-close-dictionary');
+const dictionaryWordInput = document.getElementById('dictionary-word-input');
+const btnAddWord = document.getElementById('btn-add-word');
+const dictionaryWordList = document.getElementById('dictionary-word-list');
+const textSelectionPopup = document.getElementById('text-selection-popup');
+const btnAddSelectionToDictionary = document.getElementById('btn-add-selection-to-dictionary');
+
+// Show/hide dictionary button based on role
+function updateDictionaryButtonVisibility() {
+    if (btnDictionary) {
+        if (currentRole === 'teacher') {
+            btnDictionary.classList.remove('hidden');
+        } else {
+            btnDictionary.classList.add('hidden');
+        }
+    }
+}
+
+// Open Dictionary Modal
+if (btnDictionary) {
+    btnDictionary.addEventListener('click', () => {
+        // Close other modals
+        if (mediaPopup) mediaPopup.classList.add('hidden');
+        if (connectionModal) connectionModal.classList.add('hidden');
+
+        // Load words and show modal
+        loadForbiddenWords();
+        dictionaryModal.classList.remove('hidden');
+    });
+}
+
+// Close Dictionary Modal
+if (btnCloseDictionary) {
+    btnCloseDictionary.addEventListener('click', () => {
+        dictionaryModal.classList.add('hidden');
+    });
+}
+
+// Close modal when clicking outside
+if (dictionaryModal) {
+    dictionaryModal.addEventListener('click', (e) => {
+        if (e.target === dictionaryModal) {
+            dictionaryModal.classList.add('hidden');
+        }
+    });
+}
+
+// Load forbidden words from server
+function loadForbiddenWords() {
+    socket.emit('get-forbidden-words', (words) => {
+        customForbiddenWords = words || [];
+        renderDictionaryWordList();
+    });
+}
+
+// Render the word list in the modal
+function renderDictionaryWordList() {
+    if (!dictionaryWordList) return;
+
+    if (customForbiddenWords.length === 0) {
+        dictionaryWordList.innerHTML = '<div class="empty-dictionary-state">No custom words added yet</div>';
+        return;
+    }
+
+    dictionaryWordList.innerHTML = customForbiddenWords.map(item => {
+        const date = new Date(item.addedAt);
+        const dateStr = date.toLocaleDateString('el-GR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+
+        return `
+            <div class="dictionary-word-item" data-word="${escapeHtml(item.word)}">
+                <span class="dictionary-word-text">${escapeHtml(item.word)}</span>
+                <span class="dictionary-word-date">${dateStr}</span>
+                <button class="dictionary-delete-btn" title="Delete">❌</button>
+            </div>
+        `;
+    }).join('');
+
+    // Add delete button listeners
+    dictionaryWordList.querySelectorAll('.dictionary-delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const wordItem = e.target.closest('.dictionary-word-item');
+            const word = wordItem.dataset.word;
+            removeForbiddenWord(word);
+        });
+    });
+}
+
+// Add a forbidden word
+function addForbiddenWord(word) {
+    if (!word || word.trim() === '') return;
+
+    const trimmedWord = word.trim().toLowerCase();
+
+    // Check if already exists
+    if (customForbiddenWords.some(w => w.word === trimmedWord)) {
+        alert('This word is already in the list!');
+        return;
+    }
+
+    socket.emit('add-forbidden-word', { word: trimmedWord }, (response) => {
+        if (response && response.success) {
+            console.log(`✅ Added forbidden word: ${trimmedWord}`);
+            if (dictionaryWordInput) dictionaryWordInput.value = '';
+        } else {
+            console.error('Failed to add word:', response?.message);
+        }
+    });
+}
+
+// Remove a forbidden word
+function removeForbiddenWord(word) {
+    socket.emit('remove-forbidden-word', { word }, (response) => {
+        if (response && response.success) {
+            console.log(`✅ Removed forbidden word: ${word}`);
+        } else {
+            console.error('Failed to remove word:', response?.message);
+        }
+    });
+}
+
+// Add word button click
+if (btnAddWord) {
+    btnAddWord.addEventListener('click', () => {
+        addForbiddenWord(dictionaryWordInput.value);
+    });
+}
+
+// Add word on Enter key
+if (dictionaryWordInput) {
+    dictionaryWordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addForbiddenWord(dictionaryWordInput.value);
+        }
+    });
+}
+
+// Listen for updates from server
+socket.on('forbidden-words-updated', (words) => {
+    customForbiddenWords = words || [];
+    renderDictionaryWordList();
+
+    // Update the filter words array to include custom words
+    updateFilterWithCustomWords();
+});
+
+// Update filter words to include custom words
+function updateFilterWithCustomWords() {
+    // The custom words will be checked separately for now
+    // This could be merged with the main filterWords array if needed
+    console.log(`🔄 Custom forbidden words updated: ${customForbiddenWords.length} words`);
+}
+
+// ===== TEXT SELECTION POPUP =====
+let selectedText = '';
+
+// Show popup when text is selected in messages container (Teacher only)
+if (messagesContainer) {
+    messagesContainer.addEventListener('mouseup', (e) => {
+        // Only for teachers
+        if (currentRole !== 'teacher') {
+            hideTextSelectionPopup();
+            return;
+        }
+
+        const selection = window.getSelection();
+        const text = selection.toString().trim();
+
+        if (text && text.length > 0 && text.length < 50) {
+            selectedText = text;
+            showTextSelectionPopup(e.clientX, e.clientY);
+        } else {
+            hideTextSelectionPopup();
+        }
+    });
+}
+
+// Hide popup when clicking elsewhere
+document.addEventListener('mousedown', (e) => {
+    if (textSelectionPopup && !textSelectionPopup.contains(e.target)) {
+        hideTextSelectionPopup();
+    }
+});
+
+function showTextSelectionPopup(x, y) {
+    if (!textSelectionPopup) return;
+
+    textSelectionPopup.style.left = `${x + 10}px`;
+    textSelectionPopup.style.top = `${y - 40}px`;
+    textSelectionPopup.classList.remove('hidden');
+}
+
+function hideTextSelectionPopup() {
+    if (textSelectionPopup) {
+        textSelectionPopup.classList.add('hidden');
+    }
+    selectedText = '';
+}
+
+// Add selected text to dictionary
+if (btnAddSelectionToDictionary) {
+    btnAddSelectionToDictionary.addEventListener('click', () => {
+        if (selectedText) {
+            addForbiddenWord(selectedText);
+            hideTextSelectionPopup();
+            window.getSelection().removeAllRanges();
+        }
+    });
+}
+
+// Note: updateDictionaryButtonVisibility is called from within switchClass function
+
+// Enhanced containsInappropriateContent to include custom words
+const originalContainsInappropriateContent = containsInappropriateContent;
+containsInappropriateContent = function (text) {
+    // First check original filter
+    if (originalContainsInappropriateContent(text)) return true;
+
+    // Then check custom words
+    if (!text || customForbiddenWords.length === 0) return false;
+
+    const normalizedInput = normalizeText(text);
+    const words = normalizedInput.match(/[\p{L}\p{N}]+/gu) || [];
+
+    for (const inputWord of words) {
+        for (const customWord of customForbiddenWords) {
+            const normalizedBanned = normalizeText(customWord.word);
+
+            // Exact match
+            if (inputWord === normalizedBanned) return true;
+
+            // Fuzzy match for longer words
+            if (inputWord.length > 3 && normalizedBanned.length > 3) {
+                if (Math.abs(inputWord.length - normalizedBanned.length) <= 1) {
+                    const distance = levenshteinDistance(inputWord, normalizedBanned);
+                    if (distance <= 1) {
+                        console.log(`Custom word fuzzy match: '${inputWord}' ~= '${normalizedBanned}'`);
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
+};

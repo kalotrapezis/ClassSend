@@ -4,6 +4,7 @@ const https = require('https');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const NetworkDiscovery = require('./network-discovery');
 const TLSConfig = require('./tls-config');
 
@@ -43,6 +44,43 @@ const networkDiscovery = new NetworkDiscovery();
 
 // Grace period for teacher disconnections (10 seconds)
 const TEACHER_DISCONNECT_GRACE_PERIOD = 10000;
+
+// ===== FORBIDDEN WORDS MANAGEMENT =====
+const CUSTOM_WORDS_FILE = path.join(__dirname, 'data', 'custom-forbidden-words.json');
+let customForbiddenWords = [];
+
+// Ensure data directory exists
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Load custom forbidden words from file
+function loadCustomForbiddenWords() {
+  try {
+    if (fs.existsSync(CUSTOM_WORDS_FILE)) {
+      const data = fs.readFileSync(CUSTOM_WORDS_FILE, 'utf-8');
+      customForbiddenWords = JSON.parse(data);
+      console.log(`📚 Loaded ${customForbiddenWords.length} custom forbidden words`);
+    }
+  } catch (err) {
+    console.error('Failed to load custom forbidden words:', err);
+    customForbiddenWords = [];
+  }
+}
+
+// Save custom forbidden words to file
+function saveCustomForbiddenWords() {
+  try {
+    fs.writeFileSync(CUSTOM_WORDS_FILE, JSON.stringify(customForbiddenWords, null, 2), 'utf-8');
+    console.log(`💾 Saved ${customForbiddenWords.length} custom forbidden words`);
+  } catch (err) {
+    console.error('Failed to save custom forbidden words:', err);
+  }
+}
+
+// Load words on startup
+loadCustomForbiddenWords();
 
 
 io.on('connection', (socket) => {
@@ -572,6 +610,66 @@ io.on('connection', (socket) => {
       discoveryBrowser.stop();
       discoveryBrowser = null;
       console.log(`Client ${socket.id} stopped network discovery`);
+    }
+  });
+
+  // ===== FORBIDDEN WORDS SOCKET EVENTS =====
+  socket.on('add-forbidden-word', ({ word }, callback) => {
+    if (!word || typeof word !== 'string') {
+      return callback({ success: false, message: 'Invalid word' });
+    }
+
+    const trimmedWord = word.trim().toLowerCase();
+
+    // Check if already exists
+    if (customForbiddenWords.some(w => w.word === trimmedWord)) {
+      return callback({ success: false, message: 'Word already exists' });
+    }
+
+    // Add word with timestamp
+    customForbiddenWords.push({
+      word: trimmedWord,
+      addedAt: new Date().toISOString()
+    });
+
+    // Save to file
+    saveCustomForbiddenWords();
+
+    // Broadcast to all clients
+    io.emit('forbidden-words-updated', customForbiddenWords);
+
+    console.log(`📚 Added forbidden word: ${trimmedWord}`);
+    callback({ success: true });
+  });
+
+  socket.on('remove-forbidden-word', ({ word }, callback) => {
+    if (!word || typeof word !== 'string') {
+      return callback({ success: false, message: 'Invalid word' });
+    }
+
+    const trimmedWord = word.trim().toLowerCase();
+    const initialLength = customForbiddenWords.length;
+
+    // Remove word
+    customForbiddenWords = customForbiddenWords.filter(w => w.word !== trimmedWord);
+
+    if (customForbiddenWords.length === initialLength) {
+      return callback({ success: false, message: 'Word not found' });
+    }
+
+    // Save to file
+    saveCustomForbiddenWords();
+
+    // Broadcast to all clients
+    io.emit('forbidden-words-updated', customForbiddenWords);
+
+    console.log(`📚 Removed forbidden word: ${trimmedWord}`);
+    callback({ success: true });
+  });
+
+  socket.on('get-forbidden-words', (callback) => {
+    if (typeof callback === 'function') {
+      callback(customForbiddenWords);
     }
   });
 

@@ -1,3 +1,84 @@
+## Version 5.0.0 - Forbidden Words Dictionary
+**Release Date:** December 12, 2025
+
+### 🎉 Major Features
+
+#### 📚 Forbidden Words Dictionary (Teacher Only)
+Teachers can now manage a custom list of forbidden words in real-time:
+
+- **Dictionary Button**: New "📚 Dictionary" button in the sidebar (visible only to teachers)
+- **Dictionary Modal**: Pop-up window to manage forbidden words with:
+  - Add word input field with "Add ➕" button
+  - List of words with date added and delete button (❌)
+  - Scrollable list for many words
+- **Text Selection Popup**: Select any text in chat and click "Add to forbidden words ➕" to quickly add it
+- **Persistent Storage**: Words are saved to `server/data/custom-forbidden-words.json` and persist across restarts
+- **Real-time Sync**: All connected clients receive updates instantly when words are added/removed
+- **Enhanced Filtering**: Custom words are checked alongside the existing 2875+ word filter database
+
+### 🔧 Technical Details
+
+#### Server-Side
+- New socket events:
+  - `add-forbidden-word` - Add a word to the custom list
+  - `remove-forbidden-word` - Remove a word from the custom list
+  - `get-forbidden-words` - Retrieve the current word list
+  - `forbidden-words-updated` - Broadcast updates to all clients
+- File-based persistence in `server/data/` directory
+- Automatic directory creation on first run
+
+#### Client-Side
+- Dictionary modal with add/delete functionality
+- Text selection detection in messages container
+- Floating popup for quick word addition
+- Enhanced `containsInappropriateContent()` to check custom words with fuzzy matching
+
+### 📁 File Changes
+
+**New Files:**
+- `server/data/custom-forbidden-words.json` - Persistent storage for custom words (created on first use)
+
+**Modified Files:**
+- `client/index.html` - Dictionary modal HTML, Dictionary button, text selection popup
+- `client/style.css` - Styling for dictionary components (~190 lines added)
+- `client/main.js` - Dictionary logic and text selection handling (~270 lines added)
+- `server/index.js` - Socket events and file persistence (~100 lines added)
+- `server/package.json` - Version bump to 5.0.0
+- `client/package.json` - Version bump to 5.0.0
+
+### 🐛 Bug Fixes
+- Fixed class click not working issue caused by function override conflict
+
+### 💡 Usage
+
+**Adding Words Manually:**
+1. Click "📚 Dictionary" button in the sidebar
+2. Type a word in the input field
+3. Click "Add ➕" or press Enter
+
+**Adding Words from Chat:**
+1. Select text in any chat message
+2. Click the "Add to forbidden words ➕" popup that appears
+3. Word is instantly added to the filter
+
+**Removing Words:**
+1. Open the Dictionary modal
+2. Click the ❌ button next to any word
+
+### 🔄 Upgrade Notes
+- Rebuild required: Run `npm run build` in client directory
+- The `server/data/` directory is created automatically
+- Existing filter words continue to work alongside custom words
+
+### 📊 Statistics
+- **New lines of code:** ~560
+- **New socket events:** 4
+- **New UI components:** 3 (Dictionary button, modal, text selection popup)
+- **Build time:** ~370ms (client)
+- **Bundle size:** ~72 KB (JavaScript), ~26 KB (CSS)
+
+---
+
 ## Version 4.5.4 - Critical Bug Fixes & Gallery Enhancements
 **Release Date:** December 3, 2025
 

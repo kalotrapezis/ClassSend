@@ -6,8 +6,8 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ClassSend</title>
-  <script type="module" crossorigin src="/assets/index-CRu53QFa.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DQbhmiWh.css">
+  <script type="module" crossorigin src="/assets/index-R-u9o-4V.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-C9fCahP7.css">
 </head>
 
 <body>
@@ -131,6 +131,31 @@
         </div>
       </div>
 
+      <!-- Dictionary Modal (Teacher Only) -->
+      <div id="dictionary-modal" class="modal hidden">
+        <div class="modal-content dictionary-modal-content">
+          <div class="popup-header">
+            <h3>📚 Forbidden Words</h3>
+            <button id="btn-close-dictionary" class="close-btn">×</button>
+          </div>
+          <div class="dictionary-body">
+            <div class="dictionary-add-section">
+              <input type="text" id="dictionary-word-input" placeholder="Enter word to add..." autocomplete="off">
+              <button id="btn-add-word" class="add-word-btn">Add ➕</button>
+            </div>
+            <div id="dictionary-word-list" class="dictionary-word-list">
+              <!-- Words will be dynamically added here -->
+              <div class="empty-dictionary-state">No custom words added yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text Selection Popup (for adding words from chat) -->
+      <div id="text-selection-popup" class="text-selection-popup hidden">
+        <button id="btn-add-selection-to-dictionary">Add to forbidden words ➕</button>
+      </div>
+
       <!-- Main Content -->
       <div class="chat-main">
         <!-- Mobile Sidebar Overlay -->
@@ -138,6 +163,11 @@
 
         <!-- Left Sidebar - Classes & Users -->
         <aside id="sidebar-left" class="sidebar-left">
+          <!-- Dictionary Button (Teacher Only) -->
+          <button id="btn-dictionary" class="dictionary-btn hidden" title="Manage Forbidden Words">
+            📚 Dictionary
+          </button>
+
           <div class="sidebar-header">
             <h3>Classes</h3>
           </div>

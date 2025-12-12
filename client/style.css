@@ -1946,3 +1946,193 @@ input:checked+.slider:before {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Dictionary Button in Sidebar */
+.dictionary-btn {
+  width: calc(100% - 1rem);
+  margin: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
+  border: none;
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.dictionary-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(98, 100, 167, 0.4);
+}
+
+.dictionary-btn.hidden {
+  display: none;
+}
+
+/* Dictionary Modal */
+.dictionary-modal-content {
+  width: 90%;
+  max-width: 500px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dictionary-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow: hidden;
+  flex: 1;
+}
+
+.dictionary-add-section {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.dictionary-add-section input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.dictionary-add-section input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(98, 100, 167, 0.2);
+}
+
+.add-word-btn {
+  padding: 0.75rem 1.25rem;
+  background: var(--accent-primary);
+  border: none;
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.add-word-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.dictionary-word-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 200px;
+  max-height: 400px;
+}
+
+.empty-dictionary-state {
+  color: var(--text-secondary);
+  font-style: italic;
+  text-align: center;
+  padding: 2rem;
+}
+
+.dictionary-word-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.dictionary-word-item:hover {
+  border-color: var(--accent-primary);
+  background: var(--bg-hover);
+}
+
+.dictionary-word-text {
+  flex: 1;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.dictionary-word-date {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.dictionary-delete-btn {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.dictionary-delete-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Text Selection Popup */
+.text-selection-popup {
+  position: fixed;
+  z-index: 3000;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  padding: 0.25rem;
+  animation: popupFadeIn 0.2s ease;
+}
+
+.text-selection-popup.hidden {
+  display: none;
+}
+
+.text-selection-popup button {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
+  border: none;
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.text-selection-popup button:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(98, 100, 167, 0.4);
+}
+
+@keyframes popupFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
