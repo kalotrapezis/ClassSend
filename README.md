@@ -33,12 +33,14 @@
 - **Cross-Platform**: Windows (exe), Mac, and Linux support via Electron.
 
 ## 📦 Download & Install
-Go to the [Releases](../../releases) page or check the `out/make` folder.
+Go to the [Releases](../../releases) page or check the `server/out/make` folder.
 
-- **Windows Installer (64-bit)**: `ClassSend-4.5.4 Setup.exe`
-- **Windows Installer (32-bit)**: `ClassSend-4.5.4 Setup-x32.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-4.5.4.zip`
-- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-4.5.4.zip`
+- **Linux AppImage**: `ClassSend-5.0.0-x64.AppImage` (portable, no installation needed)
+- **Linux Zip**: `ClassSend-linux-x64-5.0.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-5.0.4 Setup.exe`
+- **Windows Installer (32-bit)**: `ClassSend-5.0.4 Setup-x32.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-5.0.4.zip`
+- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-5.0.0.zip`
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:
@@ -58,7 +60,22 @@ If you want to modify the code or contribute:
 3.  **Build for Production**:
     To create the `.exe` installer:
     ```bash
+    cd server
     npm run make
+    ```
+
+    **Build Linux AppImage**:
+    ```bash
+    cd server
+    npm run make:appimage
+    ```
+
+    **Build Windows 32-bit Zip** (on Linux):
+    ```bash
+    cd server
+    npx electron-forge package --arch=ia32 --platform=win32
+    mkdir -p out/make/zip/win32-ia32
+    cd out/ClassSend-win32-ia32 && zip -r ../make/zip/win32-ia32/ClassSend-win32-ia32-5.0.0.zip .
     ```
 
 ## 🏗️ Architecture

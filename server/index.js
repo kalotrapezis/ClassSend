@@ -7,10 +7,17 @@ const path = require('path');
 const fs = require('fs');
 const NetworkDiscovery = require('./network-discovery');
 const TLSConfig = require('./tls-config');
+const multer = require('multer');
+const FileStorage = require('./file-storage');
 
 
 const app = express();
 app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Initialize file storage
+const fileStorage = new FileStorage();
 
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
@@ -36,7 +43,123 @@ const io = new Server(server, {
     origin: "*", // Allow all origins for local network dev
     methods: ["GET", "POST"]
   },
-  maxHttpBufferSize: 10 * 1024 * 1024 // 10MB max message size (for file uploads)
+  maxHttpBufferSize: 2 * 1024 * 1024 * 1024 // 2GB max message size (accounts for base64 encoding ~33% overhead)
+});
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, fileStorage.uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const fileId = fileStorage.generateFileId();
+    const ext = path.extname(file.originalname);
+    cb(null, `${fileId}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 1.5 * 1024 * 1024 * 1024 // 1.5GB limit
+  }
+});
+
+// ===== HTTP FILE UPLOAD/DOWNLOAD ENDPOINTS =====
+
+// File upload endpoint
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const { classId, userName, socketId, role } = req.body;
+  if (!classId) {
+    fs.unlinkSync(req.file.path);
+    return res.status(400).json({ error: 'Class ID required' });
+  }
+
+  const fileId = path.parse(req.file.filename).name;
+  const metadata = {
+    id: fileId,
+    name: req.file.originalname,
+    size: req.file.size,
+    type: req.file.mimetype,
+    path: req.file.path,
+    classId: classId,
+    uploadedBy: userName,
+    timestamp: Date.now()
+  };
+
+  fileStorage.saveFile(fileId, metadata);
+
+  // Create message object
+  const message = {
+    id: Date.now() + Math.random(),
+    classId: classId,
+    senderId: socketId,
+    senderName: userName,
+    senderRole: role,
+    content: `Shared a file: ${req.file.originalname}`,
+    type: 'file',
+    fileData: {
+      id: fileId,
+      name: req.file.originalname,
+      size: req.file.size,
+      type: req.file.mimetype
+    },
+    timestamp: new Date().toISOString()
+  };
+
+  // Store message in class data
+  if (activeClasses.has(classId)) {
+    activeClasses.get(classId).messages.push(message);
+  }
+
+  // Notify class via Socket.IO
+  io.to(classId).emit('new-message', message);
+
+  console.log(`File uploaded: ${req.file.originalname} (${fileId}) to class ${classId}`);
+  res.json({ success: true, fileId: fileId });
+});
+
+// File download endpoint
+app.get('/api/download/:fileId', (req, res) => {
+  console.log(`[Download] Request for fileId: ${req.params.fileId}`);
+  const file = fileStorage.getFile(req.params.fileId);
+
+  if (!file) {
+    console.error(`[Download] File metadata not found for ID: ${req.params.fileId}`);
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  console.log(`[Download] Found metadata:`, file);
+
+  if (!fs.existsSync(file.path)) {
+    console.error(`[Download] File does not exist on disk: ${file.path}`);
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  console.log(`[Download] Sending file from: ${file.path}`);
+
+  // Set headers manually for download
+  res.setHeader('Content-Disposition', `attachment; filename="${file.name}"`);
+  res.setHeader('Content-Type', file.type || 'application/octet-stream');
+
+  // Use sendFile with root option to avoid path resolution issues
+  const rootDir = path.dirname(file.path);
+  const fileName = path.basename(file.path);
+
+  res.sendFile(fileName, { root: rootDir }, (err) => {
+    if (err) {
+      console.error(`[Download] Error sending file:`, err);
+      if (!res.headersSent) {
+        res.status(404).json({ error: 'File sending failed' });
+      }
+    } else {
+      console.log(`[Download] File sent successfully: ${file.name}`);
+    }
+  });
 });
 
 const activeClasses = new Map(); // classId -> { teacherId, students: [], deletionTimeout: null }
@@ -46,11 +169,12 @@ const networkDiscovery = new NetworkDiscovery();
 const TEACHER_DISCONNECT_GRACE_PERIOD = 10000;
 
 // ===== FORBIDDEN WORDS MANAGEMENT =====
-const CUSTOM_WORDS_FILE = path.join(__dirname, 'data', 'custom-forbidden-words.json');
+const baseDir = process.env.USER_DATA_PATH || __dirname;
+const CUSTOM_WORDS_FILE = path.join(baseDir, 'data', 'custom-forbidden-words.json');
 let customForbiddenWords = [];
 
 // Ensure data directory exists
-const dataDir = path.join(__dirname, 'data');
+const dataDir = path.join(baseDir, 'data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
@@ -786,4 +910,18 @@ function stopServer() {
   });
 }
 
+// Handle graceful shutdown signals (for standalone execution)
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received. Shutting down...');
+  await stopServer();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received. Shutting down...');
+  await stopServer();
+  process.exit(0);
+});
+
 module.exports = { server, stopServer };
+

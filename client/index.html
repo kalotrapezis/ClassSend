@@ -155,6 +155,21 @@
         <button id="btn-add-selection-to-dictionary">Add to forbidden words ➕</button>
       </div>
 
+      <!-- File Progress Modal -->
+      <div id="progress-modal" class="modal hidden">
+        <div class="modal-content progress-modal-content">
+          <h3 id="progress-title">Uploading...</h3>
+          <div class="progress-container">
+            <div id="progress-bar" class="progress-bar">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+            <div id="progress-text" class="progress-text">0%</div>
+          </div>
+          <button id="btn-cancel-progress" class="secondary-btn cancel-btn">Cancel</button>
+        </div>
+      </div>
+
+
       <!-- Main Content -->
       <div class="chat-main">
         <!-- Mobile Sidebar Overlay -->
@@ -217,7 +232,7 @@
       </div>
     </div>
   </div>
-  <script type="module" src="/main.js?v=4.0.1"></script>
+  <script type="module" src="/main.js?v=5.1.0"></script>
 </body>
 
 </html>

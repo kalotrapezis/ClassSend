@@ -699,27 +699,86 @@ fileInput.addEventListener("change", async (e) => {
     if (!file) return;
     if (!currentClassId) return;
 
-    // Convert file to base64
-    const reader = new FileReader();
-    reader.onload = () => {
-        const base64 = reader.result;
+    // Warn for files > 500MB
+    const MAX_RECOMMENDED_SIZE = 500 * 1024 * 1024; // 500MB
+    if (file.size > MAX_RECOMMENDED_SIZE) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(0);
+        if (!confirm(`This file is ${sizeMB}MB. Large files may take a while to upload and download. Continue?`)) {
+            fileInput.value = "";
+            return;
+        }
+    }
 
-        socket.emit("send-message", {
-            classId: currentClassId,
-            content: `Shared a file: ${file.name}`,
-            type: "file",
-            fileData: {
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                data: base64
-            }
-        });
-
-        fileInput.value = "";
-    };
-    reader.readAsDataURL(file);
+    // Use HTTP upload with XHR for progress tracking
+    uploadFileXHR(file);
+    fileInput.value = "";
 });
+
+// XHR File Upload with Progress
+function uploadFileXHR(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('classId', currentClassId);
+    formData.append('userName', userName);
+    formData.append('socketId', socket.id);
+    formData.append('role', currentRole);
+
+    const xhr = new XMLHttpRequest();
+
+    // Show Progress Modal
+    const progressModal = document.getElementById('progress-modal');
+    const progressTitle = document.getElementById('progress-title');
+    const progressBar = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    const btnCancel = document.getElementById('btn-cancel-progress');
+
+    progressTitle.textContent = `Uploading ${file.name}...`;
+    progressBar.style.width = '0%';
+    progressText.textContent = '0%';
+    progressModal.classList.remove('hidden');
+
+    // Cancel Button
+    btnCancel.onclick = () => {
+        xhr.abort();
+        progressModal.classList.add('hidden');
+        alert('Upload cancelled');
+    };
+
+    // Progress Event
+    xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            progressBar.style.width = percentComplete + '%';
+            progressText.textContent = percentComplete + '%';
+        }
+    };
+
+    // Load/Error/Abort Events
+    xhr.onload = () => {
+        progressModal.classList.add('hidden');
+        if (xhr.status === 200) {
+            try {
+                const result = JSON.parse(xhr.responseText);
+                console.log('File uploaded successfully:', result.fileId);
+            } catch (e) {
+                console.error('Error parsing response:', e);
+            }
+        } else {
+            console.error('Upload failed:', xhr.statusText);
+            alert(`Upload failed: ${xhr.statusText}`);
+        }
+    };
+
+    xhr.onerror = () => {
+        progressModal.classList.add('hidden');
+        console.error('Upload error');
+        alert('Upload failed due to network error');
+    };
+
+    xhr.open('POST', '/api/upload', true);
+    xhr.send(formData);
+}
+
 
 // Hand-Raising Buttons
 if (btnRaiseHand) {
@@ -787,25 +846,32 @@ document.addEventListener('drop', async (e) => {
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
-    // Send each file
+    // Send each file via HTTP
     for (const file of files) {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const base64 = reader.result;
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('classId', currentClassId);
+        formData.append('userName', userName);
+        formData.append('socketId', socket.id);
+        formData.append('role', currentRole);
 
-            socket.emit("send-message", {
-                classId: currentClassId,
-                content: `Shared a file: ${file.name}`,
-                type: "file",
-                fileData: {
-                    name: file.name,
-                    size: file.size,
-                    type: file.type,
-                    data: base64
-                }
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
             });
-        };
-        reader.readAsDataURL(file);
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Upload failed');
+            }
+
+            const result = await response.json();
+            console.log('File uploaded successfully:', result.fileId);
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert(`Failed to upload ${file.name}: ${error.message}`);
+        }
     }
 }, false);
 
@@ -861,7 +927,7 @@ function renderMessage(message) {
         // Add event listeners
         const downloadBtn = messageDiv.querySelector('.download-btn');
         if (downloadBtn) {
-            downloadBtn.addEventListener('click', () => downloadFile(message.fileData.data, message.fileData.name));
+            downloadBtn.addEventListener('click', () => downloadFile(message.fileData.id || message.fileData.data, message.fileData.name));
         }
 
         if (isImage) {
@@ -985,7 +1051,7 @@ function renderMediaHistory() {
                     <span>${msg.senderName}</span>
                 </div>
             </div>
-            <button class="media-download-btn" title="Download" onclick="downloadFile('${msg.fileData.data}', '${escapeHtml(msg.fileData.name)}')">
+            <button class="media-download-btn" title="Download" onclick="downloadFile('${msg.fileData.id || msg.fileData.data}', '${escapeHtml(msg.fileData.name)}')">
                 ⬇️
             </button>
         `;
@@ -1323,12 +1389,84 @@ function escapeHtml(text) {
 }
 
 // Global function for file download
-window.downloadFile = function (base64Data, fileName) {
-    const link = document.createElement("a");
-    link.href = base64Data;
-    link.download = fileName;
-    link.click();
+// Global function for file download with progress
+window.downloadFile = function (fileIdOrData, fileName) {
+    // Check if it's base64 data (legacy)
+    if (fileIdOrData.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = fileIdOrData;
+        a.download = fileName;
+        a.click();
+        return;
+    }
+
+    // Use XHR for download progress
+    const xhr = new XMLHttpRequest();
+    const url = `/api/download/${fileIdOrData}`;
+
+    // Show Progress Modal
+    const progressModal = document.getElementById('progress-modal');
+    const progressTitle = document.getElementById('progress-title');
+    const progressBar = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    const btnCancel = document.getElementById('btn-cancel-progress');
+
+    progressTitle.textContent = `Downloading ${fileName}...`;
+    progressBar.style.width = '0%';
+    progressText.textContent = '0%';
+    progressModal.classList.remove('hidden');
+
+    // Cancel Button
+    btnCancel.onclick = () => {
+        xhr.abort();
+        progressModal.classList.add('hidden');
+    };
+
+    xhr.responseType = 'blob'; // Important for binary files
+
+    xhr.onprogress = (event) => {
+        if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            progressBar.style.width = percentComplete + '%';
+            progressText.textContent = percentComplete + '%';
+        } else {
+            // If total size is unknown, show indeterminate state
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Downloading...';
+            progressBar.classList.add('indeterminate');
+        }
+    };
+
+    xhr.onload = () => {
+        progressModal.classList.add('hidden');
+        if (xhr.status === 200) {
+            const blob = xhr.response;
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(downloadUrl);
+            }, 100);
+        } else {
+            console.error('Download failed:', xhr.status);
+            alert('Download failed');
+        }
+    };
+
+    xhr.onerror = () => {
+        progressModal.classList.add('hidden');
+        console.error('Download network error');
+        alert('Download failed due to network error');
+    };
+
+    xhr.open('GET', url, true);
+    xhr.send();
 };
+
 
 // Connection Test (Ping)
 setInterval(() => {

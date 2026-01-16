@@ -1,13 +1,24 @@
 const { app, BrowserWindow, Tray, Menu } = require('electron');
 const path = require('path');
+
+// Set USER_DATA_PATH for the server to use (Must be before requiring index.js)
+// This ensures we write to a writable location (e.g. ~/.config/...) instead of the read-only AppImage mount
+// app.getPath('userData') is only available after app is ready or in main process, but we need it for top-level requires if they run immediately.
+// Actually, app.getPath is available immediately in main process.
+process.env.USER_DATA_PATH = app.getPath('userData');
+
 const { server, stopServer } = require('./index.js'); // Import the server to start it and stop it
 
 let mainWindow;
 let tray;
 let isQuitting = false;
 
+// Disable hardware acceleration to prevent GPU process crashes on Linux
+app.disableHardwareAcceleration();
+
 // Ignore certificate errors for self-signed certificates (development only)
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+
     // Only for localhost
     if (url.startsWith('https://localhost')) {
         event.preventDefault();
@@ -18,7 +29,11 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
 });
 
 function createWindow() {
-    const iconPath = path.join(__dirname, 'assets', 'icon.ico');
+    let iconFilename = 'icon.ico';
+    if (process.platform === 'linux' || process.platform === 'darwin') {
+        iconFilename = 'tray.png';
+    }
+    const iconPath = path.join(__dirname, 'assets', iconFilename);
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
@@ -49,11 +64,17 @@ function createWindow() {
 
 function createTray() {
     try {
-        const iconPath = path.join(__dirname, 'assets', 'icon.ico');
+        let iconFilename = 'icon.ico';
+        if (process.platform === 'linux' || process.platform === 'darwin') {
+            iconFilename = 'tray.png';
+        }
+
+        const iconPath = path.join(__dirname, 'assets', iconFilename);
+        console.log(`Creating tray with icon: ${iconPath}`);
         const icon = require('electron').nativeImage.createFromPath(iconPath);
 
         if (icon.isEmpty()) {
-            console.warn("Tray icon is empty or invalid format");
+            console.warn(`Tray icon is empty or invalid format: ${iconPath}`);
         }
 
         tray = new Tray(icon);
@@ -157,8 +178,27 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-    // Do not quit when all windows are closed, keep running in tray
+    // On macOS, keep app running in tray until explicit quit
     if (process.platform !== 'darwin') {
-        // app.quit(); 
+        // For now, we want to keep it running in tray for other platforms too
+        // unless explicitly quit. 
+        // If you want it to close when window closes, uncomment app.quit()
     }
 });
+
+app.on('before-quit', async (event) => {
+    // Prevent multiple calls
+    if (isQuitting && !mainWindow) return;
+
+    console.log('App is quitting, cleaning up...');
+    isQuitting = true;
+
+    // Attempt to stop server gracefully
+    try {
+        await stopServer();
+        console.log('Server stopped successfully');
+    } catch (error) {
+        console.error('Error stopping server during quit:', error);
+    }
+});
+
