@@ -302,6 +302,12 @@ io.on('connection', (socket) => {
     const newUser = { id: socket.id, name: userName, role, handRaised: false };
     if (role === 'student') {
       classData.students.push(newUser);
+
+      // Auto-block if Block All is active
+      if (classData.blockAllActive) {
+        if (!classData.blockedUsers) classData.blockedUsers = new Set();
+        classData.blockedUsers.add(socket.id);
+      }
     }
     classData.users.push(newUser);
     socket.join(classId);
@@ -313,11 +319,17 @@ io.on('connection', (socket) => {
       classId
     });
 
+    // Broadcast blocked status if needed
+    if (role === 'student' && classData.blockAllActive) {
+      io.to(classId).emit('user-blocked', { userId: socket.id, classId });
+    }
+
     console.log(`User ${userName} (${socket.id}) joined class ${classId} as ${role}`);
 
     // Send history and user list to joiner
     callback({
       success: true,
+      blocked: classData.blockedUsers && classData.blockedUsers.has(socket.id),
       messages: classData.messages,
       users: classData.users,
       pinnedMessages: classData.pinnedMessages || []
@@ -633,6 +645,7 @@ io.on('connection', (socket) => {
     if (classData.teacherId !== socket.id) return;
     const studentIds = classData.students.map(s => s.id);
     classData.blockedUsers = new Set(studentIds);
+    classData.blockAllActive = true; // NEW: Persist block-all state
     io.to(classId).emit('all-users-blocked', { blockedUserIds: studentIds, classId });
     console.log(`All users blocked in class ${classId}`);
   });
@@ -642,6 +655,7 @@ io.on('connection', (socket) => {
     const classData = activeClasses.get(classId);
     if (classData.teacherId !== socket.id) return;
     classData.blockedUsers = new Set();
+    classData.blockAllActive = false; // NEW: Clear block-all state
     io.to(classId).emit('all-users-unblocked', { classId });
     console.log(`All users unblocked in class ${classId}`);
   });
@@ -794,6 +808,76 @@ io.on('connection', (socket) => {
   socket.on('get-forbidden-words', (callback) => {
     if (typeof callback === 'function') {
       callback(customForbiddenWords);
+    }
+  });
+
+  // ===== WEB RTC SCREEN SHARING =====
+  // ===== WEB RTC SCREEN SHARING =====
+  socket.on('screen-share-status', ({ classId, isSharing }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+
+    // Only teacher can broadcast screen share status
+    if (classData.teacherId !== socket.id) return;
+
+    classData.isScreenSharing = isSharing;
+
+    if (isSharing) {
+      // Create a system message
+      const message = {
+        id: Date.now() + Math.random(),
+        classId,
+        senderId: 'system',
+        senderName: 'System',
+        senderRole: 'system',
+        content: 'msg-teacher-share-start',
+        type: 'system',
+        action: 'join-stream', // Custom field for client to render button
+        timestamp: new Date().toISOString()
+      };
+
+      classData.messages.push(message);
+
+      // Pin IT
+      if (!classData.pinnedMessages) classData.pinnedMessages = [];
+      classData.pinnedMessages.push(message);
+      classData.screenShareMessageId = message.id; // Track it
+
+      io.to(classId).emit('new-message', message);
+      io.to(classId).emit('message-pinned', { message, classId });
+
+    } else {
+      // Stop sharing - remove pinned message
+      if (classData.screenShareMessageId) {
+        // Unpin
+        if (classData.pinnedMessages) {
+          const index = classData.pinnedMessages.findIndex(m => m.id === classData.screenShareMessageId);
+          if (index !== -1) {
+            classData.pinnedMessages.splice(index, 1);
+            io.to(classId).emit('message-unpinned', { messageId: classData.screenShareMessageId, classId });
+          }
+        }
+        classData.screenShareMessageId = null;
+      }
+    }
+
+    // Still broadcast status for other UI updates if needed (e.g. sidebar state)
+    io.to(classId).emit('screen-share-status-update', { isSharing, classId });
+    console.log(`Screen share ${isSharing ? 'started' : 'stopped'} in class ${classId}`);
+  });
+
+  // Relay WebRTC keys between peers
+  socket.on('signal', ({ to, from, signal }) => {
+    // Determine target socket
+    const targetSocket = io.sockets.sockets.get(to);
+    if (targetSocket) {
+      targetSocket.emit('signal', {
+        signal,
+        from // Send the ID of the sender
+      });
+      // console.log(`Signal relayed from ${from} to ${to} (${signal.type || 'candidate'})`);
+    } else {
+      console.log(`Signal failed: Target ${to} not found`);
     }
   });
 

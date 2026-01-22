@@ -1,25 +1,21 @@
-# ClassSend (v5.1.0 Latest)
+# ClassSend (v6.0.0 Latest)
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 Latest Features (v5.1.0)
-- **📤 Large File Support (NEW)**: Upload files up to **1.5GB** reliably using the new HTTP transfer system!
-- **🐧 Linux Improvements**:
-  - **Tray Icon Fixed**: Now visible on all Linux distributions.
-  - **AppImage Stability**: Fixed write permission crashes; runs smoothly out of the box.
-- **🐛 Critical Fixes**:
-  - **Content Filtering Restored**: Fixed filtering system that stopped working - now properly blocks inappropriate content
-  - **Pinned Message Actions**: Action buttons now appear directly on pinned messages (no more scrolling!)
-- **📦 Download All as ZIP (Alpha)**: Bulk download all shared files from the gallery as a single ZIP archive
-- **🖐️ Hand Raising System**: Students can raise hands to signal teachers; teachers can lower all hands at once
-- **📌 Enhanced Pinned Messages**: Direct action buttons on pinned comments (Copy, Email, Link, Unpin)
-- **⛔ User Blocking**: Teachers can block users individually or **Block All** users at once
-- **🎨 UI Improvements**:
-  - **Unified Button Styles**: Consistent, modern look for all action buttons
-  - **Refined Layout**: Improved placement of class and user action buttons
-  - **Visual Clarity**: Clearer status indicators and role-based coloring
-- **🌐 Network Flexibility**: Switch between **Standard IP** (works everywhere) and **Short Name** (e.g., `math.local`)
-- **🛡️ Advanced Content Filtering**: Real-time detection of inappropriate content (2875+ words, multi-language)
-- **⚡ Smart Action Buttons**: Context-aware buttons for Copy 📋, Email ✉️, Open Link 🔗, and Download ⬇️
+## 🚀 Latest Features (v6.0.0)
+- **🇬🇷 Greek Language Support**: Full localization for Greek users (switch in Settings).
+- **� Improved Screen Sharing**:
+  - **Pinned Status**: "Teacher started sharing" appears as a pinned message.
+  - **Direct Join**: Students can click **Join** directly from the chat.
+  - **Performance**: Optimized for smoother streaming over WiFi (720p@15fps).
+- **⛔ Lockdown Mode (Persistent Block)**:
+  - "Block All" now persists and **automatically blocks new students** who try to join.
+  - Great for locking the class after attendance.
+- **🚫 Blacklist**: Renamed "Dictionary" to "Blacklist" for clarity; improved UI.
+- **🎨 UI Polish**:
+  - **Settings Modal**: Redesigned with premium dark theme.
+  - **Responsive**: Better labels and layout on mobile.
+- **📤 Large File Support**: Upload files up to **1.5GB** reliably.
+- **� Linux Improvements**: Tray icon fix and AppImage stability.
 
 ## 📖 How to Use
 1.  **Start the App**: Open ClassSend on the teacher's computer.
@@ -39,12 +35,12 @@
 ## 📦 Download & Install
 Go to the [Releases](../../releases) page or check the `server/out/make` folder.
 
-- **Linux AppImage**: `ClassSend-5.1.0-x64.AppImage` (portable, no installation needed)
-- **Linux Zip**: `ClassSend-linux-x64-5.1.0.zip`
-- **Windows Installer (64-bit)**: `ClassSend-5.1.0 Setup.exe`
-- **Windows Installer (32-bit)**: `ClassSend-5.1.0 Setup-x32.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-5.1.0.zip`
-- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-5.1.0.zip`
+- **Linux AppImage**: `ClassSend-6.0.0-x64.AppImage` (portable, no installation needed)
+- **Linux Zip**: `ClassSend-linux-x64-6.0.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-6.0.0 Setup.exe`
+- **Windows Installer (32-bit)**: `ClassSend-6.0.0 Setup-x32.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-6.0.0.zip`
+- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-6.0.0.zip`
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:

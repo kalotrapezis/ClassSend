@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ClassSend</title>
+  <title data-i18n="app-title">ClassSend</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 
@@ -71,20 +71,60 @@
           <button id="btn-menu-toggle" class="header-btn menu-btn mobile-only">
             ☰
           </button>
-          <div id="connection-status" class="status disconnected" title="Connection Status">Disconnected</div>
-          <h1 class="app-title">ClassSend</h1>
+          <div id="connection-status" class="status disconnected" title="Connection Status"
+            data-i18n="status-disconnected" data-i18n-title="status-disconnected">Disconnected</div>
+          <h1 class="app-title" data-i18n="app-title">ClassSend</h1>
           <div class="user-menu">
-            <button id="user-name-btn" class="user-name-display">Your Name ▼</button>
+            <button id="user-name-btn" class="user-name-display" data-i18n="label-name">Your Name ▼</button>
             <div id="user-name-dropdown" class="dropdown-menu hidden">
-              <input type="text" id="new-name-input" placeholder="Enter new name">
-              <button id="btn-change-name" class="dropdown-btn">Change Name</button>
+              <input type="text" id="new-name-input" placeholder="Enter new name"
+                data-i18n-placeholder="placeholder-name">
+              <button id="btn-change-name" class="dropdown-btn" data-i18n="btn-change-name">Change Name</button>
             </div>
           </div>
           <!-- Buttons moved to left -->
           <button id="btn-show-url" class="header-btn" title="Show Server URL">🌐</button>
-          <button id="btn-media-toggle" class="header-btn media-btn" title="Media Library">
-            🖼️ Library
+          <button id="btn-media-toggle" class="header-btn media-btn" title="Media Library"
+            data-i18n-title="btn-media-title">
+            🖼️ <span data-i18n="btn-media-title" class="desktop-only">Library</span>
           </button>
+          <button id="btn-settings-toggle" class="header-btn settings-btn" title="Settings"
+            data-i18n-title="btn-settings-title">
+            ⚙️ <span data-i18n="btn-settings-title" class="desktop-only">Settings</span>
+          </button>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal hidden">
+          <div class="settings-modal-content">
+            <div class="popup-header">
+              <h3 data-i18n="modal-settings-title">⚙️ Settings</h3>
+              <button id="btn-close-settings" class="close-btn">×</button>
+            </div>
+            <div class="settings-body">
+              <div class="setting-item">
+                <label for="language-select" data-i18n="label-language">Language</label>
+                <select id="language-select" class="setting-select">
+                  <option value="en">English</option>
+                  <option value="el">Ελληνικά</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Stream Modal -->
+        <div id="video-modal" class="modal hidden">
+          <div class="modal-content video-modal-content">
+            <div class="popup-header">
+              <h3 id="stream-title">Teacher's Screen</h3>
+              <button id="btn-close-video" class="close-btn">×</button>
+            </div>
+            <div class="video-container">
+              <video id="remote-video" autoplay playsinline controls></video>
+              <div id="video-status" class="video-status">Connecting...</div>
+            </div>
+          </div>
         </div>
         <!-- header-right removed -->
       </header>
@@ -130,17 +170,18 @@
         </div>
       </div>
 
-      <!-- Dictionary Modal (Teacher Only) -->
+      <!-- Blacklist Modal (Teacher Only) -->
       <div id="dictionary-modal" class="modal hidden">
         <div class="modal-content dictionary-modal-content">
           <div class="popup-header">
-            <h3>📚 Forbidden Words</h3>
+            <h3>🚫 Blacklist</h3>
             <button id="btn-close-dictionary" class="close-btn">×</button>
           </div>
           <div class="dictionary-body">
             <div class="dictionary-add-section">
-              <input type="text" id="dictionary-word-input" placeholder="Enter word to add..." autocomplete="off">
-              <button id="btn-add-word" class="add-word-btn">Add ➕</button>
+              <input type="text" id="dictionary-word-input" placeholder="Enter word to add..." autocomplete="off"
+                data-i18n-placeholder="placeholder-blacklist">
+              <button id="btn-add-word" class="add-word-btn" data-i18n="btn-add">Add ➕</button>
             </div>
             <div id="dictionary-word-list" class="dictionary-word-list">
               <!-- Words will be dynamically added here -->
@@ -152,22 +193,12 @@
 
       <!-- Text Selection Popup (for adding words from chat) -->
       <div id="text-selection-popup" class="text-selection-popup hidden">
-        <button id="btn-add-selection-to-dictionary">Add to forbidden words ➕</button>
+        <button id="btn-add-selection-to-dictionary" data-i18n="text-selection-popup-add">Add to forbidden words
+          ➕</button>
       </div>
 
       <!-- File Progress Modal -->
-      <div id="progress-modal" class="modal hidden">
-        <div class="modal-content progress-modal-content">
-          <h3 id="progress-title">Uploading...</h3>
-          <div class="progress-container">
-            <div id="progress-bar" class="progress-bar">
-              <div id="progress-fill" class="progress-fill"></div>
-            </div>
-            <div id="progress-text" class="progress-text">0%</div>
-          </div>
-          <button id="btn-cancel-progress" class="secondary-btn cancel-btn">Cancel</button>
-        </div>
-      </div>
+      <!-- File Progress Modal (Removed) -->
 
 
       <!-- Main Content -->
@@ -177,20 +208,26 @@
 
         <!-- Left Sidebar - Classes & Users -->
         <aside id="sidebar-left" class="sidebar-left">
-          <!-- Dictionary Button (Teacher Only) -->
-          <button id="btn-dictionary" class="dictionary-btn hidden" title="Manage Forbidden Words">
-            📚 Dictionary
-          </button>
+          <!-- Teacher Actions (Blacklist & Screen Share) -->
+          <div id="teacher-actions" class="sidebar-actions hidden">
+            <button id="btn-dictionary" class="action-btn" title="Manage Forbidden Words"
+              data-i18n-title="btn-dictionary">
+              <span data-i18n="btn-dictionary">🚫 Blacklist</span>
+            </button>
+            <button id="btn-share-screen" class="action-btn" title="Share Screen" data-i18n-title="btn-share-screen">
+              <span data-i18n="btn-share-screen">📺 Share</span>
+            </button>
+          </div>
 
           <div class="sidebar-header">
-            <h3>Classes</h3>
+            <h3 data-i18n="header-classes">Classes</h3>
           </div>
           <div class="classes-list">
             <!-- Classes will be dynamically added here -->
           </div>
 
           <div class="sidebar-header" id="users-header-container">
-            <h3>Users</h3>
+            <h3 data-i18n="header-users">Users</h3>
             <span id="user-count" class="user-count">0</span>
             <button id="btn-hands-down" class="btn-hands-down hidden" title="Lower All Hands">🖐️ Hands Down</button>
           </div>

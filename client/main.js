@@ -1,4 +1,5 @@
 import { io } from "socket.io-client";
+import { translations } from "./translations.js";
 
 // Connect to server dynamically - works for both localhost and LAN
 const serverUrl = window.location.origin;
@@ -13,6 +14,7 @@ let userName = null;
 let currentClassId = null;
 let joinedClasses = new Map(); // classId -> { messages: [], users: [], teacherName: string }
 let availableClasses = []; // [{ id, teacherName }]
+let currentLanguage = localStorage.getItem('language') || 'en';
 
 // DOM Elements - Screens
 const roleSelection = document.getElementById("role-selection");
@@ -57,6 +59,12 @@ const mediaList = document.getElementById("media-list");
 const btnMediaToggle = document.getElementById("btn-media-toggle");
 const mediaPopup = document.getElementById("media-popup");
 const btnShowUrl = document.getElementById("btn-show-url");
+
+// Settings Elements
+const btnSettingsToggle = document.getElementById("btn-settings-toggle");
+const settingsModal = document.getElementById("settings-modal");
+const btnCloseSettings = document.getElementById("btn-close-settings");
+const languageSelect = document.getElementById("language-select");
 
 // Connection Info Modal
 const connectionModal = document.getElementById("connection-modal");
@@ -454,8 +462,29 @@ function joinClass(classIdToJoin, nameToUse) {
                 messages: response.messages || [],
                 users: response.users || [],
                 teacherName: response.users.find(u => u.role === 'teacher')?.name || 'Unknown',
-                blockedUsers: new Set(response.blockedUsers || []) // Store blocked users
+                pinnedMessages: response.pinnedMessages || [],
+                blockedUsers: new Set(response.blockedUsers || [])
             });
+
+            // Handle auto-blocked state
+            if (response.blocked) {
+                // Manually trigger blocked UI
+                messageInput.disabled = true;
+                messageInput.placeholder = "You have been blocked by the teacher.";
+                messageInput.classList.add('blocked');
+                btnSendMessage.disabled = true;
+                if (btnAttachFile) btnAttachFile.disabled = true;
+                if (btnEmoji) btnEmoji.disabled = true;
+            } else {
+                // Reset if not blocked (in case of re-join)
+                messageInput.disabled = false;
+                messageInput.placeholder = t('placeholder-message');
+                messageInput.classList.remove('blocked');
+                btnSendMessage.disabled = false;
+                if (btnAttachFile) btnAttachFile.disabled = false;
+                if (btnEmoji) btnEmoji.disabled = false;
+            }
+
             switchClass(classIdToJoin);
         } else {
             alert(response.message);
@@ -725,37 +754,8 @@ function uploadFileXHR(file) {
 
     const xhr = new XMLHttpRequest();
 
-    // Show Progress Modal
-    const progressModal = document.getElementById('progress-modal');
-    const progressTitle = document.getElementById('progress-title');
-    const progressBar = document.getElementById('progress-fill');
-    const progressText = document.getElementById('progress-text');
-    const btnCancel = document.getElementById('btn-cancel-progress');
-
-    progressTitle.textContent = `Uploading ${file.name}...`;
-    progressBar.style.width = '0%';
-    progressText.textContent = '0%';
-    progressModal.classList.remove('hidden');
-
-    // Cancel Button
-    btnCancel.onclick = () => {
-        xhr.abort();
-        progressModal.classList.add('hidden');
-        alert('Upload cancelled');
-    };
-
-    // Progress Event
-    xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
-            progressBar.style.width = percentComplete + '%';
-            progressText.textContent = percentComplete + '%';
-        }
-    };
-
     // Load/Error/Abort Events
     xhr.onload = () => {
-        progressModal.classList.add('hidden');
         if (xhr.status === 200) {
             try {
                 const result = JSON.parse(xhr.responseText);
@@ -770,7 +770,6 @@ function uploadFileXHR(file) {
     };
 
     xhr.onerror = () => {
-        progressModal.classList.add('hidden');
         console.error('Upload error');
         alert('Upload failed due to network error');
     };
@@ -1486,6 +1485,78 @@ setInterval(() => {
 // Content Filtering Module
 // Add this to the end of main.js
 
+// ===== INTERNATIONALIZATION =====
+
+function t(key) {
+    return translations[currentLanguage][key] || key;
+}
+
+function updateUIText() {
+    // Update elements with data-i18n
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[currentLanguage][key]) {
+            el.textContent = translations[currentLanguage][key];
+        }
+    });
+
+    // Update placeholders
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (translations[currentLanguage][key]) {
+            el.placeholder = translations[currentLanguage][key];
+        }
+    });
+
+    // Update titles
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (translations[currentLanguage][key]) {
+            el.title = translations[currentLanguage][key];
+        }
+    });
+
+    // Toggle greek font class for better styling if needed
+    if (currentLanguage === 'el') {
+        document.body.classList.add('lang-el');
+    } else {
+        document.body.classList.remove('lang-el');
+    }
+}
+
+// Initialize Language
+if (languageSelect) {
+    languageSelect.value = currentLanguage;
+    languageSelect.addEventListener('change', (e) => {
+        currentLanguage = e.target.value;
+        localStorage.setItem('language', currentLanguage);
+        updateUIText();
+        // Also update any dynamic content if needed
+    });
+}
+
+// Settings Toggle
+if (btnSettingsToggle) {
+    btnSettingsToggle.addEventListener('click', () => {
+        if (settingsModal.classList.contains('hidden')) {
+            settingsModal.classList.remove('hidden');
+        } else {
+            settingsModal.classList.add('hidden');
+        }
+    });
+}
+
+if (btnCloseSettings) {
+    btnCloseSettings.addEventListener('click', () => {
+        settingsModal.classList.add('hidden');
+    });
+}
+
+// Apply translations on load
+document.addEventListener('DOMContentLoaded', () => {
+    updateUIText();
+});
+
 // Helper to remove accents/diacritics
 function normalizeText(text) {
     return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -1729,12 +1800,13 @@ function renderPinnedMessages() {
                 <div class="pinned-message" data-message-id="${msg.id}">
                     <div class="pinned-message-header">
                         <span class="pinned-sender">${escapeHtml(msg.senderName)}:</span>
-                        <span class="pinned-text">${escapeHtml(msg.content)}</span>
+                        <span class="pinned-text">${escapeHtml(translations[currentLanguage][msg.content] || t(msg.content) || msg.content)}</span>
                     </div>
                     <div class="pinned-message-actions">
                         <button class="action-btn copy-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Copy">📋</button>
                         ${hasEmail ? `<button class="action-btn mailto-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Email">✉️</button>` : ''}
                         ${hasUrl ? `<button class="action-btn url-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Open Link">🔗</button>` : ''}
+                        ${msg.action === 'join-stream' ? `<button class="action-btn join-stream-btn-pinned" title="Join Stream">${t('btn-join-stream')}</button>` : ''}
                         ${currentRole === 'teacher' ? `<button class="action-btn unpin-btn" data-message-id="${msg.id}" title="Unpin">❌</button>` : ''}
                     </div>
                 </div>
@@ -1744,6 +1816,18 @@ function renderPinnedMessages() {
 
     // Add event listeners for action buttons
     const pinnedContainer = document.getElementById('pinned-messages-container');
+
+    // Join Stream buttons
+    pinnedContainer.querySelectorAll('.join-stream-btn-pinned').forEach(btn => {
+        btn.addEventListener('click', () => {
+            videoModal.classList.remove("hidden");
+            videoStatus.textContent = "Connecting to stream...";
+            // If we already have a connection, it might just show up.
+            // If we need to signal readiness, we could emit 'request-join-stream' here.
+            // But for now, teacher sends offers to everyone, so we just show the modal.
+            // Wait... if we hid the modal, the connection might still be active or closed.
+        });
+    });
 
     // Copy buttons
     pinnedContainer.querySelectorAll('.copy-btn-pinned').forEach(btn => {
@@ -1804,12 +1888,24 @@ const textSelectionPopup = document.getElementById('text-selection-popup');
 const btnAddSelectionToDictionary = document.getElementById('btn-add-selection-to-dictionary');
 
 // Show/hide dictionary button based on role
+// Show/hide teacher actions based on role
 function updateDictionaryButtonVisibility() {
-    if (btnDictionary) {
+    const teacherActions = document.getElementById("teacher-actions");
+    if (teacherActions) {
         if (currentRole === 'teacher') {
-            btnDictionary.classList.remove('hidden');
+            teacherActions.classList.remove('hidden');
+            // Ensure child buttons are visible
+            if (btnDictionary) btnDictionary.classList.remove('hidden');
+            // Screen share visibility is managed by updateScreenShareButton (active state), 
+            // but the button itself should be visible in the layout.
         } else {
-            btnDictionary.classList.add('hidden');
+            teacherActions.classList.add('hidden');
+        }
+    } else {
+        // Fallback for old layout if HTML not updated?
+        if (btnDictionary) {
+            if (currentRole === 'teacher') btnDictionary.classList.remove('hidden');
+            else btnDictionary.classList.add('hidden');
         }
     }
 }
@@ -2046,3 +2142,286 @@ containsInappropriateContent = function (text) {
 
     return false;
 };
+
+// ===== WEB RTC SCREEN SHARING =====
+
+const btnShareScreen = document.getElementById("btn-share-screen");
+const videoModal = document.getElementById("video-modal");
+const btnCloseVideo = document.getElementById("btn-close-video");
+const remoteVideo = document.getElementById("remote-video");
+const videoStatus = document.getElementById("video-status");
+const streamTitle = document.getElementById("stream-title");
+
+let localStream = null;
+let isScreenSharing = false;
+let peerConnections = {}; // Map<socketId, RTCPeerConnection> (Teacher side)
+let myPeerConnection = null; // RTCPeerConnection (Student side)
+
+const RTC_CONFIG = {
+    iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:global.stun.twilio.com:3478" } // Backup STUN
+    ],
+    // Prefer local network paths for lower latency
+    iceTransportPolicy: 'all',
+    // Bundle policy for better performance
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require'
+};
+
+// --- TEACHER SIDE ---
+
+if (btnShareScreen) {
+    btnShareScreen.addEventListener("click", async () => {
+        if (isScreenSharing) {
+            stopScreenShare();
+        } else {
+            startScreenShare();
+        }
+    });
+}
+
+async function startScreenShare() {
+    try {
+        localStream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+                cursor: "always",
+                // Optimize for WiFi: lower resolution and framerate
+                width: { ideal: 1280, max: 1920 },
+                height: { ideal: 720, max: 1080 },
+                frameRate: { ideal: 15, max: 30 }
+            },
+            audio: false
+        });
+
+        isScreenSharing = true;
+        updateScreenShareButton();
+
+        // Broadcast status
+        socket.emit("screen-share-status", { classId: currentClassId, isSharing: true });
+
+        // Handle user stopping via browser UI
+        localStream.getVideoTracks()[0].onended = () => {
+            stopScreenShare();
+        };
+
+        // Initialize connections for all existing students
+        const classData = joinedClasses.get(currentClassId);
+        if (classData && classData.users) {
+            classData.users.forEach(user => {
+                if (user.id !== socket.id && user.role === 'student') {
+                    initiatePeerConnection(user.id);
+                }
+            });
+        }
+
+        console.log("Screen sharing started");
+
+    } catch (err) {
+        console.error("Error starting screen share:", err);
+        isScreenSharing = false;
+    }
+}
+
+function stopScreenShare() {
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+
+    isScreenSharing = false;
+    updateScreenShareButton();
+
+    // Close all peer connections
+    Object.values(peerConnections).forEach(pc => pc.close());
+    peerConnections = {};
+
+    // Broadcast status
+    socket.emit("screen-share-status", { classId: currentClassId, isSharing: false });
+    console.log("Screen sharing stopped");
+}
+
+function updateScreenShareButton() {
+    if (isScreenSharing) {
+        btnShareScreen.classList.add("active");
+        btnShareScreen.innerHTML = "📺 Stop Sharing";
+    } else {
+        btnShareScreen.classList.remove("active");
+        btnShareScreen.innerHTML = "📺 Share Screen";
+    }
+}
+
+async function initiatePeerConnection(studentSocketId) {
+    console.log("Initiating peer connection to:", studentSocketId);
+    const pc = new RTCPeerConnection(RTC_CONFIG);
+    peerConnections[studentSocketId] = pc;
+
+    // Add local stream tracks with optimized parameters
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            const sender = pc.addTrack(track, localStream);
+
+            // Apply bitrate constraints for better WiFi performance
+            if (track.kind === 'video') {
+                const parameters = sender.getParameters();
+                if (!parameters.encodings) {
+                    parameters.encodings = [{}];
+                }
+                // Limit bitrate to 1.5 Mbps for smoother streaming over WiFi
+                parameters.encodings[0].maxBitrate = 1500000; // 1.5 Mbps
+                sender.setParameters(parameters).catch(err =>
+                    console.warn('Failed to set encoding parameters:', err)
+                );
+            }
+        });
+    }
+
+    // ICE Candidates
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit("signal", {
+                to: studentSocketId,
+                from: socket.id,
+                signal: { type: "candidate", candidate: event.candidate }
+            });
+        }
+    };
+
+    // Create Offer
+    try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit("signal", {
+            to: studentSocketId,
+            from: socket.id,
+            signal: { type: "offer", sdp: offer }
+        });
+    } catch (err) {
+        console.error("Error creating offer:", err);
+    }
+}
+
+// --- STUDENT SIDE ---
+
+// Handle incoming signal (Offer, Answer, Candidate)
+socket.on("signal", async ({ from, signal }) => {
+    // If Teacher: Handle Answer or Candidate from Student
+    if (currentRole === 'teacher') {
+        const pc = peerConnections[from];
+        if (!pc) return;
+
+        if (signal.type === "answer") {
+            await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        } else if (signal.type === "candidate") {
+            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        }
+    }
+    // If Student: Handle Offer or Candidate from Teacher
+    else if (currentRole === 'student') {
+        if (!myPeerConnection) createStudentPeerConnection(from);
+
+        if (signal.type === "offer") {
+            await myPeerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+            // Create Answer
+            const answer = await myPeerConnection.createAnswer();
+            await myPeerConnection.setLocalDescription(answer);
+            socket.emit("signal", {
+                to: from,
+                from: socket.id,
+                signal: { type: "answer", sdp: answer }
+            });
+            // Open modal automatically on offer (stream starting)
+            // DISABLED: User must click "Join" in pinned message
+            // videoModal.classList.remove("hidden");
+            videoStatus.textContent = "Connecting to stream...";
+        } else if (signal.type === "candidate") {
+            await myPeerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        }
+    }
+});
+
+function createStudentPeerConnection(teacherId) {
+    if (myPeerConnection) myPeerConnection.close();
+
+    myPeerConnection = new RTCPeerConnection(RTC_CONFIG);
+
+    myPeerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit("signal", {
+                to: teacherId,
+                from: socket.id,
+                signal: { type: "candidate", candidate: event.candidate }
+            });
+        }
+    };
+
+    myPeerConnection.ontrack = (event) => {
+        console.log("Stream received!");
+        remoteVideo.srcObject = event.streams[0];
+        videoStatus.classList.add("hidden");
+    };
+
+    // Handle stream end
+    myPeerConnection.onconnectionstatechange = () => {
+        if (myPeerConnection.connectionState === 'disconnected' ||
+            myPeerConnection.connectionState === 'closed') {
+            videoModal.classList.add("hidden");
+            remoteVideo.srcObject = null;
+        }
+    };
+}
+
+// Global Event: Screen Share Status Update
+socket.on("screen-share-status-update", ({ isSharing, classId }) => {
+    if (classId !== currentClassId) return;
+
+    if (currentRole === 'student') {
+        if (isSharing) {
+            // Wait for offer to open modal, or show a toast "Stream Available"
+            console.log("Teacher started screen sharing");
+        } else {
+            console.log("Teacher stopped screen sharing");
+            videoModal.classList.add("hidden");
+            if (myPeerConnection) {
+                myPeerConnection.close();
+                myPeerConnection = null;
+            }
+        }
+    }
+});
+
+// Clean up on user join
+socket.on("user-joined", ({ user, classId }) => {
+    // If I am teacher and sharing, connect to new student
+    if (currentRole === 'teacher' && isScreenSharing && user.id !== socket.id) {
+        initiatePeerConnection(user.id);
+    }
+});
+
+// UI Handlers
+btnCloseVideo.addEventListener("click", () => {
+    videoModal.classList.add("hidden");
+    // Ideally we don't close the connection, just hide the video?
+    // Or we should allow re-opening.
+    // For now, let's keep it simple: Hide.
+});
+
+// Update visibility logic for new sidebar container
+const teacherActions = document.getElementById("teacher-actions");
+
+window.updateTeacherActionsVisibility = function () {
+    if (currentRole === 'teacher') {
+        if (teacherActions) teacherActions.classList.remove('hidden');
+    } else {
+        if (teacherActions) teacherActions.classList.add('hidden');
+    }
+};
+
+// Hook into existing events
+document.getElementById("btn-teacher").addEventListener("click", () => {
+    updateTeacherActionsVisibility();
+});
+
+document.getElementById("btn-student").addEventListener("click", () => {
+    updateTeacherActionsVisibility();
+});

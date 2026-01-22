@@ -60,6 +60,34 @@ function createWindow() {
             return false;
         }
     });
+
+    // Handle screen sharing permissions
+    mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+        if (permission === 'media') {
+            return callback(true);
+        }
+        if (permission === 'display-capture') {
+            return callback(true);
+        }
+        callback(false);
+    });
+
+    // Handle getDisplayMedia() in Electron - required for screen sharing to work
+    const { desktopCapturer } = require('electron');
+    mainWindow.webContents.session.setDisplayMediaRequestHandler(async (request, callback) => {
+        try {
+            const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] });
+            if (sources.length > 0) {
+                // Pick the first screen source automatically
+                callback({ video: sources[0] });
+            } else {
+                callback(null);
+            }
+        } catch (err) {
+            console.error('Error getting display sources:', err);
+            callback(null);
+        }
+    });
 }
 
 function createTray() {
