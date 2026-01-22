@@ -2,15 +2,15 @@
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
 ## 🚀 Latest Features (v6.0.0)
-- **🇬🇷 Greek Language Support**: Full localization for Greek users (switch in Settings).
-- **� Improved Screen Sharing**:
+- **🇬🇷 Greek Language Support (NEW)**: Full localization for Greek users (switch in Settings).
+- **📺 Improved Screen Sharing (NEW)**:
   - **Pinned Status**: "Teacher started sharing" appears as a pinned message.
   - **Direct Join**: Students can click **Join** directly from the chat.
   - **Performance**: Optimized for smoother streaming over WiFi (720p@15fps).
-- **⛔ Lockdown Mode (Persistent Block)**:
+- **⛔ Lockdown Mode (Persistent Block) (NEW)**:
   - "Block All" now persists and **automatically blocks new students** who try to join.
   - Great for locking the class after attendance.
-- **🚫 Blacklist**: Renamed "Dictionary" to "Blacklist" for clarity; improved UI.
+- **🚫 Blacklist (Renamed from Dictionary)**: Improved UI and clearer terminology.
 - **🎨 UI Polish**:
   - **Settings Modal**: Redesigned with premium dark theme.
   - **Responsive**: Better labels and layout on mobile.
