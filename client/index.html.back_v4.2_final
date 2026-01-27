@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClassSend</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+  <div id="app">
+    <!-- Role Selection Screen -->
+    <div id="role-selection" class="screen">
+      <div class="screen-content">
+        <h1>ClassSend</h1>
+        <h2>Select Your Role</h2>
+        <div class="card-container">
+          <button id="btn-teacher" class="role-card teacher-card">
+            <span class="role-icon">👨‍🏫</span>
+            <span class="role-label">Teacher</span>
+          </button>
+          <button id="btn-student" class="role-card student-card">
+            <span class="role-icon">👨‍🎓</span>
+            <span class="role-label">Student</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Class Setup Screen (Teacher/Student) -->
+    <div id="class-setup" class="screen hidden">
+      <div class="screen-content">
+        <h1>ClassSend</h1>
+        <div id="setup-form">
+          <h2 id="setup-title">Create Class</h2>
+          <div class="input-group">
+            <label for="class-id-input">Class ID</label>
+            <input type="text" id="class-id-input" placeholder="e.g., MATH101" autocomplete="off">
+          </div>
+          <div class="input-group">
+            <label for="user-name-input">Your Name</label>
+            <input type="text" id="user-name-input" placeholder="e.g., John Doe" autocomplete="off">
+          </div>
+          <button id="btn-submit-setup" class="primary-btn">Create Class</button>
+          <button id="btn-back" class="secondary-btn">Back</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Available Classes Screen (Student Only) -->
+    <div id="available-classes" class="screen hidden">
+      <div class="screen-content">
+        <h1>ClassSend</h1>
+        <h2>Available Classes</h2>
+        <div id="available-classes-list" class="available-classes-list">
+          <!-- Classes will be dynamically added here -->
+          <div class="empty-state">Looking for classes...</div>
+        </div>
+        <button id="btn-back-from-classes" class="secondary-btn">Back</button>
+      </div>
+    </div>
+
+    <!-- Chat Interface -->
+    <div id="chat-interface" class="hidden">
+      <!-- Header -->
+      <header class="chat-header">
+        <div class="header-left">
+          <button id="btn-menu-toggle" class="header-btn menu-btn mobile-only">
+            ☰
+          </button>
+          <div id="connection-status" class="status disconnected" title="Connection Status">Disconnected</div>
+          <h1 class="app-title">ClassSend</h1>
+          <div class="user-menu">
+            <button id="user-name-btn" class="user-name-display">Your Name ▼</button>
+            <div id="user-name-dropdown" class="dropdown-menu hidden">
+              <input type="text" id="new-name-input" placeholder="Enter new name">
+              <button id="btn-change-name" class="dropdown-btn">Change Name</button>
+            </div>
+          </div>
+          <!-- Buttons moved to left -->
+          <button id="btn-show-url" class="header-btn" title="Show Server URL">🌐</button>
+          <button id="btn-media-toggle" class="header-btn media-btn" title="Media Library">
+            🖼️ Library
+          </button>
+        </div>
+        <!-- header-right removed -->
+      </header>
+
+      <!-- Media Modal -->
+      <div id="media-popup" class="media-modal hidden">
+        <div class="modal-content">
+          <div class="popup-header">
+            <h3>Media Library</h3>
+            <button id="btn-download-all" class="download-all-btn" title="Download All Files">⬇️ Download All</button>
+            <button id="btn-close-media" class="close-btn">×</button>
+          </div>
+          <div id="media-list" class="media-list">
+            <div class="empty-media-state">No media shared yet</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection Info Modal -->
+      <div id="connection-modal" class="modal hidden">
+        <div class="modal-content connection-modal-content">
+          <div class="popup-header">
+            <h3>Connection Info</h3>
+            <button id="btn-close-connection" class="close-btn">×</button>
+          </div>
+          <div class="connection-body">
+            <p>Students can connect at:</p>
+            <div class="url-display-container">
+              <code id="connection-url">http://...</code>
+              <button id="btn-copy-url" class="copy-btn" title="Copy URL">📋</button>
+            </div>
+
+            <div class="toggle-container">
+              <span class="toggle-label">Standard IP</span>
+              <label class="switch">
+                <input type="checkbox" id="hostname-toggle">
+                <span class="slider round"></span>
+              </label>
+              <span class="toggle-label">Short Name</span>
+            </div>
+            <p class="toggle-hint">Use "Short Name" for easier typing.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="chat-main">
+        <!-- Mobile Sidebar Overlay -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <!-- Left Sidebar - Classes & Users -->
+        <aside id="sidebar-left" class="sidebar-left">
+          <div class="sidebar-header">
+            <h3>Classes</h3>
+          </div>
+          <div class="classes-list">
+            <!-- Classes will be dynamically added here -->
+          </div>
+
+          <div class="sidebar-header" id="users-header-container">
+            <h3>Users</h3>
+            <span id="user-count" class="user-count">0</span>
+          </div>
+          <div id="users-list" class="users-list">
+            <!-- Users will be dynamically added here -->
+          </div>
+        </aside>
+
+        <!-- Center - Messages -->
+        <main class="chat-area">
+          <div id="messages-container" class="messages-container">
+            <!-- Messages will be dynamically added here -->
+          </div>
+          <div class="message-input-area">
+            <div id="filter-warning" class="filter-warning hidden">
+              ⚠️ Inappropriate content detected
+            </div>
+            <div class="input-actions-left">
+              <button id="btn-attach-file" class="attach-btn" title="Attach file">
+                📎
+              </button>
+              <button id="btn-emoji" class="emoji-btn" title="Insert Emoji">
+                😀
+              </button>
+              <div id="emoji-picker" class="emoji-picker hidden">
+                <!-- Emojis will be injected here -->
+              </div>
+            </div>
+            <input type="file" id="file-input" class="hidden">
+            <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+            <button id="btn-send-message" class="send-btn">
+              Send
+            </button>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/main.js?v=4.0.1"></script>
+</body>
+
+</html>

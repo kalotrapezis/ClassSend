@@ -1,0 +1,558 @@
+const express = require('express');
+const http = require('http');
+const https = require('https');
+const { Server } = require('socket.io');
+const cors = require('cors');
+const path = require('path');
+const NetworkDiscovery = require('./network-discovery');
+const TLSConfig = require('./tls-config');
+
+
+const app = express();
+app.use(cors());
+
+// Serve static files from the 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// TLS/HTTPS support (optional)
+const USE_TLS = process.env.USE_TLS === 'true' || false;
+let server;
+let serverProtocol = 'http';
+
+if (USE_TLS) {
+  const tlsConfig = new TLSConfig();
+  const credentials = tlsConfig.getCredentials();
+  server = https.createServer(credentials, app);
+  serverProtocol = 'https';
+  console.log('Server running with TLS/HTTPS enabled');
+} else {
+  server = http.createServer(app);
+  console.log('Server running with HTTP (no encryption)');
+}
+
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Allow all origins for local network dev
+    methods: ["GET", "POST"]
+  },
+  maxHttpBufferSize: 10 * 1024 * 1024 // 10MB max message size (for file uploads)
+});
+
+const activeClasses = new Map(); // classId -> { teacherId, students: [], deletionTimeout: null }
+const networkDiscovery = new NetworkDiscovery();
+
+// Grace period for teacher disconnections (10 seconds)
+const TEACHER_DISCONNECT_GRACE_PERIOD = 10000;
+
+
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Broadcast active classes to all clients
+  function broadcastActiveClasses() {
+    const classesList = Array.from(activeClasses.entries()).map(([id, data]) => ({
+      id,
+      teacherName: data.teacherName
+    }));
+    io.emit('active-classes', classesList);
+
+    // Update network discovery broadcast
+    if (networkDiscovery) {
+      networkDiscovery.updateClasses();
+    }
+  }
+
+
+  socket.on('create-class', ({ classId, userName }, callback) => {
+    if (activeClasses.has(classId)) {
+      return callback({ success: false, message: 'Class ID already exists' });
+    }
+    activeClasses.set(classId, {
+      teacherId: socket.id,
+      teacherName: userName,
+      students: [],
+      messages: [],
+      users: [{ id: socket.id, name: userName, role: 'teacher' }],
+      deletionTimeout: null // Initialize deletion timeout
+    });
+    socket.join(classId);
+    console.log(`Class created: ${classId} by ${userName} (${socket.id})`);
+
+    // Publish mDNS hostname for the class
+    if (networkDiscovery) {
+      // Sanitize classId to be hostname-safe (alphanumeric + hyphens)
+      const safeClassId = classId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+      const hostname = `${safeClassId}.local`;
+      networkDiscovery.publishClassHostname(classId, hostname);
+    }
+
+    broadcastActiveClasses();
+    callback({ success: true });
+  });
+
+  socket.on('join-class', ({ classId, userName }, callback) => {
+    const classData = activeClasses.get(classId);
+    if (!classData) {
+      return callback({ success: false, message: 'Class not found' });
+    }
+
+    // If teacher is reconnecting, cancel deletion timeout
+    if (userName === classData.teacherName && classData.deletionTimeout) {
+      console.log(`Teacher ${userName} reconnected to class ${classId}, cancelling deletion`);
+      clearTimeout(classData.deletionTimeout);
+      classData.deletionTimeout = null;
+    }
+
+    // Check if name is taken
+    const existingUserIndex = classData.users.findIndex(u => u.name === userName);
+    if (existingUserIndex !== -1) {
+      const existingUser = classData.users[existingUserIndex];
+      // Check if the existing user's socket is still active
+      const existingSocket = io.sockets.sockets.get(existingUser.id);
+
+      if (!existingSocket) {
+        // Socket is dead (ghost session), remove old user and allow rejoin
+        console.log(`Removing ghost user ${userName} (${existingUser.id}) from class ${classId}`);
+        classData.users.splice(existingUserIndex, 1);
+
+        // Also remove from students list if present
+        const studentIndex = classData.students.findIndex(s => s.id === existingUser.id);
+        if (studentIndex !== -1) {
+          classData.students.splice(studentIndex, 1);
+        }
+
+        // If it was the teacher, update teacherId? 
+        if (existingUser.role === 'teacher') {
+          classData.teacherId = socket.id;
+        }
+      } else {
+        return callback({ success: false, message: 'Name already taken in this class' });
+      }
+    }
+
+    // Add user to class
+    let role = 'student';
+    if (userName === classData.teacherName) {
+      role = 'teacher';
+      classData.teacherId = socket.id; // Update teacher socket ID
+    }
+
+    const newUser = { id: socket.id, name: userName, role };
+    if (role === 'student') {
+      classData.students.push(newUser);
+    }
+    classData.users.push(newUser);
+    socket.join(classId);
+
+    // Notify others
+    socket.to(classId).emit('user-joined', {
+      user: newUser,
+      users: classData.users,
+      classId
+    });
+
+    console.log(`User ${userName} (${socket.id}) joined class ${classId} as ${role}`);
+
+    // Send history and user list to joiner
+    callback({
+      success: true,
+      messages: classData.messages,
+      users: classData.users
+    });
+
+    // Broadcast update to everyone (to update user counts)
+    broadcastActiveClasses();
+  });
+
+  // Leave class
+  socket.on('leave-class', ({ classId }, callback) => {
+    if (!activeClasses.has(classId)) {
+      return callback({ success: false });
+    }
+    const classData = activeClasses.get(classId);
+    const userIndex = classData.users.findIndex(u => u.id === socket.id);
+
+    if (userIndex !== -1) {
+      const user = classData.users[userIndex];
+      classData.users.splice(userIndex, 1);
+
+      const studentIndex = classData.students.findIndex(s => s.id === socket.id);
+      if (studentIndex !== -1) {
+        classData.students.splice(studentIndex, 1);
+      }
+
+      socket.leave(classId);
+
+      // Notify remaining participants
+      io.to(classId).emit('user-left', {
+        user,
+        users: classData.users,
+        classId
+      });
+
+      console.log(`User ${user.name} (${socket.id}) left class ${classId}`);
+      callback({ success: true });
+    } else {
+      callback({ success: false, message: 'User not in class' });
+    }
+  });
+
+  // Send chat message
+  socket.on('send-message', ({ classId, content, type = 'text', fileData = null }) => {
+    if (!activeClasses.has(classId)) return;
+
+    const classData = activeClasses.get(classId);
+    const user = classData.users.find(u => u.id === socket.id);
+    if (!user) return;
+
+    const message = {
+      id: Date.now() + Math.random(),
+      classId, // Include classId
+      senderId: socket.id,
+      senderName: user.name,
+      senderRole: user.role,
+      content,
+      type, // 'text' or 'file'
+      fileData, // { name, size, type, url } for files
+      timestamp: new Date().toISOString()
+    };
+
+    classData.messages.push(message);
+
+    // Broadcast to all participants in the class
+    io.to(classId).emit('new-message', message);
+
+    console.log(`Message from ${user.name} in ${classId}: ${type === 'text' ? content : 'file'}`);
+  });
+
+  // User flagged for inappropriate content
+  socket.on('user-flagged', ({ classId, userId, userName }) => {
+    if (!activeClasses.has(classId)) return;
+
+    // Broadcast to all participants in the class
+    io.to(classId).emit('user-was-flagged', { userId, userName });
+    console.log(`User ${userName} (${userId}) flagged in class ${classId}`);
+  });
+
+  // Change user name
+  socket.on('change-user-name', ({ classId, newName }, callback) => {
+    if (!activeClasses.has(classId)) {
+      return callback({ success: false, message: 'Class not found' });
+    }
+
+    const classData = activeClasses.get(classId);
+    const user = classData.users.find(u => u.id === socket.id);
+    if (!user) {
+      return callback({ success: false, message: 'User not found' });
+    }
+
+    // Check if name is already taken
+    const nameTaken = classData.users.some(u => u.id !== socket.id && u.name.toLowerCase() === newName.toLowerCase());
+    if (nameTaken) {
+      return callback({ success: false, message: 'Name already taken' });
+    }
+
+    const oldName = user.name;
+    user.name = newName;
+
+    // Update in students array if student
+    if (user.role === 'student') {
+      const student = classData.students.find(s => s.id === socket.id);
+      if (student) student.name = newName;
+    } else {
+      classData.teacherName = newName;
+      broadcastActiveClasses(); // Update teacher name in class list
+    }
+
+    // Broadcast name change to all participants
+    io.to(classId).emit('user-name-changed', {
+      userId: socket.id,
+      oldName,
+      newName,
+      users: classData.users,
+      classId
+    });
+
+    console.log(`User ${oldName} changed name to ${newName} in ${classId}`);
+    callback({ success: true });
+  });
+
+  // File Transfer Events (legacy - now integrated into messages)
+  socket.on('file-meta', (data) => {
+    const { classId, metadata } = data;
+    if (activeClasses.has(classId)) {
+      socket.to(classId).emit('file-meta', metadata);
+    }
+  });
+
+  socket.on('file-chunk', (data) => {
+    const { classId, chunk } = data;
+    if (activeClasses.has(classId)) {
+      socket.to(classId).emit('file-chunk', chunk);
+    }
+  });
+
+  // Request active classes
+  socket.on('get-active-classes', () => {
+    const classesList = Array.from(activeClasses.entries()).map(([id, data]) => ({
+      id,
+      teacherName: data.teacherName
+    }));
+    socket.emit('active-classes', classesList);
+  });
+
+  socket.on('ping', (callback) => {
+    callback();
+  });
+
+  // Get Server Info (IP/Port)
+  // Get Server Info (IP/Port)
+  socket.on('get-server-info', (arg1, arg2) => {
+    // Handle variable arguments: (callback) or (data, callback)
+    let data = {};
+    let callback = arg1;
+
+    if (typeof arg1 === 'object' && arg1 !== null) {
+      data = arg1;
+      callback = arg2;
+    }
+
+    if (typeof callback !== 'function') {
+      console.error('get-server-info: callback is not a function');
+      return;
+    }
+
+    const { classId } = data;
+    let hostname = null;
+    if (classId) {
+      const safeClassId = classId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+      hostname = `${safeClassId}.local`;
+    }
+
+    callback({
+      ip: networkDiscovery.localIP || 'localhost',
+      port: process.env.PORT || 3000,
+      hostname: hostname
+    });
+  });
+
+  // Delete class (Teacher only)
+  socket.on('delete-class', ({ classId }, callback) => {
+    if (!activeClasses.has(classId)) {
+      return callback({ success: false, message: 'Class not found' });
+    }
+
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) {
+      return callback({ success: false, message: 'Only the teacher can delete the class' });
+    }
+
+    // Cancel any pending deletion timeout
+    if (classData.deletionTimeout) {
+      clearTimeout(classData.deletionTimeout);
+      classData.deletionTimeout = null;
+    }
+
+    // Notify all students that the class has ended
+    io.to(classId).emit('class-ended', { message: 'Teacher has deleted the class', classId });
+
+    activeClasses.delete(classId);
+
+    // Unpublish mDNS hostname
+    if (networkDiscovery) {
+      networkDiscovery.unpublishClassHostname(classId);
+    }
+
+    broadcastActiveClasses();
+    console.log(`Class ${classId} deleted by teacher ${classData.teacherName} (${socket.id})`);
+
+    io.in(classId).socketsLeave(classId);
+
+    callback({ success: true });
+  });
+
+  // User Blocking Events (Teacher only)
+  socket.on('block-user', ({ classId, userId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    if (!classData.blockedUsers) classData.blockedUsers = new Set();
+    classData.blockedUsers.add(userId);
+    io.to(classId).emit('user-blocked', { userId, classId });
+    console.log(`User ${userId} blocked in class ${classId}`);
+  });
+
+  socket.on('unblock-user', ({ classId, userId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    if (classData.blockedUsers) classData.blockedUsers.delete(userId);
+    io.to(classId).emit('user-unblocked', { userId, classId });
+    console.log(`User ${userId} unblocked in class ${classId}`);
+  });
+
+  socket.on('block-all-users', ({ classId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    const studentIds = classData.students.map(s => s.id);
+    classData.blockedUsers = new Set(studentIds);
+    io.to(classId).emit('all-users-blocked', { blockedUserIds: studentIds, classId });
+    console.log(`All users blocked in class ${classId}`);
+  });
+
+  socket.on('unblock-all-users', ({ classId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    classData.blockedUsers = new Set();
+    io.to(classId).emit('all-users-unblocked', { classId });
+    console.log(`All users unblocked in class ${classId}`);
+  });
+
+  // Network Discovery Events
+  let discoveryBrowser = null;
+
+  socket.on('start-discovery', () => {
+    // Stop existing browser if any
+    if (discoveryBrowser) {
+      discoveryBrowser.stop();
+    }
+
+    console.log(`Client ${socket.id} started network discovery`);
+
+    // Start scanning for other servers
+    discoveryBrowser = networkDiscovery.findServers(
+      (serverInfo) => {
+        // Server found
+        socket.emit('server-discovered', serverInfo);
+      },
+      (serverInfo) => {
+        // Server lost
+        socket.emit('server-lost', serverInfo);
+      }
+    );
+  });
+
+  socket.on('stop-discovery', () => {
+    if (discoveryBrowser) {
+      discoveryBrowser.stop();
+      discoveryBrowser = null;
+      console.log(`Client ${socket.id} stopped network discovery`);
+    }
+  });
+
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+
+    if (discoveryBrowser) {
+      discoveryBrowser.stop();
+    }
+
+    // Check if user was a teacher and schedule class deletion with grace period
+    for (const [classId, classData] of activeClasses.entries()) {
+      if (classData.teacherId === socket.id) {
+        // Don't delete immediately - give teacher time to reconnect (e.g., during file upload)
+        console.log(`Teacher disconnected from class ${classId}, starting ${TEACHER_DISCONNECT_GRACE_PERIOD}ms grace period`);
+
+        classData.deletionTimeout = setTimeout(() => {
+          // Only delete if class still exists and timeout wasn't cancelled
+          if (activeClasses.has(classId)) {
+            console.log(`Grace period expired for class ${classId}, deleting class`);
+            // Notify all students that the class has ended
+            io.to(classId).emit('class-ended', { message: 'Teacher has disconnected', classId });
+            activeClasses.delete(classId);
+            broadcastActiveClasses();
+          }
+        }, TEACHER_DISCONNECT_GRACE_PERIOD);
+
+        return;
+      }
+
+      // Check if user was a student and remove them from the class
+      const userIndex = classData.users.findIndex(u => u.id === socket.id);
+      if (userIndex !== -1) {
+        const user = classData.users[userIndex];
+        classData.users.splice(userIndex, 1);
+
+        const studentIndex = classData.students.findIndex(s => s.id === socket.id);
+        if (studentIndex !== -1) {
+          classData.students.splice(studentIndex, 1);
+        }
+
+        // Notify all participants that user left
+        io.to(classId).emit('user-left', {
+          user,
+          users: classData.users,
+          classId
+        });
+
+        console.log(`User ${user.name} (${socket.id}) left class ${classId}`);
+      }
+    }
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+
+// Listen on all network interfaces (0.0.0.0) to accept connections from LAN
+server.listen(PORT, '0.0.0.0', async () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Protocol: ${serverProtocol}`);
+
+  // Initialize network discovery
+  try {
+    const localIP = await networkDiscovery.initialize(PORT, () => {
+      return Array.from(activeClasses.entries()).map(([id, data]) => ({
+        id,
+        teacherName: data.teacherName,
+        userCount: data.users.length
+      }));
+    });
+
+    console.log(`Server accessible at ${serverProtocol}://${localIP}:${PORT}`);
+    console.log(`Broadcasting service on local network...`);
+  } catch (error) {
+    console.error('Failed to initialize network discovery:', error);
+  }
+});
+
+
+
+const sockets = new Set();
+
+server.on('connection', (socket) => {
+  sockets.add(socket);
+  socket.on('close', () => {
+    sockets.delete(socket);
+  });
+});
+
+function stopServer() {
+  return new Promise((resolve, reject) => {
+    console.log('Closing ' + sockets.size + ' active sockets');
+
+    // Stop network discovery
+    if (networkDiscovery) {
+      networkDiscovery.stop();
+    }
+
+    for (const socket of sockets) {
+      socket.destroy();
+      sockets.delete(socket);
+    }
+
+    server.close((err) => {
+      if (err) {
+        console.error('Error closing server:', err);
+        reject(err);
+      } else {
+        console.log('Server stopped');
+        resolve();
+      }
+    });
+  });
+}
+
+module.exports = { server, stopServer };
