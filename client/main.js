@@ -1,6 +1,51 @@
 import { io } from "socket.io-client";
 import { translations } from "./translations.js";
 
+// Logger for Advanced Settings
+const capturedLogs = [];
+const originalConsoleLog = console.log;
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+
+function formatLog(type, args) {
+    const timestamp = new Date().toLocaleTimeString();
+    const message = args.map(arg =>
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' ');
+    // Truncate very long messages
+    if (message.length > 2000) return `[${timestamp}] [${type}] ${message.substring(0, 2000)}...`;
+    return `[${timestamp}] [${type}] ${message}`;
+}
+
+const logToMemory = (type, args) => {
+    const logEntry = formatLog(type, args);
+    capturedLogs.push(logEntry);
+    // Keep last 1000 logs
+    if (capturedLogs.length > 1000) capturedLogs.shift();
+
+    // Auto-update logs viewer if open
+    const logsContent = document.getElementById("logs-content");
+    if (logsContent && logsContent.offsetParent !== null) {
+        logsContent.textContent = capturedLogs.join('\n');
+        logsContent.scrollTop = logsContent.scrollHeight;
+    }
+}
+
+console.log = (...args) => {
+    logToMemory('INFO', args);
+    originalConsoleLog.apply(console, args);
+};
+
+console.warn = (...args) => {
+    logToMemory('WARN', args);
+    originalConsoleWarn.apply(console, args);
+};
+
+console.error = (...args) => {
+    logToMemory('ERROR', args);
+    originalConsoleError.apply(console, args);
+};
+
 // Connect to server dynamically - works for both localhost and LAN
 const serverUrl = window.location.origin;
 const socket = io(serverUrl);
@@ -66,6 +111,20 @@ const btnSettingsToggle = document.getElementById("btn-settings-toggle");
 const settingsModal = document.getElementById("settings-modal");
 const btnCloseSettings = document.getElementById("btn-close-settings");
 const languageSelect = document.getElementById("language-select");
+
+// Advanced Settings Elements
+const settingsAdvancedSection = document.getElementById("settings-advanced-section");
+const btnViewLogs = document.getElementById("btn-view-logs");
+const btnDownloadLogs = document.getElementById("btn-download-logs");
+const logsViewer = document.getElementById("logs-viewer");
+const logsContent = document.getElementById("logs-content");
+const btnCopyLogs = document.getElementById("btn-copy-logs");
+const btnCloseLogs = document.getElementById("btn-close-logs");
+
+// Blacklist Import/Export Elements
+const btnImportBlacklist = document.getElementById("btn-import-blacklist");
+const btnExportBlacklist = document.getElementById("btn-export-blacklist");
+const fileImportBlacklist = document.getElementById("file-import-blacklist");
 
 // Connection Info Modal
 const connectionModal = document.getElementById("connection-modal");
@@ -2331,14 +2390,203 @@ let myPeerConnection = null; // RTCPeerConnection (Student side)
 const RTC_CONFIG = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:global.stun.twilio.com:3478" } // Backup STUN
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:global.stun.twilio.com:3478" }
     ],
     // Prefer local network paths for lower latency
     iceTransportPolicy: 'all',
     // Bundle policy for better performance
     bundlePolicy: 'max-bundle',
-    rtcpMuxPolicy: 'require'
+    rtcpMuxPolicy: 'require',
+    // Enable ICE candidate pooling for faster connection
+    iceCandidatePoolSize: 2
 };
+
+// ===== COMPRESSION & QUALITY OPTIMIZATION =====
+
+// Target bitrates based on quality settings (in bps)
+// ethernet: High bandwidth, low latency for wired connections
+// auto: Balanced defaults that adapt to network
+// wifi: Conservative for slower/congested wireless networks
+const BITRATE_PRESETS = {
+    ethernet: { min: 2000000, target: 4000000, max: 6000000 },  // 2-6 Mbps (fast, high quality)
+    auto: { min: 400000, target: 1000000, max: 1500000 },       // 0.4-1.5 Mbps (balanced)
+    wifi: { min: 150000, target: 400000, max: 800000 }          // 0.15-0.8 Mbps (conservative)
+};
+
+// Network state tracking for adaptive quality
+let networkQualityLevel = 'good'; // 'good', 'medium', 'poor'
+let qualityMonitoringInterval = null;
+
+// Prefer VP9 codec in SDP for better compression (~30-40% smaller than VP8)
+function preferVP9Codec(sdp) {
+    // Split SDP into lines
+    const lines = sdp.split('\r\n');
+    const videoMLineIndex = lines.findIndex(line => line.startsWith('m=video'));
+
+    if (videoMLineIndex === -1) return sdp;
+
+    // Find VP9 payload types
+    const vp9Lines = lines.filter(line => line.toLowerCase().includes('vp9'));
+    if (vp9Lines.length === 0) return sdp; // VP9 not supported
+
+    // Find VP9 payload type from rtpmap
+    let vp9PayloadType = null;
+    for (const line of lines) {
+        const match = line.match(/^a=rtpmap:(\d+)\s+VP9\//i);
+        if (match) {
+            vp9PayloadType = match[1];
+            break;
+        }
+    }
+
+    if (!vp9PayloadType) return sdp;
+
+    // Reorder codecs in m=video line to prefer VP9
+    const mLine = lines[videoMLineIndex];
+    const parts = mLine.split(' ');
+    // parts[0] = 'm=video', parts[1] = port, parts[2] = protocol, rest are payload types
+    if (parts.length > 3) {
+        const payloadTypes = parts.slice(3);
+        const vp9Index = payloadTypes.indexOf(vp9PayloadType);
+        if (vp9Index > 0) {
+            // Move VP9 to first position
+            payloadTypes.splice(vp9Index, 1);
+            payloadTypes.unshift(vp9PayloadType);
+            lines[videoMLineIndex] = parts.slice(0, 3).concat(payloadTypes).join(' ');
+        }
+    }
+
+    return lines.join('\r\n');
+}
+
+// Get current bitrate preset based on quality setting
+function getCurrentBitratePreset() {
+    const qualitySetting = localStorage.getItem('screenShareQuality') || 'auto';
+    return BITRATE_PRESETS[qualitySetting] || BITRATE_PRESETS.auto;
+}
+
+// Calculate target bitrate based on network quality
+function calculateTargetBitrate() {
+    const preset = getCurrentBitratePreset();
+
+    switch (networkQualityLevel) {
+        case 'poor':
+            return preset.min;
+        case 'medium':
+            return Math.round((preset.min + preset.target) / 2);
+        case 'good':
+        default:
+            return preset.target;
+    }
+}
+
+// Apply optimized encoding parameters to sender
+async function applyEncodingOptimizations(sender, isInitial = true) {
+    if (sender.track?.kind !== 'video') return;
+
+    const targetBitrate = calculateTargetBitrate();
+    const preset = getCurrentBitratePreset();
+    const qualitySetting = localStorage.getItem('screenShareQuality') || 'auto';
+
+    try {
+        const parameters = sender.getParameters();
+
+        if (!parameters.encodings || parameters.encodings.length === 0) {
+            parameters.encodings = [{}];
+        }
+
+        // Apply compression-optimized encoding params
+        parameters.encodings[0] = {
+            ...parameters.encodings[0],
+            maxBitrate: targetBitrate,
+            // Scale down resolution on poor networks
+            scaleResolutionDownBy: networkQualityLevel === 'poor' ? 1.5 : 1.0,
+            // Adaptive framerate: lower on poor network, higher on ethernet
+            maxFramerate: networkQualityLevel === 'poor' ? 12 :
+                (qualitySetting === 'ethernet' ? 30 : 20),
+            // Network priority for QoS
+            networkPriority: 'high',
+            priority: 'high'
+        };
+
+        await sender.setParameters(parameters);
+
+        if (isInitial) {
+            console.log(`📹 Applied encoding: ${Math.round(targetBitrate / 1000)}kbps, network: ${networkQualityLevel}`);
+        }
+    } catch (err) {
+        console.warn('Failed to apply encoding optimizations:', err);
+    }
+}
+
+// Monitor connection quality and adapt encoding dynamically
+async function monitorAndAdaptQuality(pc, sender) {
+    if (!pc || pc.connectionState === 'closed') return;
+
+    try {
+        const stats = await pc.getStats(sender);
+        let rtt = 0;
+        let packetsLost = 0;
+        let packetsSent = 0;
+        let bytesSent = 0;
+
+        stats.forEach(report => {
+            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                rtt = report.currentRoundTripTime * 1000 || rtt; // Convert to ms
+            }
+            if (report.type === 'outbound-rtp' && report.kind === 'video') {
+                packetsLost = report.packetsLost || 0;
+                packetsSent = report.packetsSent || 0;
+                bytesSent = report.bytesSent || 0;
+            }
+        });
+
+        const packetLossRate = packetsSent > 0 ? (packetsLost / packetsSent) * 100 : 0;
+
+        // Determine network quality level
+        let newQualityLevel = 'good';
+        if (rtt > 300 || packetLossRate > 5) {
+            newQualityLevel = 'poor';
+        } else if (rtt > 150 || packetLossRate > 2) {
+            newQualityLevel = 'medium';
+        }
+
+        // Only update if quality changed
+        if (newQualityLevel !== networkQualityLevel) {
+            const previousLevel = networkQualityLevel;
+            networkQualityLevel = newQualityLevel;
+            console.log(`📊 Network quality: ${previousLevel} → ${newQualityLevel} (RTT: ${Math.round(rtt)}ms, Loss: ${packetLossRate.toFixed(1)}%)`);
+
+            // Re-apply encoding with new quality level
+            await applyEncodingOptimizations(sender, false);
+        }
+    } catch (err) {
+        // Stats might not be available, that's ok
+    }
+}
+
+// Start quality monitoring for a peer connection
+function startQualityMonitoring(pc, sender) {
+    // Clear any existing monitoring
+    stopQualityMonitoring();
+
+    // Monitor every 3 seconds
+    qualityMonitoringInterval = setInterval(() => {
+        monitorAndAdaptQuality(pc, sender);
+    }, 3000);
+
+    console.log('📈 Started quality monitoring');
+}
+
+function stopQualityMonitoring() {
+    if (qualityMonitoringInterval) {
+        clearInterval(qualityMonitoringInterval);
+        qualityMonitoringInterval = null;
+        networkQualityLevel = 'good'; // Reset for next session
+        console.log('📉 Stopped quality monitoring');
+    }
+}
 
 // --- TEACHER SIDE ---
 
@@ -2359,25 +2607,25 @@ async function startScreenShare() {
         let videoConstraints;
 
         switch (qualitySetting) {
-            case 'speed':
-                // Optimized for network speed: 720p, lower framerate
+            case 'ethernet':
+                // Ethernet (Fast): High quality, higher framerate for wired connections
+                videoConstraints = {
+                    cursor: "always",
+                    width: { ideal: 1920, max: 1920 },
+                    height: { ideal: 1080, max: 1080 },
+                    frameRate: { ideal: 30, max: 60 }
+                };
+                console.log("Screen share: Ethernet mode (1080p, 30fps, high bitrate)");
+                break;
+            case 'wifi':
+                // WiFi (Slow): Conservative for slower/congested wireless networks
                 videoConstraints = {
                     cursor: "always",
                     width: { ideal: 1280, max: 1280 },
                     height: { ideal: 720, max: 720 },
                     frameRate: { ideal: 15, max: 20 }
                 };
-                console.log("Screen share: Speed mode (720p, 15fps)");
-                break;
-            case 'quality':
-                // Optimized for quality: 1080p, higher framerate
-                videoConstraints = {
-                    cursor: "always",
-                    width: { ideal: 1920, max: 1920 },
-                    height: { ideal: 1080, max: 1080 },
-                    frameRate: { ideal: 30, max: 30 }
-                };
-                console.log("Screen share: Quality mode (1080p, 30fps)");
+                console.log("Screen share: WiFi mode (720p, 15fps, low bitrate)");
                 break;
             case 'auto':
             default:
@@ -2396,6 +2644,13 @@ async function startScreenShare() {
             video: videoConstraints,
             audio: false
         });
+
+        // Set content hint for screen optimization (prioritizes sharp text over smooth motion)
+        const videoTrack = localStream.getVideoTracks()[0];
+        if (videoTrack && 'contentHint' in videoTrack) {
+            videoTrack.contentHint = 'detail'; // Optimize for screen content (text, sharp edges)
+            console.log('📺 Content hint set to "detail" for screen optimization');
+        }
 
         isScreenSharing = true;
         updateScreenShareButton();
@@ -2418,7 +2673,7 @@ async function startScreenShare() {
             });
         }
 
-        console.log("Screen sharing started");
+        console.log("Screen sharing started with compression optimizations");
 
     } catch (err) {
         console.error("Error starting screen share:", err);
@@ -2434,6 +2689,9 @@ function stopScreenShare() {
 
     isScreenSharing = false;
     updateScreenShareButton();
+
+    // Stop quality monitoring
+    stopQualityMonitoring();
 
     // Close all peer connections
     Object.values(peerConnections).forEach(pc => pc.close());
@@ -2459,24 +2717,24 @@ async function initiatePeerConnection(studentSocketId) {
     const pc = new RTCPeerConnection(RTC_CONFIG);
     peerConnections[studentSocketId] = pc;
 
+    let videoSender = null;
+
     // Add local stream tracks with optimized parameters
     if (localStream) {
         localStream.getTracks().forEach(track => {
             const sender = pc.addTrack(track, localStream);
 
-            // Apply bitrate constraints for better WiFi performance
+            // Apply encoding optimizations for video
             if (track.kind === 'video') {
-                const parameters = sender.getParameters();
-                if (!parameters.encodings) {
-                    parameters.encodings = [{}];
-                }
-                // Limit bitrate to 1.5 Mbps for smoother streaming over WiFi
-                parameters.encodings[0].maxBitrate = 1500000; // 1.5 Mbps
-                sender.setParameters(parameters).catch(err =>
-                    console.warn('Failed to set encoding parameters:', err)
-                );
+                videoSender = sender;
+                applyEncodingOptimizations(sender, true);
             }
         });
+    }
+
+    // Start quality monitoring for this connection
+    if (videoSender) {
+        startQualityMonitoring(pc, videoSender);
     }
 
     // ICE Candidates
@@ -2490,15 +2748,26 @@ async function initiatePeerConnection(studentSocketId) {
         }
     };
 
-    // Create Offer
+    // Create Offer with VP9 preference
     try {
         const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
+
+        // Use default codec preference (VP8 usually) for lower latency
+        const modifiedSdp = offer.sdp; // preferVP9Codec(offer.sdp);
+        const optimizedOffer = new RTCSessionDescription({
+            type: offer.type,
+            sdp: modifiedSdp
+        });
+
+        await pc.setLocalDescription(optimizedOffer);
+
         socket.emit("signal", {
             to: studentSocketId,
             from: socket.id,
-            signal: { type: "offer", sdp: offer }
+            signal: { type: "offer", sdp: optimizedOffer }
         });
+
+        console.log("📦 Sent offer (Default codec preference)");
     } catch (err) {
         console.error("Error creating offer:", err);
     }
@@ -2771,5 +3040,152 @@ socket.on("screen-share-status-update", ({ isSharing, classId }) => {
         updateVideoZoom();
     }
 });
+
+// ===== ADVANCED SETTINGS & LOGS =====
+
+// Update Advanced Settings visibility when opening settings
+if (btnSettingsToggle) {
+    btnSettingsToggle.addEventListener("click", () => {
+        if (settingsAdvancedSection) {
+            // Only show for teachers
+            if (currentRole === 'teacher') {
+                settingsAdvancedSection.classList.remove("hidden");
+            } else {
+                settingsAdvancedSection.classList.add("hidden");
+            }
+        }
+    });
+}
+
+// Logs Viewer Logic
+if (btnViewLogs) {
+    btnViewLogs.addEventListener("click", () => {
+        if (logsViewer) {
+            logsViewer.classList.remove("hidden");
+            if (logsContent) {
+                logsContent.textContent = capturedLogs.join('\n');
+                logsContent.scrollTop = logsContent.scrollHeight;
+            }
+        }
+    });
+}
+
+if (btnDownloadLogs) {
+    btnDownloadLogs.addEventListener("click", () => {
+        const logText = capturedLogs.join('\n');
+        const blob = new Blob([logText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `classsend-logs-${new Date().toISOString().slice(0, 10)}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+}
+
+if (btnCopyLogs) {
+    btnCopyLogs.addEventListener("click", async () => {
+        const logText = capturedLogs.join('\n');
+        try {
+            await navigator.clipboard.writeText(logText);
+            const originalText = btnCopyLogs.textContent;
+            btnCopyLogs.textContent = "✅";
+            setTimeout(() => btnCopyLogs.textContent = originalText, 1500);
+        } catch (err) {
+            console.error("Failed to copy logs:", err);
+            btnCopyLogs.textContent = "❌";
+        }
+    });
+}
+
+if (btnCloseLogs) {
+    btnCloseLogs.addEventListener("click", () => {
+        logsViewer.classList.add("hidden");
+    });
+}
+
+// Blacklist Import/Export Logic
+if (btnExportBlacklist) {
+    btnExportBlacklist.addEventListener("click", () => {
+        if (!customForbiddenWords || customForbiddenWords.length === 0) {
+            alert("Blacklist is empty");
+            return;
+        }
+
+        const dataStr = JSON.stringify(customForbiddenWords, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `classsend-blacklist-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+}
+
+if (btnImportBlacklist) {
+    btnImportBlacklist.addEventListener("click", () => {
+        if (fileImportBlacklist) fileImportBlacklist.click();
+    });
+}
+
+if (fileImportBlacklist) {
+    fileImportBlacklist.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const words = JSON.parse(e.target.result);
+                if (!Array.isArray(words)) {
+                    alert("Invalid file format: Expected a JSON array");
+                    return;
+                }
+
+                const uniqueNewWords = new Set();
+
+                words.forEach(item => {
+                    const str = typeof item === 'object' ? item.word : item;
+                    if (str && typeof str === 'string') {
+                        const normalized = str.trim().toLowerCase();
+                        // Check against existing list
+                        if (customForbiddenWords && !customForbiddenWords.some(w => w.word === normalized)) {
+                            uniqueNewWords.add(normalized);
+                        }
+                    }
+                });
+
+                if (uniqueNewWords.size === 0) {
+                    alert("No new words to import (duplicates skipped).");
+                    return;
+                }
+
+                let processed = 0;
+                uniqueNewWords.forEach(word => {
+                    socket.emit('add-forbidden-word', { word }, (res) => {
+                        if (res && res.success) {
+                            console.log("Imported:", word);
+                        }
+                    });
+                    processed++;
+                });
+
+                alert(`Importing ${processed} new words...`);
+
+            } catch (err) {
+                console.error("Import failed", err);
+                alert("Failed to import: Invalid JSON file");
+            }
+        };
+        reader.readAsText(file);
+        fileImportBlacklist.value = "";
+    });
+}
 
 

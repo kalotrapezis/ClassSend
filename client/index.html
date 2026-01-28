@@ -102,24 +102,69 @@
               <button id="btn-close-settings" class="close-btn">×</button>
             </div>
             <div class="settings-body">
-              <div class="setting-item">
-                <label for="language-select" data-i18n="label-language">Language</label>
-                <select id="language-select" class="setting-select">
-                  <option value="en">English</option>
-                  <option value="el">Ελληνικά</option>
-                </select>
+              <!-- Language Section -->
+              <div class="settings-section">
+                <h4 class="settings-section-header" data-i18n="settings-section-language">🌐 Language</h4>
+                <div class="setting-item">
+                  <label for="language-select" data-i18n="label-language">Language</label>
+                  <select id="language-select" class="setting-select">
+                    <option value="en">English</option>
+                    <option value="el">Ελληνικά</option>
+                  </select>
+                </div>
               </div>
-              <div class="setting-item">
-                <label for="screen-share-quality" data-i18n="label-screen-share-quality">Screen Share Quality</label>
-                <select id="screen-share-quality" class="setting-select">
-                  <option value="auto" data-i18n="quality-auto">Auto</option>
-                  <option value="speed" data-i18n="quality-speed">Speed (720p)</option>
-                  <option value="quality" data-i18n="quality-quality">Quality (1080p)</option>
-                </select>
+
+              <!-- Streaming Section -->
+              <div class="settings-section">
+                <h4 class="settings-section-header" data-i18n="settings-section-streaming">📺 Streaming</h4>
+                <div class="setting-item">
+                  <label for="screen-share-quality" data-i18n="label-screen-share-quality">Screen Share Quality</label>
+                  <select id="screen-share-quality" class="setting-select">
+                    <option value="ethernet" data-i18n="quality-ethernet">Ethernet (Fast)</option>
+                    <option value="auto" data-i18n="quality-auto">Auto</option>
+                    <option value="wifi" data-i18n="quality-wifi">WiFi (Slow)</option>
+                  </select>
+                </div>
               </div>
-              <div class="setting-item">
-                <label data-i18n="label-clear-data">Clear Saved Data</label>
-                <button id="btn-clear-data" class="secondary-btn" data-i18n="btn-clear-data">🗑️ Clear</button>
+
+              <!-- Data and Privacy Section -->
+              <div class="settings-section">
+                <h4 class="settings-section-header" data-i18n="settings-section-data">🔒 Data and Privacy</h4>
+                <div class="setting-item">
+                  <label data-i18n="label-blacklist-data">Blacklist Data</label>
+                  <div class="logs-actions">
+                    <button id="btn-import-blacklist" class="secondary-btn" data-i18n="btn-import-blacklist">📥
+                      Import</button>
+                    <button id="btn-export-blacklist" class="secondary-btn" data-i18n="btn-export-blacklist">📤
+                      Export</button>
+                    <input type="file" id="file-import-blacklist" accept=".json" class="hidden">
+                  </div>
+                </div>
+                <div class="setting-item">
+                  <label data-i18n="label-clear-data">Clear Saved Data</label>
+                  <button id="btn-clear-data" class="secondary-btn" data-i18n="btn-clear-data">🗑️ Clear</button>
+                </div>
+              </div>
+
+              <!-- Advanced Section (Teacher Only) -->
+              <div id="settings-advanced-section" class="settings-section hidden">
+                <h4 class="settings-section-header" data-i18n="settings-section-advanced">🔧 Advanced</h4>
+                <div class="setting-item logs-setting">
+                  <label data-i18n="label-logs">Session Logs</label>
+                  <div class="logs-actions">
+                    <button id="btn-view-logs" class="secondary-btn" data-i18n="btn-view-logs">👁️ View</button>
+                    <button id="btn-download-logs" class="secondary-btn" data-i18n="btn-download-logs">⬇️
+                      Download</button>
+                  </div>
+                </div>
+                <div id="logs-viewer" class="logs-viewer hidden">
+                  <div class="logs-viewer-header">
+                    <span data-i18n="logs-title">Session Logs</span>
+                    <button id="btn-copy-logs" class="copy-btn" title="Copy Logs">📋</button>
+                    <button id="btn-close-logs" class="close-btn">×</button>
+                  </div>
+                  <pre id="logs-content" class="logs-content"></pre>
+                </div>
               </div>
             </div>
           </div>

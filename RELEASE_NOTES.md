@@ -1,3 +1,17 @@
+# Release Notes - v6.5.0
+
+## 🚀 Improvements & Fixes
+
+### 📺 Optimized Streaming (NEW)
+Experience smoother screen sharing with significantly reduced delay.
+- **Latency Optimization**: Disabled forced VP9 codec in favor of more efficient defaults (VP8/H.264), reducing CPU load and lag.
+- **Adaptive Bitrates**: Tuned streaming bitrates for different network conditions (Auto/WiFi) to minimize buffering and drops.
+
+### 🐛 Critical Bug Fixes
+- **Server Stability**: Fixed a critical `EPIPE` error that could cause the server to crash when logging output in certain environments.
+
+---
+
 # Release Notes - v6.2.0
 
 ## 🚀 New Features

@@ -1018,5 +1018,19 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
+// Prevent crash on EPIPE (broken pipe)
+process.stdout.on('error', (err) => {
+  if (err.code === 'EPIPE') {
+    // Ignore EPIPE errors (broken pipe)
+    return;
+  }
+  process.stderr.write(`Stdout error: ${err.message}\n`);
+});
+
+process.stderr.on('error', (err) => {
+  if (err.code === 'EPIPE') return;
+  // We cannot log here if stderr is broken
+});
+
 module.exports = { server, stopServer };
 
