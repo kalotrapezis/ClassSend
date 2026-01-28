@@ -1,7 +1,7 @@
-# ClassSend (v6.2.0 Latest)
+# ClassSend (v6.5.0 Latest)
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 Latest Features (v6.2.0)
+## 🚀 Latest Features (v6.5.0)
 - **💾 Smart Persistence**: Class setup details (name, class ID) and language choice are now saved and sync across sessions.
 - **📌 File Pinning**: Teachers can now pin important files to the top of the Media Library.
 - **🖐️ Enhanced Status**: New visual icons for raised hands (🖐️) and blocked users (🔇) in the user list.
@@ -30,12 +30,12 @@
 ## 📦 Download & Install
 Go to the [Releases](../../releases) page or check the `server/out/make` folder.
 
-- **Linux AppImage**: `ClassSend-6.1.0-x64.AppImage`
-- **Linux Zip**: `ClassSend-linux-x64-6.1.0.zip`
-- **Windows Installer (64-bit)**: `ClassSend-6.1.0 Setup.exe`
-- **Windows Installer (32-bit)**: `ClassSend-6.1.0 Setup-x32.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-6.1.0.zip`
-- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-6.1.0.zip`
+- **Linux AppImage**: `ClassSend-6.5.0-x64.AppImage`
+- **Linux Zip**: `ClassSend-linux-x64-6.5.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-6.5.0 Setup.exe`
+- **Windows Installer (32-bit)**: `ClassSend-6.5.0 Setup-x32.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-6.5.0.zip`
+- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-6.5.0.zip`
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:
