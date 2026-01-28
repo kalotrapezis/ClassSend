@@ -278,10 +278,24 @@ body {
 }
 
 
-/* Hide text on mobile */
-@media (max-width: 600px) {
+/* Hamburger Menu */
+.menu-btn {
+  font-size: 1.5rem;
+  padding: 0.25rem 0.5rem;
+  display: flex !important;
+  /* Always visible */
+  margin-right: 0.5rem;
+}
+
+/* Hide text on mobile/tablet */
+@media (max-width: 900px) {
   .desktop-only {
     display: none !important;
+  }
+
+  /* Show menu button on mobile/tablet */
+  .menu-btn.mobile-only {
+    display: flex;
   }
 
   .header-btn {
@@ -290,9 +304,55 @@ body {
   }
 }
 
+/* Sidebar Responsive */
+@media (max-width: 1200px) {
+  .sidebar-left {
+    position: absolute;
+    left: -350px;
+    /* Hide off-screen */
+    top: 60px;
+    /* Below header */
+    bottom: 0;
+    z-index: 100;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+    background: var(--bg-secondary);
+  }
+
+  .sidebar-left.active {
+    transform: translateX(350px);
+  }
+}
+
+/* Sidebar Collapsed State (Desktop) */
+@media (min-width: 1201px) {
+  .sidebar-left.collapsed {
+    width: 0;
+    overflow: hidden;
+    padding: 0;
+    border: none;
+  }
+}
+
 .user-name-display:hover {
   background: var(--bg-hover);
   background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Video Controls Overlay */
+.video-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  padding: 8px 12px;
+  border-radius: 20px;
+  opacity: 1;
+  /* Always visible */
+  transition: opacity 0.3s ease;
+  z-index: 20;
 }
 
 .dropdown-menu {
@@ -538,6 +598,36 @@ body {
   transform: scale(1.05);
 }
 
+/* Pinned Media Items */
+.media-item.pinned {
+  border-color: var(--accent-primary);
+  background-color: rgba(98, 100, 167, 0.1);
+}
+
+.media-pin-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.media-pin-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+  transform: scale(1.1);
+}
+
 /* Main Content */
 .chat-main {
   display: flex;
@@ -731,6 +821,17 @@ body {
   letter-spacing: 0.05em;
   color: var(--text-secondary);
   margin: 0;
+}
+
+/* User status icons */
+.hand-raised-icon,
+.blocked-icon {
+  margin-left: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.blocked-icon {
+  opacity: 0.8;
 }
 
 /* Chat Area */
@@ -1107,16 +1208,33 @@ body {
 .sidebar-overlay {
   display: none;
   position: fixed;
-  top: 0;
+  top: 60px;
+  /* Start below the header */
   left: 0;
   width: 100%;
-  height: 100%;
+  height: calc(100% - 60px);
   background-color: rgba(0, 0, 0, 0.5);
-  z-index: 999;
+  z-index: 99;
+  /* Below header but above content */
+  pointer-events: none;
 }
 
-.sidebar-overlay.active {
-  display: block;
+/* Only show overlay on smaller screens where sidebar slides over content */
+@media (max-width: 1200px) {
+  .sidebar-overlay.active {
+    display: block;
+    pointer-events: auto;
+  }
+}
+
+/* On large screens, never show the overlay */
+@media (min-width: 1201px) {
+
+  .sidebar-overlay,
+  .sidebar-overlay.active {
+    display: none !important;
+    pointer-events: none !important;
+  }
 }
 
 @media (max-width: 768px) {
@@ -2373,5 +2491,130 @@ input:checked+.slider:before {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Video Modal enhancements */
+.video-modal-content {
+  width: 90%;
+  max-width: 1200px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.video-container {
+  flex: 1;
+  background: #000;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#remote-video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+/* Video Controls Overlay */
+
+
+.video-control-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 1rem;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 40px;
+}
+
+.video-control-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+
+.video-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-control-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.header-control-btn:hover {
+  color: var(--text-primary);
+}
+
+/* Fullscreen Mode */
+.modal.fullscreen .modal-content {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  border-radius: 0;
+}
+
+.modal.fullscreen .popup-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  border-bottom: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.modal.fullscreen:hover .popup-header {
+  opacity: 1;
+}
+
+/* View Stream Button */
+.view-stream-btn {
+  font-size: 1.25rem;
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border-radius: 6px;
+}
+
+.view-stream-btn:hover {
+  background: rgba(98, 100, 167, 0.1);
+  transform: scale(1.1);
+}
+
+.view-stream-btn.active {
+  animation: pulse 2s infinite;
+  color: var(--accent-primary);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
   }
 }

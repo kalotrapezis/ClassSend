@@ -6,8 +6,8 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title data-i18n="app-title">ClassSend</title>
-  <script type="module" crossorigin src="/assets/index-DAYR-Ikb.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-CKCQ_0WK.css">
+  <script type="module" crossorigin src="/assets/index-B1YtBvW3.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DQPbf9re.css">
 </head>
 
 <body>
@@ -110,6 +110,18 @@
                   <option value="el">Ελληνικά</option>
                 </select>
               </div>
+              <div class="setting-item">
+                <label for="screen-share-quality" data-i18n="label-screen-share-quality">Screen Share Quality</label>
+                <select id="screen-share-quality" class="setting-select">
+                  <option value="auto" data-i18n="quality-auto">Auto</option>
+                  <option value="speed" data-i18n="quality-speed">Speed (720p)</option>
+                  <option value="quality" data-i18n="quality-quality">Quality (1080p)</option>
+                </select>
+              </div>
+              <div class="setting-item">
+                <label data-i18n="label-clear-data">Clear Saved Data</label>
+                <button id="btn-clear-data" class="secondary-btn" data-i18n="btn-clear-data">🗑️ Clear</button>
+              </div>
             </div>
           </div>
         </div>
@@ -118,12 +130,22 @@
         <div id="video-modal" class="modal hidden">
           <div class="modal-content video-modal-content">
             <div class="popup-header">
-              <h3 id="stream-title">Teacher's Screen</h3>
-              <button id="btn-close-video" class="close-btn">×</button>
+              <h3 id="stream-title">📺 Teacher's Screen</h3>
+              <div class="video-header-controls">
+                <button id="btn-minimize-video" class="header-control-btn" title="Minimize">➖</button>
+                <button id="btn-close-video" class="close-btn" title="Close">×</button>
+              </div>
             </div>
             <div class="video-container">
-              <video id="remote-video" autoplay playsinline controls></video>
+              <video id="remote-video" autoplay playsinline></video>
               <div id="video-status" class="video-status">Connecting...</div>
+              <!-- Video Controls -->
+              <div class="video-controls">
+                <button id="btn-zoom-out" class="video-control-btn" title="Zoom Out">➖</button>
+                <button id="btn-zoom-reset" class="video-control-btn" title="Reset Zoom">100%</button>
+                <button id="btn-zoom-in" class="video-control-btn" title="Zoom In">➕</button>
+                <button id="btn-fullscreen" class="video-control-btn" title="Fullscreen">⛶</button>
+              </div>
             </div>
           </div>
         </div>
@@ -255,6 +277,9 @@
               </button>
               <button id="btn-raise-hand" class="raise-hand-btn" title="Raise Hand">
                 🖐️
+              </button>
+              <button id="btn-view-stream" class="view-stream-btn hidden" title="View Stream">
+                📺
               </button>
               <div id="emoji-picker" class="emoji-picker hidden">
                 <!-- Emojis will be injected here -->

@@ -15,6 +15,7 @@ let currentClassId = null;
 let joinedClasses = new Map(); // classId -> { messages: [], users: [], teacherName: string }
 let availableClasses = []; // [{ id, teacherName }]
 let currentLanguage = localStorage.getItem('language') || 'en';
+let pinnedFiles = new Set(); // Track pinned file IDs in media library
 
 // DOM Elements - Screens
 const roleSelection = document.getElementById("role-selection");
@@ -100,32 +101,75 @@ function updateConnectionUrl() {
     connectionUrl.textContent = url;
 }
 
-hostnameToggle.addEventListener("change", updateConnectionUrl);
+if (hostnameToggle) {
+    hostnameToggle.addEventListener("change", updateConnectionUrl);
+}
 
-btnCopyUrl.addEventListener("click", async () => {
-    const url = connectionUrl.textContent;
-    try {
-        await navigator.clipboard.writeText(url);
-        const originalText = btnCopyUrl.textContent;
-        btnCopyUrl.textContent = "✅";
-        setTimeout(() => {
-            btnCopyUrl.textContent = originalText;
-        }, 1500);
-    } catch (err) {
-        console.error("Failed to copy: ", err);
-    }
-});
+if (btnCopyUrl) {
+    btnCopyUrl.addEventListener("click", async () => {
+        const url = connectionUrl.textContent;
+        let copied = false;
 
-btnCloseConnection.addEventListener("click", () => {
-    connectionModal.classList.add("hidden");
-});
+        // Try modern Clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+                await navigator.clipboard.writeText(url);
+                copied = true;
+            } catch (err) {
+                console.warn("Clipboard API failed, trying fallback: ", err);
+            }
+        }
+
+        // Fallback method using execCommand
+        if (!copied) {
+            try {
+                const textArea = document.createElement("textarea");
+                textArea.value = url;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-9999px";
+                textArea.style.top = "-9999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                copied = document.execCommand("copy");
+                document.body.removeChild(textArea);
+            } catch (err) {
+                console.error("Fallback copy failed: ", err);
+            }
+        }
+
+        if (copied) {
+            const originalText = btnCopyUrl.textContent;
+            btnCopyUrl.textContent = "✅";
+            setTimeout(() => {
+                btnCopyUrl.textContent = originalText;
+            }, 1500);
+        } else {
+            // Show error feedback
+            const originalText = btnCopyUrl.textContent;
+            btnCopyUrl.textContent = "❌";
+            setTimeout(() => {
+                btnCopyUrl.textContent = originalText;
+            }, 1500);
+            console.error("Failed to copy URL to clipboard");
+        }
+    });
+}
+
+if (btnCloseConnection) {
+    btnCloseConnection.addEventListener("click", () => {
+        connectionModal.classList.add("hidden");
+    });
+}
 
 // Close modal when clicking outside
-connectionModal.addEventListener("click", (e) => {
-    if (e.target === connectionModal) {
-        connectionModal.classList.add("hidden");
-    }
-});
+if (connectionModal) {
+    connectionModal.addEventListener("click", (e) => {
+        if (e.target === connectionModal) {
+            connectionModal.classList.add("hidden");
+        }
+    });
+}
 
 // Emoji Picker
 const btnEmoji = document.getElementById("btn-emoji");
@@ -195,8 +239,12 @@ const sidebarOverlay = document.getElementById("sidebar-overlay");
 if (btnMenuToggle) {
     btnMenuToggle.addEventListener("click", (e) => {
         e.stopPropagation();
-        sidebarLeft.classList.toggle("active");
-        sidebarOverlay.classList.toggle("active");
+        if (window.innerWidth > 1200) {
+            sidebarLeft.classList.toggle("collapsed");
+        } else {
+            sidebarLeft.classList.toggle("active");
+            sidebarOverlay.classList.toggle("active");
+        }
     });
 }
 
@@ -350,6 +398,12 @@ function showClassSetup() {
     roleSelection.classList.add("hidden");
     classSetup.classList.remove("hidden");
 
+    // Load saved values from localStorage
+    const savedClassId = localStorage.getItem('classsend-classId');
+    const savedUserName = localStorage.getItem('classsend-userName');
+    if (savedClassId) classIdInput.value = savedClassId;
+    if (savedUserName) userNameInput.value = savedUserName;
+
     if (currentRole === "teacher") {
         setupTitle.textContent = "Create Class";
         btnSubmitSetup.textContent = "Create Class";
@@ -383,10 +437,15 @@ btnSubmitSetup.addEventListener("click", () => {
     if (!enteredUserName) return alert("Please enter your name");
 
     userName = enteredUserName;
+    // Save to localStorage
+    localStorage.setItem('classsend-userName', enteredUserName);
 
     if (currentRole === "teacher") {
         const enteredClassId = classIdInput.value.trim();
         if (!enteredClassId) return alert("Please enter a Class ID");
+
+        // Save class ID to localStorage
+        localStorage.setItem('classsend-classId', enteredClassId);
 
         // If already joined, just switch
         if (joinedClasses.has(enteredClassId)) {
@@ -1046,12 +1105,32 @@ function renderMediaHistory() {
     // Enable download all button
     btnDownloadAll.disabled = false;
 
-    // Show newest first
-    fileMessages.slice().reverse().forEach(msg => {
+    // Sort: pinned first, then by newest
+    const sortedFiles = fileMessages.slice().reverse().sort((a, b) => {
+        const aId = a.fileData.id || a.id;
+        const bId = b.fileData.id || b.id;
+        const aPinned = pinnedFiles.has(aId);
+        const bPinned = pinnedFiles.has(bId);
+        if (aPinned && !bPinned) return -1;
+        if (!aPinned && bPinned) return 1;
+        return 0;
+    });
+
+    sortedFiles.forEach(msg => {
+        const fileId = msg.fileData.id || msg.id;
+        const isPinned = pinnedFiles.has(fileId);
         const item = document.createElement("div");
         item.classList.add("media-item");
+        if (isPinned) item.classList.add("pinned");
+
+        const pinBtn = currentRole === 'teacher' ? `
+            <button class="media-pin-btn" title="${isPinned ? 'Unpin' : 'Pin'}" data-file-id="${fileId}">
+                ${isPinned ? '📌' : '📍'}
+            </button>
+        ` : '';
+
         item.innerHTML = `
-            <div class="media-icon">📄</div>
+            <div class="media-icon">${isPinned ? '📌' : '📄'}</div>
             <div class="media-info">
                 <div class="media-name" title="${escapeHtml(msg.fileData.name)}">${escapeHtml(msg.fileData.name)}</div>
                 <div class="media-meta">
@@ -1059,10 +1138,27 @@ function renderMediaHistory() {
                     <span>${msg.senderName}</span>
                 </div>
             </div>
+            ${pinBtn}
             <button class="media-download-btn" title="Download" onclick="downloadFile('${msg.fileData.id || msg.fileData.data}', '${escapeHtml(msg.fileData.name)}')">
                 ⬇️
             </button>
         `;
+
+        // Add pin button listener
+        const pinButton = item.querySelector('.media-pin-btn');
+        if (pinButton) {
+            pinButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const fId = pinButton.dataset.fileId;
+                if (pinnedFiles.has(fId)) {
+                    pinnedFiles.delete(fId);
+                } else {
+                    pinnedFiles.add(fId);
+                }
+                renderMediaHistory();
+            });
+        }
+
         mediaList.appendChild(item);
     });
 }
@@ -1104,9 +1200,11 @@ function renderUsersList() {
         controls.className = 'teacher-controls';
         controls.style.cssText = 'display: flex; gap: 8px; margin-left: auto;';
 
-        // Check if all students are blocked
+        // Check if all students are blocked OR chat is pre-blocked for new users
         const students = users.filter(u => u.role === 'student');
-        const allBlocked = students.length > 0 && students.every(s => blockedUsers.has(s.id));
+        const allStudentsBlocked = students.length > 0 && students.every(s => blockedUsers.has(s.id));
+        const chatBlockedForNewUsers = classData.chatBlockedForNewUsers || false;
+        const allBlocked = allStudentsBlocked || (students.length === 0 && chatBlockedForNewUsers);
 
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'toggle-block-all-btn';
@@ -1114,17 +1212,29 @@ function renderUsersList() {
 
         if (allBlocked) {
             toggleBtn.innerHTML = '✅ Unblock All';
-            toggleBtn.title = 'Unblock All Students';
+            toggleBtn.title = chatBlockedForNewUsers && students.length === 0
+                ? 'Chat will be unblocked for new users'
+                : 'Unblock All Students';
             toggleBtn.onclick = (e) => {
                 e.stopPropagation();
+                classData.chatBlockedForNewUsers = false;
                 socket.emit('unblock-all-users', { classId: currentClassId });
+                renderUsersList();
             };
         } else {
             toggleBtn.innerHTML = '⛔ Block All';
-            toggleBtn.title = 'Block All Students';
+            toggleBtn.title = students.length === 0
+                ? 'New users will have chat blocked when they join'
+                : 'Block All Students';
             toggleBtn.onclick = (e) => {
                 e.stopPropagation();
+                classData.chatBlockedForNewUsers = true;
                 socket.emit('block-all-users', { classId: currentClassId });
+                if (students.length === 0) {
+                    // Show visual feedback that new users will be blocked
+                    toggleBtn.innerHTML = '🔒 Blocked';
+                    setTimeout(() => renderUsersList(), 100);
+                }
             };
         }
 
@@ -1152,11 +1262,12 @@ function renderUsersList() {
             userDiv.classList.add('blocked');
         }
 
-        const handIcon = user.handRaised ? ' <span class="hand-raised-icon">🖐️</span>' : '';
+        const handIcon = user.handRaised ? ' <span class="hand-raised-icon" title="Hand Raised">🖐️</span>' : '';
+        const blockedIcon = isBlocked ? ' <span class="blocked-icon" title="Blocked">🔇</span>' : '';
 
         userDiv.innerHTML = `
             <span class="user-status"></span>
-            <span class="user-name">${escapeHtml(user.name)}</span>${handIcon}
+            <span class="user-name">${escapeHtml(user.name)}</span>${handIcon}${blockedIcon}
         `;
 
         // Add block/unblock button for teachers (only for students)
@@ -1540,7 +1651,48 @@ if (languageSelect) {
         currentLanguage = e.target.value;
         localStorage.setItem('language', currentLanguage);
         updateUIText();
-        // Also update any dynamic content if needed
+
+        // If teacher in a class, sync language to all students
+        if (currentRole === 'teacher' && currentClassId) {
+            socket.emit('set-class-language', { classId: currentClassId, language: currentLanguage });
+        }
+    });
+}
+
+// Listen for language sync from teacher
+socket.on('language-changed', ({ language, classId }) => {
+    if (classId === currentClassId) {
+        currentLanguage = language;
+        localStorage.setItem('language', currentLanguage);
+        if (languageSelect) languageSelect.value = currentLanguage;
+        updateUIText();
+        console.log(`Language synced to ${language} from teacher`);
+    }
+});
+
+// Screen Share Quality Setting
+const screenShareQualitySelect = document.getElementById("screen-share-quality");
+let screenShareQuality = localStorage.getItem('screenShareQuality') || 'auto';
+
+if (screenShareQualitySelect) {
+    screenShareQualitySelect.value = screenShareQuality;
+    screenShareQualitySelect.addEventListener('change', (e) => {
+        screenShareQuality = e.target.value;
+        localStorage.setItem('screenShareQuality', screenShareQuality);
+        console.log('Screen share quality set to:', screenShareQuality);
+    });
+}
+
+// Clear Data Button
+const btnClearData = document.getElementById("btn-clear-data");
+if (btnClearData) {
+    btnClearData.addEventListener('click', () => {
+        localStorage.removeItem('classsend-classId');
+        localStorage.removeItem('classsend-userName');
+        btnClearData.textContent = '✅ Cleared';
+        setTimeout(() => {
+            btnClearData.textContent = '🗑️ Clear';
+        }, 1500);
     });
 }
 
@@ -2161,6 +2313,16 @@ const remoteVideo = document.getElementById("remote-video");
 const videoStatus = document.getElementById("video-status");
 const streamTitle = document.getElementById("stream-title");
 
+// Video Controls
+const btnMinimizeVideo = document.getElementById("btn-minimize-video");
+const btnViewStream = document.getElementById("btn-view-stream");
+const btnZoomIn = document.getElementById("btn-zoom-in");
+const btnZoomOut = document.getElementById("btn-zoom-out");
+const btnZoomReset = document.getElementById("btn-zoom-reset");
+const btnFullscreen = document.getElementById("btn-fullscreen");
+
+let videoZoomLevel = 1;
+
 let localStream = null;
 let isScreenSharing = false;
 let peerConnections = {}; // Map<socketId, RTCPeerConnection> (Teacher side)
@@ -2192,14 +2354,46 @@ if (btnShareScreen) {
 
 async function startScreenShare() {
     try {
+        // Get video constraints based on quality setting
+        const qualitySetting = localStorage.getItem('screenShareQuality') || 'auto';
+        let videoConstraints;
+
+        switch (qualitySetting) {
+            case 'speed':
+                // Optimized for network speed: 720p, lower framerate
+                videoConstraints = {
+                    cursor: "always",
+                    width: { ideal: 1280, max: 1280 },
+                    height: { ideal: 720, max: 720 },
+                    frameRate: { ideal: 15, max: 20 }
+                };
+                console.log("Screen share: Speed mode (720p, 15fps)");
+                break;
+            case 'quality':
+                // Optimized for quality: 1080p, higher framerate
+                videoConstraints = {
+                    cursor: "always",
+                    width: { ideal: 1920, max: 1920 },
+                    height: { ideal: 1080, max: 1080 },
+                    frameRate: { ideal: 30, max: 30 }
+                };
+                console.log("Screen share: Quality mode (1080p, 30fps)");
+                break;
+            case 'auto':
+            default:
+                // Balanced: adaptive resolution
+                videoConstraints = {
+                    cursor: "always",
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 20, max: 30 }
+                };
+                console.log("Screen share: Auto mode (adaptive)");
+                break;
+        }
+
         localStream = await navigator.mediaDevices.getDisplayMedia({
-            video: {
-                cursor: "always",
-                // Optimize for WiFi: lower resolution and framerate
-                width: { ideal: 1280, max: 1920 },
-                height: { ideal: 720, max: 1080 },
-                frameRate: { ideal: 15, max: 30 }
-            },
+            video: videoConstraints,
             audio: false
         });
 
@@ -2434,3 +2628,148 @@ document.getElementById("btn-teacher").addEventListener("click", () => {
 document.getElementById("btn-student").addEventListener("click", () => {
     updateTeacherActionsVisibility();
 });
+
+// ===== VIDEO CONTROLS LOGIC =====
+
+let videoTranslateX = 0;
+let videoTranslateY = 0;
+let isDraggingVideo = false;
+let startDragX = 0;
+let startDragY = 0;
+
+function updateVideoZoom() {
+    if (remoteVideo) {
+        remoteVideo.style.transform = `translate(${videoTranslateX}px, ${videoTranslateY}px) scale(${videoZoomLevel})`;
+
+        // Update cursor based on zoom level
+        if (videoZoomLevel > 1) {
+            remoteVideo.style.cursor = isDraggingVideo ? "grabbing" : "grab";
+        } else {
+            remoteVideo.style.cursor = "default";
+            // Reset translation if we zoom out to 1 or less
+            if (videoZoomLevel <= 1 && (videoTranslateX !== 0 || videoTranslateY !== 0)) {
+                videoTranslateX = 0;
+                videoTranslateY = 0;
+                remoteVideo.style.transform = `translate(0px, 0px) scale(${videoZoomLevel})`;
+            }
+        }
+    }
+    if (btnZoomReset) {
+        btnZoomReset.textContent = `${Math.round(videoZoomLevel * 100)}%`;
+    }
+}
+
+// Drag functionality for video
+if (remoteVideo) {
+    remoteVideo.addEventListener("mousedown", (e) => {
+        if (videoZoomLevel > 1) {
+            isDraggingVideo = true;
+            startDragX = e.clientX - videoTranslateX;
+            startDragY = e.clientY - videoTranslateY;
+            remoteVideo.style.cursor = "grabbing";
+            e.preventDefault(); // Prevent default drag behavior
+        }
+    });
+
+    window.addEventListener("mousemove", (e) => {
+        if (isDraggingVideo) {
+            videoTranslateX = e.clientX - startDragX;
+            videoTranslateY = e.clientY - startDragY;
+            updateVideoZoom();
+        }
+    });
+
+    window.addEventListener("mouseup", () => {
+        if (isDraggingVideo) {
+            isDraggingVideo = false;
+            if (remoteVideo) remoteVideo.style.cursor = "grab";
+        }
+    });
+}
+
+if (btnZoomIn) {
+    btnZoomIn.addEventListener("click", () => {
+        if (videoZoomLevel < 3) {
+            videoZoomLevel = Math.min(3, videoZoomLevel + 0.25);
+            updateVideoZoom();
+        }
+    });
+}
+
+if (btnZoomOut) {
+    btnZoomOut.addEventListener("click", () => {
+        if (videoZoomLevel > 0.5) {
+            videoZoomLevel = Math.max(0.5, videoZoomLevel - 0.25);
+            updateVideoZoom();
+        }
+    });
+}
+
+if (btnZoomReset) {
+    btnZoomReset.addEventListener("click", () => {
+        videoZoomLevel = 1;
+        videoTranslateX = 0;
+        videoTranslateY = 0;
+        updateVideoZoom();
+    });
+}
+
+// Fullscreen
+if (btnFullscreen) {
+    btnFullscreen.addEventListener("click", () => {
+        if (videoModal) {
+            videoModal.classList.toggle("fullscreen");
+            btnFullscreen.textContent = videoModal.classList.contains("fullscreen") ? "❌" : "⛶";
+            btnFullscreen.title = videoModal.classList.contains("fullscreen") ? "Exit Fullscreen" : "Fullscreen";
+        }
+    });
+}
+
+// Exit fullscreen on Escape
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && videoModal && videoModal.classList.contains("fullscreen")) {
+        videoModal.classList.remove("fullscreen");
+        if (btnFullscreen) btnFullscreen.textContent = "⛶";
+    }
+});
+
+// Minimize Video
+if (btnMinimizeVideo) {
+    btnMinimizeVideo.addEventListener("click", () => {
+        videoModal.classList.add("hidden");
+        // Show view stream button
+        if (btnViewStream && myPeerConnection && !myPeerConnection.connectionState.includes("closed")) {
+            btnViewStream.classList.remove("hidden");
+            btnViewStream.classList.add("active");
+        }
+    });
+}
+
+// Restore Stream
+if (btnViewStream) {
+    btnViewStream.addEventListener("click", () => {
+        videoModal.classList.remove("hidden");
+        btnViewStream.classList.add("hidden");
+        btnViewStream.classList.remove("active");
+    });
+}
+
+// Update stream cleanup to hide the button
+// We'll update the cleanup locations
+
+// Let's monkey-patch the socket event handler logic by adding a check
+socket.on("screen-share-status-update", ({ isSharing, classId }) => {
+    if (classId === currentClassId && currentRole === 'student' && !isSharing) {
+        if (btnViewStream) {
+            btnViewStream.classList.add("hidden");
+            btnViewStream.classList.remove("active");
+        }
+        // Also reset zoom and position when stream ends
+        videoZoomLevel = 1;
+        videoTranslateX = 0;
+        videoTranslateY = 0;
+        updateVideoZoom();
+    }
+});
+
+

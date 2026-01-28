@@ -36,7 +36,13 @@ export const translations = {
         "mic-on": "🎤 Mic On",
         "mic-off": "🎤 Mic Off",
         "library-title": "Media Library",
-        "library-empty": "No files uploaded to this class yet."
+        "library-empty": "No files uploaded to this class yet.",
+        "label-screen-share-quality": "Screen Share Quality",
+        "quality-auto": "Auto",
+        "quality-speed": "Speed (720p)",
+        "quality-quality": "Quality (1080p)",
+        "label-clear-data": "Clear Saved Data",
+        "btn-clear-data": "🗑️ Clear"
     },
     el: {
         "app-title": "ClassSend",
@@ -75,6 +81,12 @@ export const translations = {
         "mic-on": "🎤 Μικρόφωνο On",
         "mic-off": "🎤 Μικρόφωνο Off",
         "library-title": "Βιβλιοθήκη Πολυμέσων",
-        "library-empty": "Δεν έχουν ανεβεί αρχεία σε αυτή την τάξη."
+        "library-empty": "Δεν έχουν ανεβεί αρχεία σε αυτή την τάξη.",
+        "label-screen-share-quality": "Ποιότητα Κοινής Χρήσης",
+        "quality-auto": "Αυτόματη",
+        "quality-speed": "Ταχύτητα (720p)",
+        "quality-quality": "Ποιότητα (1080p)",
+        "label-clear-data": "Εκκαθάριση Αποθηκευμένων",
+        "btn-clear-data": "🗑️ Εκκαθάριση"
     }
 };

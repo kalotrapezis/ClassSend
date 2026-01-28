@@ -1,21 +1,16 @@
-# ClassSend (v6.0.0 Latest)
+# ClassSend (v6.2.0 Latest)
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 Latest Features (v6.0.0)
-- **🇬🇷 Greek Language Support (NEW)**: Full localization for Greek users (switch in Settings).
-- **📺 Improved Screen Sharing (NEW)**:
-  - **Pinned Status**: "Teacher started sharing" appears as a pinned message.
-  - **Direct Join**: Students can click **Join** directly from the chat.
-  - **Performance**: Optimized for smoother streaming over WiFi (720p@15fps).
-- **⛔ Lockdown Mode (Persistent Block) (NEW)**:
-  - "Block All" now persists and **automatically blocks new students** who try to join.
-  - Great for locking the class after attendance.
-- **🚫 Blacklist (Renamed from Dictionary)**: Improved UI and clearer terminology.
-- **🎨 UI Polish**:
-  - **Settings Modal**: Redesigned with premium dark theme.
-  - **Responsive**: Better labels and layout on mobile.
-- **📤 Large File Support**: Upload files up to **1.5GB** reliably.
-- **� Linux Improvements**: Tray icon fix and AppImage stability.
+## 🚀 Latest Features (v6.2.0)
+- **💾 Smart Persistence**: Class setup details (name, class ID) and language choice are now saved and sync across sessions.
+- **📌 File Pinning**: Teachers can now pin important files to the top of the Media Library.
+- **🖐️ Enhanced Status**: New visual icons for raised hands (🖐️) and blocked users (🔇) in the user list.
+- **🗑️ Data Control**: New option to clear saved local data in Settings.
+- **🔄 Language Sync**: Teacher's language choice immediately syncs to all students in the class.
+- **🇬🇷 Greek Language Support**: Full localization for Greek users.
+- **⛔ Lockdown Mode**: Persistent "Block All" prevents new students from joining.
+- **🚫 Blacklist**: Manage forbidden words easily.
+- **📤 Large File Support**: Upload files up to 1.5GB.
 
 ## 📖 How to Use
 1.  **Start the App**: Open ClassSend on the teacher's computer.
@@ -35,12 +30,12 @@
 ## 📦 Download & Install
 Go to the [Releases](../../releases) page or check the `server/out/make` folder.
 
-- **Linux AppImage**: `ClassSend-6.0.0-x64.AppImage` (portable, no installation needed)
-- **Linux Zip**: `ClassSend-linux-x64-6.0.0.zip`
-- **Windows Installer (64-bit)**: `ClassSend-6.0.0 Setup.exe`
-- **Windows Installer (32-bit)**: `ClassSend-6.0.0 Setup-x32.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-6.0.0.zip`
-- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-6.0.0.zip`
+- **Linux AppImage**: `ClassSend-6.1.0-x64.AppImage`
+- **Linux Zip**: `ClassSend-linux-x64-6.1.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-6.1.0 Setup.exe`
+- **Windows Installer (32-bit)**: `ClassSend-6.1.0 Setup-x32.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-6.1.0.zip`
+- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-6.1.0.zip`
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:

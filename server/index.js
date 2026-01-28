@@ -719,6 +719,17 @@ io.on('connection', (socket) => {
     console.log(`All hands lowered in class ${classId} by teacher`);
   });
 
+  // Language sync (Teacher to students)
+  socket.on('set-class-language', ({ classId, language }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return; // Only teacher can change
+
+    // Broadcast language change to all students in the class
+    socket.to(classId).emit('language-changed', { language, classId });
+    console.log(`Language set to ${language} in class ${classId} by teacher`);
+  });
+
   // Network Discovery Events
   let discoveryBrowser = null;
 
