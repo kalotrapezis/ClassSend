@@ -1,3 +1,27 @@
+# Release Notes - v6.7.0
+
+## 🚀 New Features
+
+### 🧠 Deep Learning Profanity Filter (NEW)
+Experience the next level of classroom moderation with our context-aware AI.
+- **Transformers.js Integration**: Uses state-of-the-art Deep Learning (`toxic-bert`) to detect toxicity, insults, and harassment with high accuracy.
+- **Tiered Response System**: 
+  - **Auto-Block**: Messages with >90% toxicity are automatically blocked.
+  - **Self-Learning**: Suspicious words from blocked messages are automatically extracted and added to the blacklist.
+  - **Teacher Reporting**: Borderline messages (60-90%) are flagged for teacher review in the report panel.
+- **Dynamic Loading**: The AI model (~108MB) is loaded on-demand with a visual progress bar, ensuring the app remains lightweight when the filter is not in use.
+
+### 🛡️ Enhanced Moderation & Training
+- **Naive Bayes Refinement**: Improved the core "Advanced" filter with better Greek/English training data and batch processing (2 words at a time).
+- **Safe State Management**: The application now prevents closure during active AI training cycles to protect your model's data integrity.
+- **Greek Localization**: Full Greek translations for all new AI settings and notifications.
+
+### 🐛 Bug Fixes
+- **Socket Callbacks**: Fixed a critical "callback is not a function" error that could crash the server when specific settings were changed.
+- **UI Consistency**: Fixed the hamburger menu behavior and sidebar overlay to remain consistent across desktop and mobile views.
+
+---
+
 # Release Notes - v6.5.0
 
 ## 🚀 Improvements & Fixes

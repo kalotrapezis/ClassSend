@@ -2,13 +2,13 @@
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
 ## 🚀 Latest Features (v6.7.0)
-- **🧠 AI Profanity Filtering**: Integration of Naive Bayes classifier for probabilistic content moderation (Advanced Mode).
+- **🧠 AI Profanity Filtering**: Integration of Naive Bayes (Advanced Mode) and **Deep Learning (Transformers.js)** for context-aware content moderation.
 - **⚠️ Reporting System**: Students can now report inappropriate messages directly to the teacher via a "Report ⚠️" button.
 - **🚫 Teacher Moderation**: New "Block & Delete" button in messages for instant action, plus a sliding report panel for resolving student reports.
 - **🔄 Batch Training**: AI automatically retrains in background batches of 2 words with a visual progress indicator.
 - **🛡️ Safe Shutdown**: Application prevents accidental closure during active AI training cycles to ensure data integrity.
 - **✨ UI Polish**: Smooth slide-away animations for resolved reports and improved icon feedback (🚫 and 👌).
-- **💾 Settings Persistence**: AI Filter mode (Legacy/Advanced) is now saved across sessions.
+- **💾 Settings Persistence**: AI Filter mode (Legacy/Advanced/Deep Learning) is now saved across sessions.
 
 ## 🚀 Previous Features (v6.5.0)
 - **📺 Optimized Streaming**: Significant reduction in screen share delay and CPU usage (disabled VP9).
@@ -70,7 +70,7 @@ If you want to modify the code or contribute:
     cd server
     npx electron-forge package --arch=ia32 --platform=win32
     mkdir -p out/make/zip/win32-ia32
-    cd out/ClassSend-win32-ia32 && zip -r ../make/zip/win32-ia32/ClassSend-win32-ia32-5.0.0.zip .
+    cd out/ClassSend-win32-ia32 && zip -r ../make/zip/win32-ia32/ClassSend-win32-ia32-6.7.0.zip .
     ```
 
 ## 🏗️ Architecture
@@ -91,6 +91,7 @@ We use Electron to bundle the Node.js server *inside* the application. This mean
 ## � Credits & Technologies
 ClassSend wouldn't be possible without these amazing open-source projects:
 - **[bayes](https://github.com/ttezel/bayes)**: Naive Bayes classifier for our AI content filtering.
+- **[Transformers.js](https://huggingface.co/docs/transformers.js)**: State-of-the-art Deep Learning (Toxic-BERT) for our highest-security filter mode.
 - **[Socket.IO](https://socket.io/)**: Real-time bidirectional event-based communication.
 - **[Express](https://expressjs.com/)**: Fast, unopinionated, minimalist web framework for Node.js.
 - **[Electron](https://www.electronjs.org/)**: Framework for building cross-platform desktop apps.

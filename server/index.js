@@ -10,6 +10,7 @@ const TLSConfig = require('./tls-config');
 const multer = require('multer');
 const FileStorage = require('./file-storage');
 const bayes = require('bayes');
+const deepLearningFilter = require('./deep-learning-filter');
 
 // ===== NAIVE BAYES CLASSIFIER FOR ADVANCED FILTERING =====
 let classifier = bayes();
@@ -983,7 +984,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    classData.filterMode = mode; // 'legacy' or 'advanced'
+    classData.filterMode = mode; // 'legacy', 'advanced', or 'deep-learning'
 
     // Broadcast to all class members
     io.to(classId).emit('filter-mode-changed', { classId, mode });
@@ -1013,8 +1014,135 @@ io.on('connection', (socket) => {
   // Check message with AI (for advanced mode)
   socket.on('check-message-ai', async ({ message }, callback) => {
     const result = await checkMessageWithAI(message);
-    callback(result);
+    if (typeof callback === 'function') callback(result);
   });
+
+  // ===== DEEP LEARNING FILTER EVENTS =====
+  // Load the deep learning model
+  socket.on('load-deep-learning-model', async (data, callback) => {
+    // Handle (callback) or (data, callback) patterns
+    if (typeof data === 'function') {
+      callback = data;
+      data = {};
+    }
+
+    if (deepLearningFilter.isModelReady()) {
+      if (typeof callback === 'function') callback({ success: true, status: 'ready' });
+      return;
+    }
+
+    if (deepLearningFilter.isModelLoading()) {
+      if (typeof callback === 'function') callback({ success: false, status: 'loading', progress: deepLearningFilter.getLoadProgress() });
+      return;
+    }
+
+    // Start loading with progress updates
+    const success = await deepLearningFilter.loadModel((progress) => {
+      socket.emit('deep-learning-progress', progress);
+    });
+
+    if (typeof callback === 'function') callback({ success, status: success ? 'ready' : 'error' });
+  });
+
+  // Check model status
+  socket.on('get-deep-learning-status', (callback) => {
+    if (typeof callback !== 'function') return;
+    callback({
+      ready: deepLearningFilter.isModelReady(),
+      loading: deepLearningFilter.isModelLoading(),
+      progress: deepLearningFilter.getLoadProgress()
+    });
+  });
+
+  // Check message with deep learning (for deep-learning mode)
+  socket.on('check-message-deep-ai', async ({ message, classId }, callback) => {
+    if (!deepLearningFilter.isModelReady()) {
+      if (typeof callback === 'function') callback({ isProfane: false, tier: 'safe', message: 'Model not loaded' });
+      return;
+    }
+
+    const result = await deepLearningFilter.classifyMessage(message);
+
+    // Handle tiered response
+    if (result.tier === 'high') {
+      // High confidence toxic: Auto-block and extract words
+      const suspiciousWords = deepLearningFilter.extractSuspiciousWords(message);
+
+      // Auto-add words to blacklist
+      for (const word of suspiciousWords) {
+        if (!customForbiddenWords.some(w => w.word === word)) {
+          customForbiddenWords.push({
+            word: word,
+            addedAt: new Date().toISOString(),
+            source: 'deep-learning-auto'
+          });
+        }
+      }
+
+      if (suspiciousWords.length > 0) {
+        saveCustomForbiddenWords();
+        io.emit('forbidden-words-updated', customForbiddenWords);
+        console.log(`🧠 Auto-added words from deep learning: ${suspiciousWords.join(', ')}`);
+      }
+
+      // Notify teacher
+      if (classId && activeClasses.has(classId)) {
+        const classData = activeClasses.get(classId);
+        if (classData.teacherId) {
+          io.to(classData.teacherId).emit('auto-blocked-message', {
+            message,
+            confidence: result.confidence,
+            category: result.category,
+            addedWords: suspiciousWords,
+            classId
+          });
+        }
+      }
+    } else if (result.tier === 'medium') {
+      // Medium confidence: Create report for teacher
+      if (classId) {
+        const user = getSocketUser(socket.id, classId);
+        const suspiciousWords = deepLearningFilter.extractSuspiciousWords(message);
+
+        // Create a report for the first suspicious word
+        if (suspiciousWords.length > 0) {
+          const report = {
+            id: Date.now().toString(),
+            word: suspiciousWords[0],
+            context: message,
+            reporterName: user?.name || 'AI Detection',
+            reporterId: 'deep-learning',
+            classId,
+            timestamp: new Date().toISOString(),
+            aiConfidence: result.confidence,
+            aiCategory: result.category
+          };
+
+          pendingReports.push(report);
+          savePendingReports();
+
+          // Notify teacher
+          if (activeClasses.has(classId)) {
+            const classData = activeClasses.get(classId);
+            if (classData.teacherId) {
+              io.to(classData.teacherId).emit('new-report', report);
+            }
+          }
+
+          console.log(`🧠 AI report created for: ${suspiciousWords[0]} (${result.confidence}% ${result.category})`);
+        }
+      }
+    }
+
+    if (typeof callback === 'function') callback(result);
+  });
+
+  // Helper function to get user from socket
+  function getSocketUser(socketId, classId) {
+    if (!activeClasses.has(classId)) return null;
+    const classData = activeClasses.get(classId);
+    return classData.users.find(u => u.id === socketId);
+  }
 
   // ===== WORD REPORTING SYSTEM =====
   // Student reports a word

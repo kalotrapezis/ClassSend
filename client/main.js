@@ -3260,8 +3260,14 @@ if (fileImportBlacklist) {
 // ===== AI FILTERING & REPORTING FEATURE =====
 
 // State for filter mode
-let filterMode = 'legacy'; // 'legacy' or 'advanced'
+let filterMode = 'legacy'; // 'legacy', 'advanced', or 'deep-learning'
 let pendingReports = []; // Array of pending word reports
+let deepLearningReady = false; // Track if deep learning model is loaded
+
+// AI Loading Modal Elements
+const aiLoadingModal = document.getElementById('ai-loading-modal');
+const aiLoadingStatus = document.getElementById('ai-loading-status');
+const aiLoadingProgress = document.getElementById('ai-loading-progress');
 
 // DOM Elements for Filter Mode and Reports
 const filterModeSelect = document.getElementById('filter-mode-select');
@@ -3415,8 +3421,19 @@ function rejectReport(reportId, element) {
 
 // Filter Mode Select Change Handler
 if (filterModeSelect) {
-    filterModeSelect.addEventListener('change', () => {
+    filterModeSelect.addEventListener('change', async () => {
         const newMode = filterModeSelect.value;
+
+        // If switching to deep-learning, load the model first
+        if (newMode === 'deep-learning') {
+            const loaded = await loadDeepLearningModel();
+            if (!loaded) {
+                // Failed to load, revert selection
+                filterModeSelect.value = filterMode;
+                return;
+            }
+        }
+
         socket.emit('set-filter-mode', { classId: currentClassId, mode: newMode }, (response) => {
             if (response && response.success) {
                 filterMode = newMode;
@@ -3430,6 +3447,61 @@ if (filterModeSelect) {
         });
     });
 }
+
+// Load deep learning model with progress display
+async function loadDeepLearningModel() {
+    return new Promise((resolve) => {
+        // Check if already ready
+        socket.emit('get-deep-learning-status', (status) => {
+            if (status && status.ready) {
+                deepLearningReady = true;
+                resolve(true);
+                return;
+            }
+
+            // Show loading modal
+            if (aiLoadingModal) aiLoadingModal.classList.remove('hidden');
+            if (aiLoadingProgress) aiLoadingProgress.style.width = '0%';
+            if (aiLoadingStatus) aiLoadingStatus.textContent = 'Initializing AI model...';
+
+            // Request model load
+            socket.emit('load-deep-learning-model', (result) => {
+                if (aiLoadingModal) aiLoadingModal.classList.add('hidden');
+
+                if (result && result.success) {
+                    deepLearningReady = true;
+                    console.log('🧠 Deep Learning model ready!');
+                    resolve(true);
+                } else {
+                    console.error('❌ Failed to load Deep Learning model');
+                    alert('Failed to load AI model. Please try again or select a different filter mode.');
+                    resolve(false);
+                }
+            });
+        });
+    });
+}
+
+// Listen for model loading progress
+socket.on('deep-learning-progress', (progress) => {
+    if (progress.status === 'downloading') {
+        if (aiLoadingStatus) aiLoadingStatus.textContent = `Downloading model (${progress.progress}%)`;
+        if (aiLoadingProgress) aiLoadingProgress.style.width = `${progress.progress}%`;
+    } else if (progress.status === 'ready') {
+        if (aiLoadingStatus) aiLoadingStatus.textContent = 'Model ready!';
+        if (aiLoadingProgress) aiLoadingProgress.style.width = '100%';
+    }
+});
+
+// Listen for auto-blocked messages (teacher notification)
+socket.on('auto-blocked-message', (data) => {
+    if (currentRole === 'teacher') {
+        console.log(`🚫 Auto-blocked: "${data.message}" (${data.confidence}% ${data.category})`);
+        if (data.addedWords && data.addedWords.length > 0) {
+            console.log(`🧠 Auto-added words: ${data.addedWords.join(', ')}`);
+        }
+    }
+});
 
 // Report Toggle Button Handler (Panel Popup)
 if (btnReportToggle) {

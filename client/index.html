@@ -134,11 +134,13 @@
                   <label for="filter-mode-select" data-i18n="label-filter-mode">Filter Mode</label>
                   <select id="filter-mode-select" class="setting-select">
                     <option value="legacy" data-i18n="filter-mode-legacy">Legacy (Low RAM)</option>
-                    <option value="advanced" data-i18n="filter-mode-advanced">Advanced (AI)</option>
+                    <option value="advanced" data-i18n="filter-mode-advanced">Advanced (Naive Bayes)</option>
+                    <option value="deep-learning" data-i18n="filter-mode-deep-learning">Deep Learning (Modern HW)
+                    </option>
                   </select>
                 </div>
-                <p class="setting-hint" data-i18n="filter-mode-hint">Legacy mode uses client-side word matching.
-                  Advanced mode uses server-side AI classification.</p>
+                <p class="setting-hint" data-i18n="filter-mode-hint">Legacy: Client-side word matching. Advanced: Server
+                  AI. Deep Learning: Transformer model (requires 2GB+ RAM).</p>
               </div>
 
               <!-- Data and Privacy Section -->
@@ -276,6 +278,20 @@
       <div id="text-selection-popup" class="text-selection-popup hidden">
         <button id="btn-add-selection-to-dictionary" data-i18n="text-selection-popup-add">Add to forbidden words
           ➕</button>
+      </div>
+
+      <!-- AI Loading Modal -->
+      <div id="ai-loading-modal" class="modal hidden">
+        <div class="ai-loading-content">
+          <div class="ai-loading-spinner">🧠</div>
+          <h3 data-i18n="ai-loading-title">Loading AI Model...</h3>
+          <p id="ai-loading-status" data-i18n="ai-loading-downloading">Downloading model (0%)</p>
+          <div class="ai-loading-bar">
+            <div id="ai-loading-progress" class="ai-loading-progress"></div>
+          </div>
+          <p class="ai-loading-hint" data-i18n="ai-loading-hint">First load requires ~300MB download. Subsequent loads
+            are instant.</p>
+        </div>
       </div>
 
 
