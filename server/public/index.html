@@ -6,8 +6,8 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title data-i18n="app-title">ClassSend</title>
-  <script type="module" crossorigin src="/assets/index-BRc7wuIs.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-Cv4d5Uc1.css">
+  <script type="module" crossorigin src="/assets/index-X6moUMe_.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-D32fxTY4.css">
 </head>
 
 <body>
@@ -126,6 +126,20 @@
                     <option value="wifi" data-i18n="quality-wifi">WiFi (Slow)</option>
                   </select>
                 </div>
+              </div>
+
+              <!-- Content Filtering Section (Teacher Only) -->
+              <div id="settings-filter-section" class="settings-section hidden">
+                <h4 class="settings-section-header" data-i18n="settings-section-filter">🧠 Content Filtering</h4>
+                <div class="setting-item">
+                  <label for="filter-mode-select" data-i18n="label-filter-mode">Filter Mode</label>
+                  <select id="filter-mode-select" class="setting-select">
+                    <option value="legacy" data-i18n="filter-mode-legacy">Legacy (Low RAM)</option>
+                    <option value="advanced" data-i18n="filter-mode-advanced">Advanced (AI)</option>
+                  </select>
+                </div>
+                <p class="setting-hint" data-i18n="filter-mode-hint">Legacy mode uses client-side word matching.
+                  Advanced mode uses server-side AI classification.</p>
               </div>
 
               <!-- Data and Privacy Section -->
@@ -265,6 +279,7 @@
           ➕</button>
       </div>
 
+
       <!-- File Progress Modal -->
       <!-- File Progress Modal (Removed) -->
 
@@ -326,8 +341,28 @@
               <button id="btn-view-stream" class="view-stream-btn hidden" title="View Stream">
                 📺
               </button>
+              <button id="btn-report-toggle" class="report-toggle-btn hidden" title="Word Reports"
+                data-i18n-title="btn-reports-title">
+                ⚠️ <span class="report-badge hidden">0</span>
+              </button>
               <div id="emoji-picker" class="emoji-picker hidden">
                 <!-- Emojis will be injected here -->
+              </div>
+              <!-- Report Panel (Teacher Only, like emoji picker) -->
+              <div id="report-panel" class="report-panel hidden">
+                <div class="report-panel-header">
+                  <span data-i18n="modal-reports-title">⚠️ Reported Words</span>
+                </div>
+                <!-- Training Notification -->
+                <div id="training-notification" class="training-notification hidden">
+                  <div class="training-content">
+                    <span class="spinner">↻</span>
+                    <span>Consolidating AI Model...</span>
+                  </div>
+                </div>
+                <div id="report-list" class="report-list">
+                  <div class="empty-report-state" data-i18n="reports-empty">No pending reports</div>
+                </div>
               </div>
             </div>
             <input type="file" id="file-input" class="hidden">

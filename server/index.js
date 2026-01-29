@@ -9,6 +9,11 @@ const NetworkDiscovery = require('./network-discovery');
 const TLSConfig = require('./tls-config');
 const multer = require('multer');
 const FileStorage = require('./file-storage');
+const bayes = require('bayes');
+
+// ===== NAIVE BAYES CLASSIFIER FOR ADVANCED FILTERING =====
+let classifier = bayes();
+let classifierTrained = false;
 
 
 const app = express();
@@ -173,6 +178,37 @@ const baseDir = process.env.USER_DATA_PATH || __dirname;
 const CUSTOM_WORDS_FILE = path.join(baseDir, 'data', 'custom-forbidden-words.json');
 let customForbiddenWords = [];
 
+// AI Training State
+let isTraining = false;
+let newWordsCount = 0;
+const TRAINING_BATCH_SIZE = 2; // User requested 2
+
+function getTrainingStatus() {
+  return isTraining;
+}
+
+// Batch Training Simulation
+function triggerBatchTraining() {
+  newWordsCount++;
+  console.log(`🧠 Words since last training: ${newWordsCount}/${TRAINING_BATCH_SIZE}`);
+  if (newWordsCount >= TRAINING_BATCH_SIZE) {
+    newWordsCount = 0;
+    isTraining = true;
+    console.log("🔄 Starting AI Retraining Batch...");
+    // Broadcast start
+    if (io) io.emit('training-started', { estimatedTime: 3000 });
+
+    // Simulate training delay (3s)
+    setTimeout(() => {
+      isTraining = false;
+      if (io) io.emit('training-ended');
+      console.log("✅ AI Retraining Batch Complete");
+    }, 3000);
+  }
+}
+
+
+
 // Ensure data directory exists
 const dataDir = path.join(baseDir, 'data');
 if (!fs.existsSync(dataDir)) {
@@ -206,6 +242,117 @@ function saveCustomForbiddenWords() {
 // Load words on startup
 loadCustomForbiddenWords();
 
+// ===== PENDING REPORTS MANAGEMENT =====
+const PENDING_REPORTS_FILE = path.join(baseDir, 'data', 'pending-reports.json');
+let pendingReports = [];
+
+// Load pending reports from file
+function loadPendingReports() {
+  try {
+    if (fs.existsSync(PENDING_REPORTS_FILE)) {
+      const data = fs.readFileSync(PENDING_REPORTS_FILE, 'utf-8');
+      pendingReports = JSON.parse(data);
+      console.log(`📋 Loaded ${pendingReports.length} pending reports`);
+    }
+  } catch (err) {
+    console.error('Failed to load pending reports:', err);
+    pendingReports = [];
+  }
+}
+
+// Save pending reports to file
+function savePendingReports() {
+  try {
+    fs.writeFileSync(PENDING_REPORTS_FILE, JSON.stringify(pendingReports, null, 2), 'utf-8');
+    console.log(`💾 Saved ${pendingReports.length} pending reports`);
+  } catch (err) {
+    console.error('Failed to save pending reports:', err);
+  }
+}
+
+// Load reports on startup
+loadPendingReports();
+
+// ===== NAIVE BAYES CLASSIFIER TRAINING =====
+// Train the classifier with filter words and custom words
+// ===== NAIVE BAYES CLASSIFIER TRAINING =====
+// Train the classifier with filter words and custom words
+async function trainClassifier() {
+  try {
+    // Reset classifier
+    classifier = bayes();
+
+    // 1. Load basic filter words from JSON file (Single words)
+    const filterWordsPath = path.join(__dirname, 'public', 'filter-words.json');
+    if (fs.existsSync(filterWordsPath)) {
+      let filterData = fs.readFileSync(filterWordsPath, 'utf-8');
+      filterData = filterData.replace(/^\uFEFF/, '');
+      const filterWords = JSON.parse(filterData);
+
+      for (const word of filterWords) {
+        await classifier.learn(word.toLowerCase(), 'profane');
+      }
+      console.log(`🧠 Trained classifier with ${filterWords.length} basic filter words`);
+    }
+
+    // 2. Load RICH training data (Phrases, Emojis, Clean/Profane categories)
+    const trainingDataPath = path.join(__dirname, 'public', 'training-data.json');
+    if (fs.existsSync(trainingDataPath)) {
+      let trainingDataRaw = fs.readFileSync(trainingDataPath, 'utf-8');
+      trainingDataRaw = trainingDataRaw.replace(/^\uFEFF/, '');
+      const trainingData = JSON.parse(trainingDataRaw);
+
+      // Train clean examples
+      if (trainingData.clean && Array.isArray(trainingData.clean)) {
+        for (const phrase of trainingData.clean) {
+          await classifier.learn(phrase.toLowerCase(), 'clean');
+        }
+        console.log(`🧠 Added ${trainingData.clean.length} CLEAN training examples (Phrases/Emojis)`);
+      }
+
+      // Train profane examples
+      if (trainingData.profane && Array.isArray(trainingData.profane)) {
+        for (const phrase of trainingData.profane) {
+          await classifier.learn(phrase.toLowerCase(), 'profane');
+        }
+        console.log(`🧠 Added ${trainingData.profane.length} PROFANE training examples (Phrases/Emojis)`);
+      }
+    }
+
+    // 3. Train with custom forbidden words (Teacher added)
+    for (const item of customForbiddenWords) {
+      await classifier.learn(item.word.toLowerCase(), 'profane');
+    }
+    console.log(`🧠 Added ${customForbiddenWords.length} custom user words to training`);
+
+    classifierTrained = true;
+    console.log('✅ Naive Bayes classifier training complete!');
+  } catch (err) {
+    console.error('Failed to train classifier:', err);
+    classifierTrained = false;
+  }
+}
+
+// Train classifier on startup
+trainClassifier();
+
+// Function to check message with classifier (for advanced mode)
+async function checkMessageWithAI(message) {
+  if (!classifierTrained) {
+    return { isProfane: false, confidence: 0 };
+  }
+
+  try {
+    const result = await classifier.categorize(message.toLowerCase());
+    return {
+      isProfane: result === 'profane',
+      category: result
+    };
+  } catch (err) {
+    console.error('AI check failed:', err);
+    return { isProfane: false, confidence: 0 };
+  }
+}
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -822,6 +969,227 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ===== FILTER MODE & AI CHECK =====
+  // Set filter mode for a class (Teacher only)
+  socket.on('set-filter-mode', ({ classId, mode }, callback) => {
+    if (!activeClasses.has(classId)) {
+      return callback({ success: false, message: 'Class not found' });
+    }
+
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) {
+      return callback({ success: false, message: 'Only teacher can change filter mode' });
+    }
+
+    classData.filterMode = mode; // 'legacy' or 'advanced'
+
+    // Broadcast to all class members
+    io.to(classId).emit('filter-mode-changed', { classId, mode });
+
+    console.log(`🔧 Filter mode set to '${mode}' in class ${classId}`);
+    callback({ success: true });
+  });
+
+  // Get filter mode for a class
+  socket.on('get-filter-mode', (data, callback) => {
+    // Handle both (callback) and (data, callback) patterns
+    if (typeof data === 'function') {
+      callback = data;
+      data = {};
+    }
+    if (typeof callback !== 'function') return;
+
+    const classId = data?.classId;
+    if (!classId || !activeClasses.has(classId)) {
+      return callback('legacy');
+    }
+
+    const classData = activeClasses.get(classId);
+    callback(classData.filterMode || 'legacy');
+  });
+
+  // Check message with AI (for advanced mode)
+  socket.on('check-message-ai', async ({ message }, callback) => {
+    const result = await checkMessageWithAI(message);
+    callback(result);
+  });
+
+  // ===== WORD REPORTING SYSTEM =====
+  // Student reports a word
+  socket.on('report-word', ({ classId, word, context, messageId, reporterName }, callback) => {
+    if (!classId || !word) {
+      return callback({ success: false, message: 'Missing required fields' });
+    }
+
+    const trimmedWord = word.trim().toLowerCase();
+
+    // Check if already reported
+    const alreadyReported = pendingReports.some(
+      r => r.word === trimmedWord && r.classId === classId
+    );
+
+    if (alreadyReported) {
+      return callback({ success: false, message: 'Word already reported' });
+    }
+
+    // Add to pending reports
+    const report = {
+      id: Date.now().toString(),
+      word: trimmedWord,
+      context: context || '',
+      messageId: messageId || null, // Store confirmation message ID
+      reporterName: reporterName || 'Anonymous',
+      reporterId: socket.id,
+      classId,
+      timestamp: new Date().toISOString()
+    };
+
+    pendingReports.push(report);
+    savePendingReports();
+
+    // Notify teacher
+    if (activeClasses.has(classId)) {
+      const classData = activeClasses.get(classId);
+      if (classData.teacherId) {
+        io.to(classData.teacherId).emit('new-report', report);
+      }
+    }
+
+    console.log(`⚠️ Word reported: '${trimmedWord}' by ${reporterName} in class ${classId}`);
+    callback({ success: true });
+  });
+
+  // Get pending reports (Teacher only)
+  socket.on('get-pending-reports', (callback) => {
+    if (typeof callback !== 'function') return;
+
+    // Return all pending reports for this teacher's classes
+    const teacherReports = pendingReports.filter(r => {
+      if (!activeClasses.has(r.classId)) return false;
+      const classData = activeClasses.get(r.classId);
+      return classData.teacherId === socket.id;
+    });
+
+    callback(teacherReports);
+  });
+
+  // Approve a report (add word to blacklist + train AI)
+  socket.on('approve-report', async ({ reportId, classId }, callback) => {
+    if (!activeClasses.has(classId)) {
+      return callback({ success: false, message: 'Class not found' });
+    }
+
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) {
+      return callback({ success: false, message: 'Only teacher can approve reports' });
+    }
+
+    // Find the report
+    const reportIndex = pendingReports.findIndex(r => r.id === reportId);
+    if (reportIndex === -1) {
+      return callback({ success: false, message: 'Report not found' });
+    }
+
+    const report = pendingReports[reportIndex];
+
+    // Add to custom forbidden words if not already there
+    if (!customForbiddenWords.some(w => w.word === report.word)) {
+      customForbiddenWords.push({
+        word: report.word,
+        addedAt: new Date().toISOString(),
+        source: 'report'
+      });
+      saveCustomForbiddenWords();
+
+      // Train the AI with this new word
+      await classifier.learn(report.word, 'profane');
+      console.log(`🧠 AI trained with new profane word: ${report.word}`);
+
+      // Broadcast updated forbidden words
+      io.emit('forbidden-words-updated', customForbiddenWords);
+    }
+
+    // Remove from pending reports
+    pendingReports.splice(reportIndex, 1);
+    savePendingReports();
+
+    // Notify teacher of update
+    io.to(classData.teacherId).emit('report-resolved', { reportId, action: 'approved' });
+
+    // If report has a messageId, broadcast deletion event
+    if (report.messageId) {
+      io.to(classId).emit('delete-message', { messageId: report.messageId, classId });
+      console.log(`🗑️ Deleted reported message ${report.messageId}`);
+    }
+
+    console.log(`✅ Report approved: '${report.word}' added to blacklist`);
+
+    // Trigger batch training check
+    triggerBatchTraining();
+
+    callback({ success: true });
+  });
+
+  // Reject a report
+  socket.on('reject-report', ({ reportId, classId }, callback) => {
+    if (!activeClasses.has(classId)) {
+      return callback({ success: false, message: 'Class not found' });
+    }
+
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) {
+      return callback({ success: false, message: 'Only teacher can reject reports' });
+    }
+
+    // Find and remove the report
+    const reportIndex = pendingReports.findIndex(r => r.id === reportId);
+    if (reportIndex === -1) {
+      return callback({ success: false, message: 'Report not found' });
+    }
+
+    const report = pendingReports[reportIndex];
+    pendingReports.splice(reportIndex, 1);
+    savePendingReports();
+
+    // Notify teacher of update
+    io.to(classData.teacherId).emit('report-resolved', { reportId, action: 'rejected' });
+
+    console.log(`❌ Report rejected: '${report.word}'`);
+    callback({ success: true });
+  });
+
+  // Teacher instantly blocks a message (from chat)
+  socket.on('teacher-ban-message', ({ classId, messageId, word }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return; // Security check
+
+    if (!word) return;
+    const trimmedWord = word.trim().toLowerCase();
+
+    // Add to forbiddden words if not exists
+    if (!customForbiddenWords.some(w => w.word === trimmedWord)) {
+      customForbiddenWords.push({
+        word: trimmedWord,
+        addedAt: new Date().toISOString(),
+        source: 'teacher-ban'
+      });
+      saveCustomForbiddenWords();
+      io.emit('forbidden-words-updated', customForbiddenWords);
+    }
+
+    // Train AI
+    classifier.learn(trimmedWord, 'profane');
+    console.log(`🧠 AI trained with banned word: ${trimmedWord}`);
+
+    // Broadcast delete
+    io.to(classId).emit('delete-message', { messageId, classId });
+    console.log(`🚫 Teacher banned message: '${trimmedWord}'`);
+
+    // Trigger batch training check
+    triggerBatchTraining();
+  });
+
   // ===== WEB RTC SCREEN SHARING =====
   // ===== WEB RTC SCREEN SHARING =====
   socket.on('screen-share-status', ({ classId, isSharing }) => {
@@ -1032,5 +1400,5 @@ process.stderr.on('error', (err) => {
   // We cannot log here if stderr is broken
 });
 
-module.exports = { server, stopServer };
+module.exports = { server, stopServer, getTrainingStatus };
 

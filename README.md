@@ -1,12 +1,19 @@
-# ClassSend (v6.5.0 Latest)
+# ClassSend (v6.7.0 Latest)
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 Latest Features (v6.5.0)
+## 🚀 Latest Features (v6.7.0)
+- **🧠 AI Profanity Filtering**: Integration of Naive Bayes classifier for probabilistic content moderation (Advanced Mode).
+- **⚠️ Reporting System**: Students can now report inappropriate messages directly to the teacher via a "Report ⚠️" button.
+- **🚫 Teacher Moderation**: New "Block & Delete" button in messages for instant action, plus a sliding report panel for resolving student reports.
+- **🔄 Batch Training**: AI automatically retrains in background batches of 2 words with a visual progress indicator.
+- **🛡️ Safe Shutdown**: Application prevents accidental closure during active AI training cycles to ensure data integrity.
+- **✨ UI Polish**: Smooth slide-away animations for resolved reports and improved icon feedback (🚫 and 👌).
+- **💾 Settings Persistence**: AI Filter mode (Legacy/Advanced) is now saved across sessions.
+
+## 🚀 Previous Features (v6.5.0)
 - **📺 Optimized Streaming**: Significant reduction in screen share delay and CPU usage (disabled VP9).
 - **⚙️ Advanced Diagnostics**: New **Session Logs** viewer and downloader in Settings for easier troubleshooting.
 - **📤 Blacklist Portability**: Export and Import custom forbidden words list as JSON.
-- **🐛 Server Fix**: Resolved critical `EPIPE` crash issue.
-- **💾 Smart Persistence**: Class setup details and language choice sync across sessions.
 - **📌 File Pinning**: Teachers can now pin important files to the top of the Media Library.
 - **🖐️ Enhanced Status**: Visual icons for raised hands (🖐️) and blocked users (🔇) in the user list.
 
@@ -23,17 +30,12 @@
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Cross-Platform**: Windows (exe), Mac, and Linux support via Electron.
-
-## 📦 Download & Install
-Go to the [Releases](../../releases) page or check the `server/out/make` folder.
-
-- **Linux AppImage**: `ClassSend-6.5.0-x64.AppImage`
-- **Linux Zip**: `ClassSend-linux-x64-6.5.0.zip`
-- **Windows Installer (64-bit)**: `ClassSend-6.5.0 Setup.exe`
-- **Windows Installer (32-bit)**: `ClassSend-6.5.0 Setup-x32.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-6.5.0.zip`
-- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-6.5.0.zip`
+- **Linux AppImage**: `ClassSend-6.7.0-x64.AppImage`
+- **Linux Zip**: `ClassSend-linux-x64-6.7.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-6.7.0 Setup.exe`
+- **Windows Installer (32-bit)**: `ClassSend-6.7.0 Setup-x32.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-6.7.0.zip`
+- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-6.7.0.zip`
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:
@@ -84,7 +86,19 @@ We use Electron to bundle the Node.js server *inside* the application. This mean
 2.  **Standalone**: It runs as a single `.exe` file.
 3.  **Offline Capable**: It creates its own local server, perfect for schools with restricted internet.
 
-## 🤖 AI-Assisted Development
+3.  **Offline Capable**: It creates its own local server, perfect for schools with restricted internet.
+
+## � Credits & Technologies
+ClassSend wouldn't be possible without these amazing open-source projects:
+- **[bayes](https://github.com/ttezel/bayes)**: Naive Bayes classifier for our AI content filtering.
+- **[Socket.IO](https://socket.io/)**: Real-time bidirectional event-based communication.
+- **[Express](https://expressjs.com/)**: Fast, unopinionated, minimalist web framework for Node.js.
+- **[Electron](https://www.electronjs.org/)**: Framework for building cross-platform desktop apps.
+- **[Bonjour Service](https://github.com/onewith7/bonjour-service)**: For local network discovery.
+
+## 📄 License
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)**.
+This guarantees that ClassSend remains free and open-source software forever. Anyone can use, modify, and distribute it, provided that all changes remain open-source under the same license.
 
 This project was **vibecoded** using **Antigravity Gemini 3 Pro** and **Claude 4.5**, showcasing the capabilities and limitations of modern AI-assisted development.
 

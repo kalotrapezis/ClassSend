@@ -1,6 +1,6 @@
 {
     "name": "classsend",
-    "version": "6.5.0",
+    "version": "6.7.0",
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
@@ -65,7 +65,11 @@
         "local-network",
         "classroom"
     ],
-    "license": "ISC",
+    "license": "GPL-3.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/kalotrapezis/ClassSend.git"
+    },
     "type": "commonjs",
     "pkg": {
         "assets": [
@@ -77,6 +81,7 @@
         ]
     },
     "dependencies": {
+        "bayes": "^1.0.0",
         "bonjour-service": "^1.3.0",
         "cors": "^2.8.5",
         "express": "^5.1.0",

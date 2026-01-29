@@ -1028,6 +1028,7 @@ function renderMessages() {
 function renderMessage(message) {
     const messageDiv = document.createElement("div");
     messageDiv.classList.add("message");
+    messageDiv.dataset.id = message.id; // Essential for deletion finding
 
     if (message.type === "file") {
         const isImage = message.fileData.type && message.fileData.type.startsWith('image/');
@@ -1088,6 +1089,8 @@ function renderMessage(message) {
           ${hasEmail ? '<button class="action-btn mailto-btn" title="Email">✉️</button>' : ''}
           ${hasUrl ? '<button class="action-btn url-btn" title="Open Link">🔗</button>' : ''}
           ${currentRole === 'teacher' ? `<button class="action-btn pin-action-btn" data-message-id="${message.id}" title="Toggle Pin">📌</button>` : ''}
+          ${currentRole === 'teacher' ? `<button class="action-btn ban-action-btn" data-message-id="${message.id}" data-message-content="${escapeHtml(message.content)}" title="Block & Delete 🚫">🚫</button>` : ''}
+          ${currentRole === 'student' ? `<button class="action-btn report-action-btn" data-message-id="${message.id}" data-message-content="${escapeHtml(message.content)}" title="Report">⚠️ Report</button>` : ''}
         </div>
       </div>
     `;
@@ -1139,6 +1142,56 @@ function renderMessage(message) {
                 const msgId = parseFloat(pinBtn.dataset.messageId);
                 const isPinned = pinnedMessages.some(m => m.id === msgId);
                 isPinned ? unpinMessage(msgId) : pinMessage(msgId);
+            });
+        }
+    }
+
+    // Ban button for teachers
+    if (currentRole === 'teacher') {
+        const banBtn = messageDiv.querySelector('.ban-action-btn');
+        if (banBtn) {
+            banBtn.addEventListener('click', () => {
+                const msgId = banBtn.dataset.messageId;
+                const content = banBtn.dataset.messageContent;
+                if (confirm(`Block this word and delete message?\n\n"${content}"`)) {
+                    socket.emit('teacher-ban-message', {
+                        classId: currentClassId,
+                        messageId: msgId,
+                        word: content
+                    });
+                }
+            });
+        }
+    }
+
+    // Report button for students
+    if (currentRole === 'student') {
+        const reportBtn = messageDiv.querySelector('.report-action-btn');
+        if (reportBtn) {
+            reportBtn.addEventListener('click', () => {
+                const messageContent = reportBtn.dataset.messageContent;
+                if (!messageContent) return;
+
+                // Show confirmation dialog
+                const confirmed = confirm(`Are you sure you want to report this message?\n\n"${messageContent.substring(0, 100)}${messageContent.length > 100 ? '...' : ''}"`);
+                if (!confirmed) return;
+
+                // Send report to server
+                socket.emit('report-word', {
+                    classId: currentClassId,
+                    word: messageContent,
+                    context: 'Message Report',
+                    messageId: reportBtn.dataset.messageId, // Send message ID for deletion
+                    reporterName: userName
+                }, (response) => {
+                    if (response && response.success) {
+                        reportBtn.textContent = '✅ Reported';
+                        reportBtn.disabled = true;
+                        console.log(`✅ Message reported: ${messageContent.substring(0, 30)}...`);
+                    } else {
+                        alert(response?.message || 'Failed to report message');
+                    }
+                });
             });
         }
     }
@@ -1516,7 +1569,22 @@ socket.on('all-users-unblocked', ({ classId }) => {
         }
     }
 });
-
+// Listen for message deletion (e.g. from report approval)
+socket.on('delete-message', ({ messageId, classId }) => {
+    if (classId === currentClassId) {
+        const msgDiv = document.querySelector(`.message[data-id="${messageId}"]`);
+        if (msgDiv) {
+            msgDiv.style.opacity = '0';
+            setTimeout(() => msgDiv.remove(), 500); // Fade out effect
+        }
+        // Also remove from local messages array
+        if (joinedClasses.has(currentClassId)) {
+            const messages = joinedClasses.get(currentClassId).messages;
+            const idx = messages.findIndex(m => m.id === messageId || m.id === parseFloat(messageId));
+            if (idx !== -1) messages.splice(idx, 1);
+        }
+    }
+});
 // Update chat input state based on blocked status
 function updateChatInputState() {
     if (!currentClassId || !joinedClasses.has(currentClassId)) return;
@@ -3189,3 +3257,289 @@ if (fileImportBlacklist) {
 }
 
 
+// ===== AI FILTERING & REPORTING FEATURE =====
+
+// State for filter mode
+let filterMode = 'legacy'; // 'legacy' or 'advanced'
+let pendingReports = []; // Array of pending word reports
+
+// DOM Elements for Filter Mode and Reports
+const filterModeSelect = document.getElementById('filter-mode-select');
+const settingsFilterSection = document.getElementById('settings-filter-section');
+const btnReportToggle = document.getElementById('btn-report-toggle');
+const reportPanel = document.getElementById('report-panel');
+const reportList = document.getElementById('report-list');
+const reportBadge = document.querySelector('.report-badge');
+
+// Show/hide filter section and report button based on role
+function updateFilterUIVisibility() {
+    if (currentRole === 'teacher') {
+        // Show filter section in settings
+        if (settingsFilterSection) settingsFilterSection.classList.remove('hidden');
+        // Show report button in input area
+        if (btnReportToggle) btnReportToggle.classList.remove('hidden');
+        // Request current filter mode and pending reports
+        // Request current filter mode and pending reports
+        socket.emit('get-filter-mode', { classId: currentClassId }, (mode) => {
+            // Check local preference first if server has no strong opinion (default)
+            const savedMode = localStorage.getItem('classsend-filter-mode');
+            if (savedMode && (!mode || mode === 'legacy') && savedMode !== 'legacy') {
+                console.log(`Applying saved filter preference: ${savedMode}`);
+                socket.emit('set-filter-mode', { classId: currentClassId, mode: savedMode });
+                filterMode = savedMode;
+            } else {
+                filterMode = mode || 'legacy';
+            }
+            if (filterModeSelect) filterModeSelect.value = filterMode;
+        });
+        loadPendingReports();
+    } else {
+        // Hide filter section and report button for students
+        if (settingsFilterSection) settingsFilterSection.classList.add('hidden');
+        if (btnReportToggle) btnReportToggle.classList.add('hidden');
+        if (reportPanel) reportPanel.classList.add('hidden');
+    }
+}
+
+// Update report badge count
+function updateReportBadge() {
+    if (!reportBadge) return;
+
+    // Also update badges on both buttons (header/input) if we have multiple
+    const badges = document.querySelectorAll('.report-badge');
+
+    badges.forEach(badge => {
+        if (pendingReports.length > 0) {
+            badge.textContent = pendingReports.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    });
+}
+
+// Load pending reports from server
+function loadPendingReports() {
+    if (currentRole !== 'teacher') return;
+
+    socket.emit('get-pending-reports', (reports) => {
+        pendingReports = reports || [];
+        updateReportBadge();
+        renderReportList();
+    });
+}
+
+// Render the report list
+function renderReportList() {
+    if (!reportList) return;
+
+    if (pendingReports.length === 0) {
+        reportList.innerHTML = '<div class="empty-report-state" data-i18n="reports-empty">No pending reports</div>';
+        return;
+    }
+
+    reportList.innerHTML = pendingReports.map(report => {
+        const date = new Date(report.reportedAt);
+        const dateStr = date.toLocaleDateString('el-GR', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        return `
+            <div class="report-item" data-report-id="${report.id}">
+                <div>
+                    <div class="report-word">${escapeHtml(report.word)}</div>
+                    <div class="report-meta">Reported by ${escapeHtml(report.reporterName)}</div>
+                </div>
+                <div class="report-actions">
+                    <button class="report-approve-btn" title="Block & Delete 🚫">🚫</button>
+                    <button class="report-reject-btn" title="Allow 👌">👌</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Add event listeners for approve/reject buttons
+    reportList.querySelectorAll('.report-approve-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const reportItem = e.target.closest('.report-item');
+            const reportId = reportItem.dataset.reportId;
+            approveReport(reportId, reportItem);
+        });
+    });
+
+    reportList.querySelectorAll('.report-reject-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const reportItem = e.target.closest('.report-item');
+            const reportId = reportItem.dataset.reportId;
+            rejectReport(reportId, reportItem);
+        });
+    });
+}
+
+// Approve a report (add word to blacklist)
+function approveReport(reportId, element) {
+    if (element) {
+        element.style.transition = 'all 0.5s ease-out';
+        element.style.transform = 'translateX(100%)';
+        element.style.opacity = '0';
+        setTimeout(() => { if (element) element.remove(); }, 500);
+    }
+    socket.emit('approve-report', { reportId, classId: currentClassId }, (response) => {
+        if (response && response.success) {
+            console.log(`✅ Report approved, word added to blacklist`);
+        } else {
+            console.error('Failed to approve report:', response?.message);
+        }
+    });
+}
+
+// Reject a report
+function rejectReport(reportId, element) {
+    if (element) {
+        element.style.transition = 'all 0.5s ease-out';
+        element.style.transform = 'translateX(100%)';
+        element.style.opacity = '0';
+        setTimeout(() => { if (element) element.remove(); }, 500);
+    }
+    socket.emit('reject-report', { reportId, classId: currentClassId }, (response) => {
+        if (response && response.success) {
+            console.log(`✅ Report rejected`);
+        } else {
+            console.error('Failed to reject report:', response?.message);
+        }
+    });
+}
+
+// Filter Mode Select Change Handler
+if (filterModeSelect) {
+    filterModeSelect.addEventListener('change', () => {
+        const newMode = filterModeSelect.value;
+        socket.emit('set-filter-mode', { classId: currentClassId, mode: newMode }, (response) => {
+            if (response && response.success) {
+                filterMode = newMode;
+                localStorage.setItem('classsend-filter-mode', newMode); // Persist preference
+                console.log(`✅ Filter mode set to: ${newMode}`);
+            } else {
+                console.error('Failed to set filter mode:', response?.message);
+                // Revert select to previous value
+                filterModeSelect.value = filterMode;
+            }
+        });
+    });
+}
+
+// Report Toggle Button Handler (Panel Popup)
+if (btnReportToggle) {
+    btnReportToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Close emoji picker if open
+        if (emojiPicker && !emojiPicker.classList.contains('hidden')) {
+            emojiPicker.classList.add('hidden');
+        }
+
+        // Toggle report panel
+        if (reportPanel) {
+            if (reportPanel.classList.contains('hidden')) {
+                loadPendingReports(); // Refresh data when opening
+                reportPanel.classList.remove('hidden');
+            } else {
+                reportPanel.classList.add('hidden');
+            }
+        }
+    });
+}
+
+// Close panel when clicking outside
+document.addEventListener('click', (e) => {
+    if (reportPanel && !reportPanel.classList.contains('hidden')) {
+        if (!reportPanel.contains(e.target) && !btnReportToggle.contains(e.target)) {
+            reportPanel.classList.add('hidden');
+        }
+    }
+});
+
+// Remove Text Selection Popup Report Handler (User requested removal)
+// The text selection popup will now only show "Add to dictionary" for teachers
+// Students report via message action button.
+
+// Text selection popup removed as per user request (replaced by direct buttons)
+/*
+    messagesContainer.addEventListener('mouseup', (e) => {
+        // ... (legacy code removed) ...
+    });
+*/
+
+// Listen for filter mode changes from server
+socket.on('filter-mode-changed', (data) => {
+    if (data.classId === currentClassId) {
+        filterMode = data.mode;
+        if (filterModeSelect) filterModeSelect.value = filterMode;
+        console.log(`🔄 Filter mode changed to: ${filterMode}`);
+    }
+});
+
+// Listen for pending reports updates from server
+socket.on('pending-reports-updated', (reports) => {
+    pendingReports = reports || [];
+    updateReportBadge();
+    if (currentRole === 'teacher' && reportPanel && !reportPanel.classList.contains('hidden')) {
+        renderReportList();
+    }
+});
+
+// Listen for new reports (for teachers)
+socket.on('new-report', (report) => {
+    if (currentRole === 'teacher') {
+        pendingReports.push(report);
+        updateReportBadge();
+        if (reportPanel && !reportPanel.classList.contains('hidden')) {
+            renderReportList();
+        }
+        console.log(`📝 New word report: "${report.word}" from ${report.reporterName}`);
+    }
+});
+
+// Hook into existing role selection to update UI visibility
+const originalTeacherClick = document.getElementById("btn-teacher").onclick;
+document.getElementById("btn-teacher").addEventListener("click", () => {
+    setTimeout(updateFilterUIVisibility, 100);
+});
+
+const originalStudentClick = document.getElementById("btn-student").onclick;
+document.getElementById("btn-student").addEventListener("click", () => {
+    setTimeout(updateFilterUIVisibility, 100);
+});
+
+// Also update when switching classes
+const originalSwitchClass = switchClass;
+window.switchClassWithFilter = switchClass;
+switchClass = function (id) {
+    originalSwitchClass(id);
+    setTimeout(updateFilterUIVisibility, 100);
+};
+
+
+// Training Notification Listeners
+socket.on('training-started', () => {
+    const notify = document.getElementById('training-notification');
+    if (notify) notify.classList.remove('hidden');
+
+    // Animate badge
+    const badge = document.querySelector('.report-toggle-btn .report-badge');
+    if (badge) {
+        if (badge.classList.contains('hidden')) badge.classList.remove('hidden');
+        badge.dataset.originalCount = badge.textContent;
+        badge.innerHTML = '↻';
+        badge.style.background = '#eab308';
+    }
+});
+
+socket.on('training-ended', () => {
+    const notify = document.getElementById('training-notification');
+    if (notify) notify.classList.add('hidden');
+    // Refresh badge
+    loadPendingReports();
+});

@@ -53,7 +53,16 @@ export const translations = {
         "label-logs": "Session Logs",
         "btn-view-logs": "👁️ View",
         "btn-download-logs": "⬇️ Download",
-        "logs-title": "Session Logs"
+        "logs-title": "Session Logs",
+        "settings-section-filter": "🧠 Content Filtering",
+        "label-filter-mode": "Filter Mode",
+        "filter-mode-legacy": "Legacy (Low RAM)",
+        "filter-mode-advanced": "Advanced (AI)",
+        "filter-mode-hint": "Legacy mode uses client-side word matching. Advanced mode uses server-side AI classification.",
+        "btn-reports-title": "Word Reports",
+        "modal-reports-title": "⚠️ Reported Words",
+        "reports-empty": "No pending reports",
+        "text-selection-popup-report": "Report ⚠️"
     },
     el: {
         "app-title": "ClassSend",
@@ -109,6 +118,15 @@ export const translations = {
         "label-logs": "Αρχεία Καταγραφής",
         "btn-view-logs": "👁️ Προβολή",
         "btn-download-logs": "⬇️ Λήψη",
-        "logs-title": "Αρχεία Καταγραφής"
+        "logs-title": "Αρχεία Καταγραφής",
+        "settings-section-filter": "🧠 Φιλτράρισμα Περιεχομένου",
+        "label-filter-mode": "Λειτουργία Φίλτρου",
+        "filter-mode-legacy": "Παραδοσιακό (Χαμηλή RAM)",
+        "filter-mode-advanced": "Προχωρημένο (AI)",
+        "filter-mode-hint": "Το παραδοσιακό χρησιμοποιεί αντιστοίχιση λέξεων στον πελάτη. Το προχωρημένο χρησιμοποιεί ταξινόμηση AI στον διακομιστή.",
+        "btn-reports-title": "Αναφορές Λέξεων",
+        "modal-reports-title": "⚠️ Αναφερόμενες Λέξεις",
+        "reports-empty": "Δεν υπάρχουν εκκρεμείς αναφορές",
+        "text-selection-popup-report": "Αναφορά ⚠️"
     }
 };

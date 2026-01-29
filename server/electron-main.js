@@ -5,9 +5,11 @@ const path = require('path');
 // This ensures we write to a writable location (e.g. ~/.config/...) instead of the read-only AppImage mount
 // app.getPath('userData') is only available after app is ready or in main process, but we need it for top-level requires if they run immediately.
 // Actually, app.getPath is available immediately in main process.
-process.env.USER_DATA_PATH = app.getPath('userData');
+if (app) {
+    process.env.USER_DATA_PATH = app.getPath('userData');
+}
 
-const { server, stopServer } = require('./index.js'); // Import the server to start it and stop it
+const { server, stopServer, getTrainingStatus } = require('./index.js'); // Import the server to start it and stop it
 
 let mainWindow;
 let tray;
@@ -53,7 +55,30 @@ function createWindow() {
     mainWindow.loadURL(serverUrl);
 
 
-    mainWindow.on('close', (event) => {
+    mainWindow.on('close', async (event) => {
+        if (isQuitting) return;
+
+        // Check if training is in progress
+        if (getTrainingStatus && getTrainingStatus()) {
+            event.preventDefault();
+            const { dialog } = require('electron');
+            const choice = await dialog.showMessageBox(mainWindow, {
+                type: 'warning',
+                buttons: ['Wait', 'Abandon & Close'],
+                title: 'AI Training in Progress',
+                message: 'The AI is currently retraining with new data.',
+                detail: 'Closing now might result in data loss or incomplete training. Please wait ~3 seconds.',
+                defaultId: 0,
+                cancelId: 0
+            });
+
+            if (choice.response === 1) { // Abandon
+                isQuitting = true;
+                app.quit();
+            }
+            return;
+        }
+
         if (!isQuitting) {
             event.preventDefault();
             mainWindow.hide();

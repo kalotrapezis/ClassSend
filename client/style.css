@@ -2727,3 +2727,287 @@ input:checked+.slider:before {
     transform: scale(1);
   }
 }
+
+/* Report Button Badge */
+.report-btn {
+  position: relative;
+}
+
+.report-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--error);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  transform: translate(25%, -25%);
+}
+
+.report-badge.hidden {
+  display: none !important;
+}
+
+/* Report Modal */
+.report-modal-content {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  width: 400px;
+  max-width: 90vw;
+  max-height: 80vh;
+  border-radius: 12px;
+  animation: modalSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.report-list {
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 400px;
+}
+
+.empty-report-state {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 2rem;
+  font-style: italic;
+}
+
+.report-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.report-word {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
+  word-break: break-word;
+  flex: 1;
+}
+
+.report-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.report-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.report-approve-btn,
+.report-reject-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.report-approve-btn {
+  background: rgba(231, 72, 86, 0.2);
+  color: var(--error);
+}
+
+.report-approve-btn:hover {
+  background: rgba(231, 72, 86, 0.4);
+  transform: scale(1.1);
+}
+
+.report-reject-btn {
+  background: rgba(146, 195, 83, 0.2);
+  color: var(--success);
+}
+
+.report-reject-btn:hover {
+  background: rgba(146, 195, 83, 0.4);
+  transform: scale(1.1);
+}
+
+/* Setting Hint Text */
+.setting-hint {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* Report Toggle Button (next to emoji) */
+.report-toggle-btn {
+  font-size: 1.25rem;
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border-radius: 6px;
+  position: relative;
+}
+
+.report-toggle-btn:hover {
+  background: rgba(231, 72, 86, 0.1);
+  transform: scale(1.1);
+}
+
+.report-toggle-btn .report-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--error);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 600;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  transform: translate(25%, -25%);
+}
+
+/* Report Panel (like emoji picker) */
+.report-panel {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  width: 320px;
+  max-height: 400px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.5rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.report-panel.hidden {
+  display: none !important;
+}
+
+.report-panel-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.report-panel .report-list {
+  padding: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.report-panel .report-item {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.report-panel .report-word {
+  font-size: 0.9rem;
+}
+
+.report-panel .report-meta {
+  font-size: 0.7rem;
+}
+
+.report-panel .report-approve-btn,
+.report-panel .report-reject-btn {
+  width: 30px;
+  height: 30px;
+  font-size: 1rem;
+}
+
+/* Message Action: Report Button & Ban Button */
+.report-action-btn,
+.ban-action-btn {
+  background: rgba(231, 72, 86, 0.1);
+  color: var(--error);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.report-action-btn:hover,
+.ban-action-btn:hover {
+  background: rgba(231, 72, 86, 0.2);
+  transform: scale(1.05);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Training Notification */
+.training-notification {
+  background: #eab308;
+  /* Yellow/Warning */
+  color: #000;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.training-notification.hidden {
+  display: none;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
