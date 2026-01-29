@@ -3285,7 +3285,7 @@ function updateFilterUIVisibility() {
             const savedMode = localStorage.getItem('classsend-filter-mode');
             if (savedMode && (!mode || mode === 'legacy') && savedMode !== 'legacy') {
                 console.log(`Applying saved filter preference: ${savedMode}`);
-                socket.emit('set-filter-mode', { classId: currentClassId, mode: savedMode });
+                socket.emit('set-filter-mode', { classId: currentClassId, mode: savedMode }, () => { });
                 filterMode = savedMode;
             } else {
                 filterMode = mode || 'legacy';

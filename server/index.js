@@ -973,12 +973,14 @@ io.on('connection', (socket) => {
   // Set filter mode for a class (Teacher only)
   socket.on('set-filter-mode', ({ classId, mode }, callback) => {
     if (!activeClasses.has(classId)) {
-      return callback({ success: false, message: 'Class not found' });
+      if (typeof callback === 'function') callback({ success: false, message: 'Class not found' });
+      return;
     }
 
     const classData = activeClasses.get(classId);
     if (classData.teacherId !== socket.id) {
-      return callback({ success: false, message: 'Only teacher can change filter mode' });
+      if (typeof callback === 'function') callback({ success: false, message: 'Only teacher can change filter mode' });
+      return;
     }
 
     classData.filterMode = mode; // 'legacy' or 'advanced'
@@ -987,7 +989,7 @@ io.on('connection', (socket) => {
     io.to(classId).emit('filter-mode-changed', { classId, mode });
 
     console.log(`🔧 Filter mode set to '${mode}' in class ${classId}`);
-    callback({ success: true });
+    if (typeof callback === 'function') callback({ success: true });
   });
 
   // Get filter mode for a class
@@ -1056,7 +1058,7 @@ io.on('connection', (socket) => {
     }
 
     console.log(`⚠️ Word reported: '${trimmedWord}' by ${reporterName} in class ${classId}`);
-    callback({ success: true });
+    if (typeof callback === 'function') callback({ success: true });
   });
 
   // Get pending reports (Teacher only)
@@ -1127,7 +1129,7 @@ io.on('connection', (socket) => {
     // Trigger batch training check
     triggerBatchTraining();
 
-    callback({ success: true });
+    if (typeof callback === 'function') callback({ success: true });
   });
 
   // Reject a report
@@ -1155,7 +1157,7 @@ io.on('connection', (socket) => {
     io.to(classData.teacherId).emit('report-resolved', { reportId, action: 'rejected' });
 
     console.log(`❌ Report rejected: '${report.word}'`);
-    callback({ success: true });
+    if (typeof callback === 'function') callback({ success: true });
   });
 
   // Teacher instantly blocks a message (from chat)
