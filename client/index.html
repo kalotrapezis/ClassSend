@@ -115,13 +115,13 @@
               </div>
 
               <!-- Streaming Section -->
-              <div class="settings-section">
+              <div id="settings-streaming-section" class="settings-section">
                 <h4 class="settings-section-header" data-i18n="settings-section-streaming">📺 Streaming</h4>
                 <div class="setting-item">
                   <label for="screen-share-quality" data-i18n="label-screen-share-quality">Screen Share Quality</label>
                   <select id="screen-share-quality" class="setting-select">
-                    <option value="ethernet" data-i18n="quality-ethernet">Ethernet (Fast)</option>
                     <option value="auto" data-i18n="quality-auto">Auto</option>
+                    <option value="ethernet" data-i18n="quality-ethernet">Ethernet (Fast)</option>
                     <option value="wifi" data-i18n="quality-wifi">WiFi (Slow)</option>
                   </select>
                 </div>
@@ -135,29 +135,79 @@
                   <select id="filter-mode-select" class="setting-select">
                     <option value="legacy" data-i18n="filter-mode-legacy">Legacy (Low RAM)</option>
                     <option value="advanced" data-i18n="filter-mode-advanced">Advanced (Naive Bayes)</option>
-                    <option value="deep-learning" data-i18n="filter-mode-deep-learning">Deep Learning (Modern HW)
+                    <option value="deep-learning" data-i18n="filter-mode-deep-learning">Deep Learning (English Only)
                     </option>
                   </select>
                 </div>
                 <p class="setting-hint" data-i18n="filter-mode-hint">Legacy: Client-side word matching. Advanced: Server
                   AI. Deep Learning: Transformer model (requires 2GB+ RAM).</p>
+
+                <!-- Advanced Model Preferences (Hidden by default) -->
+                <div id="advanced-model-preferences" class="advanced-model-preferences hidden"
+                  style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
+                  <h5 style="margin: 0 0 10px 0; font-size: 0.95rem; color: #aaa;">Advanced Model Preferences</h5>
+
+                  <!-- Blocking Sensitivity -->
+                  <div class="setting-sub-group" style="margin-bottom: 15px;">
+                    <div
+                      style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                      <label for="model-block-toggle" style="margin:0; font-size: 0.9rem;">Blocking Sensitivity</label>
+                      <label class="switch" style="transform: scale(0.8);">
+                        <input type="checkbox" id="model-block-toggle" checked>
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                    <input type="range" id="model-block-threshold" min="0" max="100" value="10" class="slider-range"
+                      style="width: 100%;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #888;">
+                      <span>Lenient</span>
+                      <span id="model-block-val">10%</span>
+                      <span>Strict</span>
+                    </div>
+                    <p class="setting-hint" style="margin-top: 5px;">Higher sensitivity blocks more words (including
+                      less obvious ones).</p>
+                  </div>
+
+                  <!-- Reporting Sensitivity -->
+                  <div class="setting-sub-group">
+                    <div
+                      style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                      <label for="model-report-toggle" style="margin:0; font-size: 0.9rem;">Reporting
+                        Sensitivity</label>
+                      <label class="switch" style="transform: scale(0.8);">
+                        <input type="checkbox" id="model-report-toggle" checked>
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                    <input type="range" id="model-report-threshold" min="0" max="100" value="90" class="slider-range"
+                      style="width: 100%;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #888;">
+                      <span>Lenient</span>
+                      <span id="model-report-val">90%</span>
+                      <span>Strict</span>
+                    </div>
+                    <p class="setting-hint" style="margin-top: 5px;">Higher sensitivity flags more words for teacher
+                      review.</p>
+                  </div>
+                </div>
               </div>
 
               <!-- Data and Privacy Section -->
-              <div class="settings-section">
+              <div id="settings-data-section" class="settings-section">
                 <h4 class="settings-section-header" data-i18n="settings-section-data">🔒 Data and Privacy</h4>
                 <div class="setting-item">
-                  <label data-i18n="label-blacklist-data">Blacklist Data</label>
+                  <label>Data Management</label>
+                  <p class="setting-description">Import/Export both Blacklist and Good List data.</p>
                   <div class="logs-actions">
-                    <button id="btn-import-blacklist" class="secondary-btn" data-i18n="btn-import-blacklist">📥
-                      Import</button>
-                    <button id="btn-export-blacklist" class="secondary-btn" data-i18n="btn-export-blacklist">📤
-                      Export</button>
-                    <input type="file" id="file-import-blacklist" accept=".json" class="hidden">
+                    <button id="btn-import-data" class="secondary-btn" title="Import Blacklist & Good List">📥 Import
+                      Data</button>
+                    <button id="btn-export-data" class="secondary-btn" title="Export Blacklist & Good List">📤 Export
+                      Data</button>
+                    <input type="file" id="file-import-data" accept=".json" class="hidden">
                   </div>
                 </div>
                 <div class="setting-item">
-                  <label data-i18n="label-clear-data">Clear Saved Data</label>
+                  <label data-i18n="label-clear-data">Clear All Data</label>
                   <button id="btn-clear-data" class="secondary-btn" data-i18n="btn-clear-data">🗑️ Clear</button>
                 </div>
               </div>
@@ -165,6 +215,19 @@
               <!-- Advanced Section (Teacher Only) -->
               <div id="settings-advanced-section" class="settings-section hidden">
                 <h4 class="settings-section-header" data-i18n="settings-section-advanced">🔧 Advanced</h4>
+                <div class="setting-item">
+                  <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div>
+                      <label for="toggle-log-history" style="margin-bottom: 0;">Enable Log History</label>
+                      <p class="setting-description" style="margin-top: 5px; font-size: 0.8rem; color: #888;">Logs are
+                        deleted when app closes.</p>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="toggle-log-history">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                </div>
                 <div class="setting-item logs-setting">
                   <label data-i18n="label-logs">Session Logs</label>
                   <div class="logs-actions">
@@ -176,6 +239,7 @@
                 <div id="logs-viewer" class="logs-viewer hidden">
                   <div class="logs-viewer-header">
                     <span data-i18n="logs-title">Session Logs</span>
+                    <button id="btn-pause-logs" class="copy-btn" title="Pause Logs">⏸️</button>
                     <button id="btn-copy-logs" class="copy-btn" title="Copy Logs">📋</button>
                     <button id="btn-close-logs" class="close-btn">×</button>
                   </div>
@@ -269,6 +333,27 @@
             <div id="dictionary-word-list" class="dictionary-word-list">
               <!-- Words will be dynamically added here -->
               <div class="empty-dictionary-state">No custom words added yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Whitelist Modal (Good List) -->
+      <div id="whitelist-modal" class="modal hidden">
+        <div class="modal-content dictionary-modal-content" style="border-top: 5px solid #28a745;">
+          <div class="popup-header">
+            <h3>✅ Good List 💖</h3>
+            <button id="btn-close-whitelist-modal" class="close-btn">×</button>
+          </div>
+          <div class="dictionary-body">
+            <div class="dictionary-add-section">
+              <input type="text" id="whitelist-word-input" placeholder="Enter safe word to add..." autocomplete="off">
+              <button id="btn-add-whitelist-word-modal" class="add-word-btn">Add
+                ➕</button>
+            </div>
+            <div id="whitelist-words-list-modal" class="dictionary-word-list">
+              <!-- Words will be dynamically added here -->
+              <div class="empty-dictionary-state">No safe words added yet</div>
             </div>
           </div>
         </div>

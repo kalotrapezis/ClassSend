@@ -3,6 +3,8 @@ import { translations } from "./translations.js";
 
 // Logger for Advanced Settings
 const capturedLogs = [];
+let isLogsPaused = false;
+let isLoggingEnabled = false; // Default OFF as requested
 const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;
 const originalConsoleError = console.error;
@@ -18,14 +20,16 @@ function formatLog(type, args) {
 }
 
 const logToMemory = (type, args) => {
+    if (!isLoggingEnabled) return; // Skip if disabled
+
     const logEntry = formatLog(type, args);
     capturedLogs.push(logEntry);
     // Keep last 1000 logs
     if (capturedLogs.length > 1000) capturedLogs.shift();
 
-    // Auto-update logs viewer if open
+    // Auto-update logs viewer if open AND NOT PAUSED
     const logsContent = document.getElementById("logs-content");
-    if (logsContent && logsContent.offsetParent !== null) {
+    if (!isLogsPaused && logsContent && logsContent.offsetParent !== null) {
         logsContent.textContent = capturedLogs.join('\n');
         logsContent.scrollTop = logsContent.scrollHeight;
     }
@@ -59,6 +63,7 @@ let userName = null;
 let currentClassId = null;
 let joinedClasses = new Map(); // classId -> { messages: [], users: [], teacherName: string }
 let availableClasses = []; // [{ id, teacherName }]
+let customWhitelistedWords = [];
 let currentLanguage = localStorage.getItem('language') || 'en';
 let pinnedFiles = new Set(); // Track pinned file IDs in media library
 
@@ -826,6 +831,13 @@ function sendMessage() {
     if (!content) return;
     if (!currentClassId) return;
 
+    // Check if sending is blocked (e.g. by filter)
+    if (btnSendMessage.disabled) {
+        console.warn(`[DEBUG] Send blocked: Button disabled`);
+        return;
+    }
+
+    console.log(`[DEBUG] Sending message: "${content}"`);
     socket.emit("send-message", {
         classId: currentClassId,
         content,
@@ -1004,6 +1016,7 @@ document.addEventListener('drop', async (e) => {
 
 // Receive Message
 socket.on("new-message", (message) => {
+    console.log(`[DEBUG] Received new-message: "${message.content}" from ${message.senderName}`);
     if (joinedClasses.has(message.classId)) {
         joinedClasses.get(message.classId).messages.push(message);
         if (currentClassId === message.classId) {
@@ -1725,8 +1738,9 @@ setInterval(() => {
 
     socket.emit('ping', () => {
         clearTimeout(timeout);
-        const latency = Date.now() - start;
-        console.log(`Ping: ${latency}ms`);
+        // Ping response received, just keep connection alive
+        // const latency = Date.now() - start;
+        // console.log(`Ping: ${latency}ms`);
     });
 }, 5000);
 // Content Filtering Module
@@ -1918,8 +1932,10 @@ function containsInappropriateContent(text) {
             // 1. Exact match
             if (inputWord === bannedWord) return true;
 
-            // 2. Fuzzy match (only for words > 3 chars to avoid false positives like 'hell' vs 'hello')
-            if (inputWord.length > 3 && bannedWord.length > 3) {
+            // 2. Fuzzy match
+            // SKIP fuzzy matching in Deep Learning mode to avoid false positives (e.g. 'good' -> 'gook')
+            // Let the server AI handle subtle cases.
+            if (filterMode !== 'deep-learning' && inputWord.length > 3 && bannedWord.length > 3) {
                 // Optimization: Skip if length difference is > 1
                 if (Math.abs(inputWord.length - bannedWord.length) > 1) continue;
 
@@ -3138,6 +3154,24 @@ if (btnViewLogs) {
     });
 }
 
+const btnPauseLogs = document.getElementById("btn-pause-logs");
+if (btnPauseLogs) {
+    btnPauseLogs.addEventListener("click", () => {
+        isLogsPaused = !isLogsPaused;
+        btnPauseLogs.innerHTML = isLogsPaused ? "▶️" : "⏸️";
+        btnPauseLogs.title = isLogsPaused ? "Resume Logs" : "Pause Logs";
+
+        // If resuming, immediately flush logs
+        if (!isLogsPaused) {
+            const logsContent = document.getElementById("logs-content");
+            if (logsContent) {
+                logsContent.textContent = capturedLogs.join('\n');
+                logsContent.scrollTop = logsContent.scrollHeight;
+            }
+        }
+    });
+}
+
 if (btnDownloadLogs) {
     btnDownloadLogs.addEventListener("click", () => {
         const logText = capturedLogs.join('\n');
@@ -3174,21 +3208,56 @@ if (btnCloseLogs) {
     });
 }
 
-// Blacklist Import/Export Logic
-if (btnExportBlacklist) {
-    btnExportBlacklist.addEventListener("click", () => {
-        if (!customForbiddenWords || customForbiddenWords.length === 0) {
-            alert("Blacklist is empty");
+// Log History Toggle
+const toggleLogHistory = document.getElementById("toggle-log-history");
+if (toggleLogHistory) {
+    toggleLogHistory.checked = isLoggingEnabled; // Set initial state
+    toggleLogHistory.addEventListener("change", (e) => {
+        isLoggingEnabled = e.target.checked;
+        if (isLoggingEnabled) {
+            // Log directly to original console to avoid circular dependency check, 
+            // but we want this confirmation to appear in the captured logs if enabled.
+            // Since isLoggingEnabled is true now, console.log will capture it.
+            console.log("📝 Log History Enabled (Session Only)");
+        } else {
+            console.log("📝 Log History Disabled");
+            // Clear logs from viewer to reflect "history disabled" state visually?
+            // Or just stop recording new ones. 
+            // "Default off" -> likely wants privacy.
+            // Let's keep it simple: stop recording.
+        }
+    });
+}
+
+// ===== UNIFIED IMPORT/EXPORT LOGIC =====
+const btnImportData = document.getElementById("btn-import-data");
+const btnExportData = document.getElementById("btn-export-data");
+const fileImportData = document.getElementById("file-import-data");
+
+if (btnExportData) {
+    btnExportData.addEventListener("click", () => {
+        const blacklist = customForbiddenWords || [];
+        const whitelist = customWhitelistedWords || [];
+
+        if (blacklist.length === 0 && whitelist.length === 0) {
+            alert("No data to export (both lists are empty)");
             return;
         }
 
-        const dataStr = JSON.stringify(customForbiddenWords, null, 2);
+        const exportData = {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            blacklist: blacklist,
+            whitelist: whitelist
+        };
+
+        const dataStr = JSON.stringify(exportData, null, 2);
         const blob = new Blob([dataStr], { type: "application/json" });
         const url = URL.createObjectURL(blob);
 
         const a = document.createElement('a');
         a.href = url;
-        a.download = `classsend-blacklist-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `classsend-data-${new Date().toISOString().slice(0, 10)}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -3196,65 +3265,184 @@ if (btnExportBlacklist) {
     });
 }
 
-if (btnImportBlacklist) {
-    btnImportBlacklist.addEventListener("click", () => {
-        if (fileImportBlacklist) fileImportBlacklist.click();
+if (btnImportData) {
+    btnImportData.addEventListener("click", () => {
+        if (fileImportData) fileImportData.click();
     });
 }
 
-if (fileImportBlacklist) {
-    fileImportBlacklist.addEventListener("change", (e) => {
+if (fileImportData) {
+    fileImportData.addEventListener("change", (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
-                const words = JSON.parse(e.target.result);
-                if (!Array.isArray(words)) {
-                    alert("Invalid file format: Expected a JSON array");
-                    return;
-                }
+                const data = JSON.parse(e.target.result);
 
-                const uniqueNewWords = new Set();
-
-                words.forEach(item => {
-                    const str = typeof item === 'object' ? item.word : item;
-                    if (str && typeof str === 'string') {
-                        const normalized = str.trim().toLowerCase();
-                        // Check against existing list
-                        if (customForbiddenWords && !customForbiddenWords.some(w => w.word === normalized)) {
-                            uniqueNewWords.add(normalized);
-                        }
+                // Handle legacy array format (assume blacklist)
+                if (Array.isArray(data)) {
+                    if (confirm("Legacy format detected. Import as Blacklist?")) {
+                        importList(data, 'blacklist');
                     }
-                });
-
-                if (uniqueNewWords.size === 0) {
-                    alert("No new words to import (duplicates skipped).");
+                    fileImportData.value = "";
                     return;
                 }
 
-                let processed = 0;
-                uniqueNewWords.forEach(word => {
-                    socket.emit('add-forbidden-word', { word }, (res) => {
-                        if (res && res.success) {
-                            console.log("Imported:", word);
-                        }
-                    });
-                    processed++;
-                });
+                if (typeof data !== 'object') {
+                    alert("Invalid file format");
+                    return;
+                }
 
-                alert(`Importing ${processed} new words...`);
+                let totalBlacklist = 0;
+                let totalWhitelist = 0;
+
+                if (data.blacklist && Array.isArray(data.blacklist)) {
+                    totalBlacklist = importList(data.blacklist, 'blacklist');
+                }
+
+                if (data.whitelist && Array.isArray(data.whitelist)) {
+                    totalWhitelist = importList(data.whitelist, 'whitelist');
+                }
+
+                alert(`Import Complete!\n🚫 Blacklist: ${totalBlacklist} words\n✅ Good List: ${totalWhitelist} words`);
 
             } catch (err) {
                 console.error("Import failed", err);
-                alert("Failed to import: Invalid JSON file");
+                alert("Failed to parse file");
             }
         };
         reader.readAsText(file);
-        fileImportBlacklist.value = "";
+        fileImportData.value = "";
     });
 }
+
+function importList(items, type) {
+    let count = 0;
+    items.forEach(item => {
+        const str = typeof item === 'object' ? item.word : item;
+        if (str && typeof str === 'string') {
+            const word = str.trim(); // Case sensitive/insensitive logic handled by server usually, sending as is
+
+            if (type === 'blacklist') {
+                // Check duplicates client side to save calls? Server handles it too.
+                // Fire and forget mostly, but we use callbacks usually.
+                socket.emit('add-forbidden-word', { word });
+                count++;
+            } else if (type === 'whitelist') {
+                socket.emit('add-whitelisted-word', { word });
+                count++;
+            }
+        }
+    });
+    return count;
+}
+
+
+
+const btnOpenWhitelistModal = document.getElementById("btn-open-whitelist-modal");
+const btnCloseWhitelistModal = document.getElementById("btn-close-whitelist-modal");
+const whitelistWordsListModalElement = document.getElementById("whitelist-words-list-modal");
+const whitelistWordInput = document.getElementById("whitelist-word-input");
+const btnAddWhitelistWordModal = document.getElementById("btn-add-whitelist-word-modal");
+// Legacy references removed (btnImportWhitelist, btnExportWhitelist, etc.)
+
+
+// Open Modal
+if (btnOpenWhitelistModal) {
+    btnOpenWhitelistModal.addEventListener("click", () => {
+        if (whitelistModal) {
+            whitelistModal.classList.remove("hidden");
+            renderWhitelistWordsList();
+            if (whitelistWordInput) whitelistWordInput.focus();
+        }
+    });
+}
+
+// Close Modal
+if (btnCloseWhitelistModal) {
+    btnCloseWhitelistModal.addEventListener("click", () => {
+        if (whitelistModal) whitelistModal.classList.add("hidden");
+    });
+}
+
+// Render List
+function renderWhitelistWordsList() {
+    if (!whitelistWordsListModalElement) return;
+    whitelistWordsListModalElement.innerHTML = "";
+
+    if (customWhitelistedWords.length === 0) {
+        whitelistWordsListModalElement.innerHTML = '<div class="empty-dictionary-state">No safe words added yet</div>';
+        return;
+    }
+
+    customWhitelistedWords.slice().reverse().forEach(item => {
+        const row = document.createElement("div");
+        row.className = "dictionary-word-item"; // Reusing Blacklist style class if available, or we will define it
+        row.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #333; margin-bottom: 5px; border-radius: 5px;";
+
+        const dateStr = item.addedAt ? new Date(item.addedAt).toLocaleDateString() : '';
+
+        row.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-weight: bold; color: #fff;">${escapeHtml(item.word)}</span>
+                ${item.source === 'rejected-report' ? '<span title="Added from Report" style="font-size: 12px;">🛡️</span>' : ''}
+            </div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span style="color: #888; font-size: 0.85rem;">${dateStr}</span>
+                <button class="remove-word-btn" style="background: none; border: none; color: #ff4444; cursor: pointer; font-size: 1.1rem;">✖</button>
+            </div>
+        `;
+
+        row.querySelector(".remove-word-btn").addEventListener("click", () => {
+            if (confirm(`Remove '${item.word}' from good list?`)) {
+                socket.emit('remove-whitelisted-word', { word: item.word }, (res) => {
+                    if (!res.success) alert(res.message || "Failed to remove");
+                });
+            }
+        });
+
+        whitelistWordsListModalElement.appendChild(row);
+    });
+}
+
+function loadWhitelistedWords() {
+    socket.emit('get-whitelisted-words', (words) => {
+        customWhitelistedWords = words || [];
+        renderWhitelistWordsList();
+    });
+}
+
+socket.on('whitelisted-words-updated', (words) => {
+    customWhitelistedWords = words || [];
+    renderWhitelistWordsList();
+});
+
+// Add Word (Modal)
+if (btnAddWhitelistWordModal) {
+    btnAddWhitelistWordModal.addEventListener("click", () => {
+        const word = whitelistWordInput.value.trim();
+        if (!word) return;
+
+        socket.emit('add-whitelisted-word', { word }, (res) => {
+            if (res.success) {
+                whitelistWordInput.value = "";
+                whitelistWordInput.focus();
+            } else {
+                alert(res.message || "Failed to add word");
+            }
+        });
+    });
+
+    // Also allow Enter key
+    whitelistWordInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") btnAddWhitelistWordModal.click();
+    });
+}
+
+// ... (Import/Export handlers removed, handled by unified logic)
+
 
 
 // ===== AI FILTERING & REPORTING FEATURE =====
@@ -3297,8 +3485,15 @@ function updateFilterUIVisibility() {
                 filterMode = mode || 'legacy';
             }
             if (filterModeSelect) filterModeSelect.value = filterMode;
+
+            // Auto-load model if needed (check in ALL cases)
+            if (filterMode === 'deep-learning' && !deepLearningReady) {
+                console.log('🧠 Auto-loading Deep Learning model based on preference...');
+                loadDeepLearningModel();
+            }
         });
         loadPendingReports();
+        loadWhitelistedWords();
     } else {
         // Hide filter section and report button for students
         if (settingsFilterSection) settingsFilterSection.classList.add('hidden');
@@ -3439,6 +3634,9 @@ if (filterModeSelect) {
                 filterMode = newMode;
                 localStorage.setItem('classsend-filter-mode', newMode); // Persist preference
                 console.log(`✅ Filter mode set to: ${newMode}`);
+
+                // Show/Hide Advanced Model Preferences
+                updateAdvancedModelPreferencesVisibility();
             } else {
                 console.error('Failed to set filter mode:', response?.message);
                 // Revert select to previous value
@@ -3446,6 +3644,117 @@ if (filterModeSelect) {
             }
         });
     });
+}
+
+// ===== ADVANCED MODEL PREFERENCES LOGIC =====
+const advancedModelPreferences = document.getElementById('advanced-model-preferences');
+const modelBlockToggle = document.getElementById('model-block-toggle');
+const modelBlockThreshold = document.getElementById('model-block-threshold');
+const modelBlockVal = document.getElementById('model-block-val');
+const modelReportToggle = document.getElementById('model-report-toggle');
+const modelReportThreshold = document.getElementById('model-report-threshold');
+const modelReportVal = document.getElementById('model-report-val');
+
+function updateAdvancedModelPreferencesVisibility() {
+    if (filterMode === 'deep-learning' && currentRole === 'teacher') {
+        if (advancedModelPreferences) advancedModelPreferences.classList.remove('hidden');
+    } else {
+        if (advancedModelPreferences) advancedModelPreferences.classList.add('hidden');
+    }
+}
+
+// ===== SETTINGS VISIBILITY LOGIC =====
+const settingsStreamingSection = document.getElementById('settings-streaming-section');
+const settingsDataSection = document.getElementById('settings-data-section');
+
+function updateSettingsVisibility() {
+    if (currentRole === 'teacher') {
+        // Show everything for teacher
+        if (settingsStreamingSection) settingsStreamingSection.classList.remove('hidden');
+        if (settingsDataSection) settingsDataSection.classList.remove('hidden');
+        if (settingsFilterSection) settingsFilterSection.classList.remove('hidden');
+        if (advancedModelPreferences && filterMode === 'deep-learning') advancedModelPreferences.classList.remove('hidden');
+        if (settingsAdvancedSection) settingsAdvancedSection.classList.remove('hidden');
+    } else {
+        // Hide everything except Language for student
+        if (settingsStreamingSection) settingsStreamingSection.classList.add('hidden');
+        if (settingsDataSection) settingsDataSection.classList.add('hidden');
+        if (settingsFilterSection) settingsFilterSection.classList.add('hidden');
+        if (advancedModelPreferences) advancedModelPreferences.classList.add('hidden');
+        if (settingsAdvancedSection) settingsAdvancedSection.classList.add('hidden');
+    }
+}
+
+// Hook into updateFilterUIVisibility to also check general settings visibility
+const originalUpdateFilterUIVisibility = updateFilterUIVisibility;
+updateFilterUIVisibility = function () {
+    originalUpdateFilterUIVisibility();
+    updateSettingsVisibility();
+
+    // Also load current advanced settings from server if teacher
+    if (currentRole === 'teacher') {
+        socket.emit('get-advanced-settings', { classId: currentClassId }, (settings) => {
+            if (settings) {
+                if (modelBlockToggle) modelBlockToggle.checked = settings.blockEnabled;
+                if (modelBlockThreshold) {
+                    // Invert: Threshold (server) -> Sensitivity (client)
+                    // High Threshold (90) = Low Sensitivity (10)
+                    const sensitivity = 100 - settings.blockThreshold;
+                    modelBlockThreshold.value = sensitivity;
+                    if (modelBlockVal) modelBlockVal.textContent = sensitivity + '%';
+                }
+
+                if (modelReportToggle) modelReportToggle.checked = settings.reportEnabled;
+                if (modelReportThreshold) {
+                    // Invert
+                    const sensitivity = 100 - settings.reportThreshold;
+                    modelReportThreshold.value = sensitivity;
+                    if (modelReportVal) modelReportVal.textContent = sensitivity + '%';
+                }
+            }
+        });
+    }
+};
+
+// Listeners for Advanced Settings changes
+function sendAdvancedSettingsUpdate() {
+    if (!currentClassId || currentRole !== 'teacher') return;
+
+    // Invert: Sensitivity (client) -> Threshold (server)
+    // High Sensitivity (100) = Low Threshold (0)
+    const blockSensitivity = modelBlockThreshold ? parseInt(modelBlockThreshold.value) : 50;
+    const reportSensitivity = modelReportThreshold ? parseInt(modelReportThreshold.value) : 70;
+
+    const settings = {
+        blockEnabled: modelBlockToggle ? modelBlockToggle.checked : true,
+        blockThreshold: 100 - blockSensitivity,
+        reportEnabled: modelReportToggle ? modelReportToggle.checked : true,
+        reportThreshold: 100 - reportSensitivity
+    };
+
+    socket.emit('update-advanced-settings', { classId: currentClassId, settings });
+}
+
+if (modelBlockToggle) {
+    modelBlockToggle.addEventListener('change', sendAdvancedSettingsUpdate);
+}
+
+if (modelBlockThreshold) {
+    modelBlockThreshold.addEventListener('input', (e) => {
+        if (modelBlockVal) modelBlockVal.textContent = e.target.value + '%';
+    });
+    modelBlockThreshold.addEventListener('change', sendAdvancedSettingsUpdate);
+}
+
+if (modelReportToggle) {
+    modelReportToggle.addEventListener('change', sendAdvancedSettingsUpdate);
+}
+
+if (modelReportThreshold) {
+    modelReportThreshold.addEventListener('input', (e) => {
+        if (modelReportVal) modelReportVal.textContent = e.target.value + '%';
+    });
+    modelReportThreshold.addEventListener('change', sendAdvancedSettingsUpdate);
 }
 
 // Load deep learning model with progress display
@@ -3493,10 +3802,61 @@ socket.on('deep-learning-progress', (progress) => {
     }
 });
 
+// Toast Notification Helper
+function showToast(message, type = 'info', duration = 4000) {
+    // Create toast container if it doesn't exist
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.style.cssText = `
+        background: ${type === 'error' ? '#ef4444' : type === 'success' ? '#22c55e' : type === 'warning' ? '#eab308' : '#3b82f6'};
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    `;
+
+    // Add icon based on type
+    const icon = type === 'error' ? '🚫' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+    toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+
+    container.appendChild(toast);
+
+    // Animate in
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    });
+
+    // Remove after duration
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
 // Listen for auto-blocked messages (teacher notification)
 socket.on('auto-blocked-message', (data) => {
     if (currentRole === 'teacher') {
         console.log(`🚫 Auto-blocked: "${data.message}" (${data.confidence}% ${data.category})`);
+        showToast(`Auto-blocked: "${data.message.substring(0, 20)}..."`, 'error');
         if (data.addedWords && data.addedWords.length > 0) {
             console.log(`🧠 Auto-added words: ${data.addedWords.join(', ')}`);
         }
@@ -3571,6 +3931,9 @@ socket.on('new-report', (report) => {
             renderReportList();
         }
         console.log(`📝 New word report: "${report.word}" from ${report.reporterName}`);
+
+        // Show visual notification
+        showToast(`AI flagged "${report.word}" for review`, 'warning');
     }
 });
 

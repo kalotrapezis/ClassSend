@@ -1,21 +1,24 @@
-# ClassSend (v6.7.0 Latest)
+# ClassSend (v7.0.0 Latest)
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 Latest Features (v6.7.0)
-- **🧠 AI Profanity Filtering**: Integration of Naive Bayes (Advanced Mode) and **Deep Learning (Transformers.js)** for context-aware content moderation.
-- **⚠️ Reporting System**: Students can now report inappropriate messages directly to the teacher via a "Report ⚠️" button.
+## 🚀 Latest Features (v7.0.0)
+- **🧠 3-Layer AI Filtering**:
+    - **Legacy**: Lightweight client-side word matching.
+    - **Advanced (Naive Bayes)**: Probabilistic filtering that learns from context.
+    - **Deep Learning (New)**: MobileBERT Transformer model for state-of-the-art toxicity detection.
+- **⚙️ Advanced Model Settings**: Teachers can fine-tune the AI's sensitivity (Lenient vs. Strict) for both blocking and reporting.
+- **🛡️ Role-Based Settings**: Admin settings (Network, Filtering, Data) are now hidden from students, who only see Language options.
+- **📋 List Management**: Full control over **Blacklist** (Forbidden words) and **Good List** (Whitelisted words), with Import/Export capabilities.
+- **⚠️ Smart Notifications**: Real-time warnings when content is blocked or reported for review.
+- **⚡ Memory-Only Logs**: Session logs are stored in RAM for privacy and performance, automatically clearing when the app closes. 
+
+## 🚀 Previous Features (v6.7.0)
+- **⚠️ Reporting System**: Students can report inappropriate messages directly to the teacher via a "Report ⚠️" button.
 - **🚫 Teacher Moderation**: New "Block & Delete" button in messages for instant action, plus a sliding report panel for resolving student reports.
 - **🔄 Batch Training**: AI automatically retrains in background batches of 2 words with a visual progress indicator.
 - **🛡️ Safe Shutdown**: Application prevents accidental closure during active AI training cycles to ensure data integrity.
 - **✨ UI Polish**: Smooth slide-away animations for resolved reports and improved icon feedback (🚫 and 👌).
 - **💾 Settings Persistence**: AI Filter mode (Legacy/Advanced/Deep Learning) is now saved across sessions.
-
-## 🚀 Previous Features (v6.5.0)
-- **📺 Optimized Streaming**: Significant reduction in screen share delay and CPU usage (disabled VP9).
-- **⚙️ Advanced Diagnostics**: New **Session Logs** viewer and downloader in Settings for easier troubleshooting.
-- **📤 Blacklist Portability**: Export and Import custom forbidden words list as JSON.
-- **📌 File Pinning**: Teachers can now pin important files to the top of the Media Library.
-- **🖐️ Enhanced Status**: Visual icons for raised hands (🖐️) and blocked users (🔇) in the user list.
 
 ## 📖 How to Use
 1.  **Start the App**: Open ClassSend on the teacher's computer.
@@ -30,12 +33,12 @@
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Linux AppImage**: `ClassSend-6.7.0-x64.AppImage`
-- **Linux Zip**: `ClassSend-linux-x64-6.7.0.zip`
-- **Windows Installer (64-bit)**: `ClassSend-6.7.0 Setup.exe`
-- **Windows Installer (32-bit)**: `ClassSend-6.7.0 Setup-x32.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-6.7.0.zip`
-- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-6.7.0.zip`
+- **Linux AppImage**: `ClassSend-7.0.0-x64.AppImage`
+- **Linux Zip**: `ClassSend-linux-x64-7.0.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-7.0.0 Setup.exe`
+- **Windows Installer (32-bit)**: `ClassSend-7.0.0 Setup-x32.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-7.0.0.zip`
+- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-7.0.0.zip`
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:
@@ -70,7 +73,7 @@ If you want to modify the code or contribute:
     cd server
     npx electron-forge package --arch=ia32 --platform=win32
     mkdir -p out/make/zip/win32-ia32
-    cd out/ClassSend-win32-ia32 && zip -r ../make/zip/win32-ia32/ClassSend-win32-ia32-6.7.0.zip .
+    cd out/ClassSend-win32-ia32 && zip -r ../make/zip/win32-ia32/ClassSend-win32-ia32-7.0.0.zip .
     ```
 
 ## 🏗️ Architecture
@@ -86,12 +89,11 @@ We use Electron to bundle the Node.js server *inside* the application. This mean
 2.  **Standalone**: It runs as a single `.exe` file.
 3.  **Offline Capable**: It creates its own local server, perfect for schools with restricted internet.
 
-3.  **Offline Capable**: It creates its own local server, perfect for schools with restricted internet.
-
-## � Credits & Technologies
+## 🙏 Credits & Technologies
 ClassSend wouldn't be possible without these amazing open-source projects:
-- **[bayes](https://github.com/ttezel/bayes)**: Naive Bayes classifier for our AI content filtering.
-- **[Transformers.js](https://huggingface.co/docs/transformers.js)**: State-of-the-art Deep Learning (Toxic-BERT) for our highest-security filter mode.
+- **[@xenova/transformers](https://huggingface.co/docs/transformers.js)**: Powering our Deep Learning filters with `toxic-bert`.
+- **[bayes](https://github.com/ttezel/bayes)**: Providing our adaptable Naive Bayes classification layer.
+- **[bad-words](https://github.com/web-mech/badwords)**: The foundation of our legacy quick-fiter.
 - **[Socket.IO](https://socket.io/)**: Real-time bidirectional event-based communication.
 - **[Express](https://expressjs.com/)**: Fast, unopinionated, minimalist web framework for Node.js.
 - **[Electron](https://www.electronjs.org/)**: Framework for building cross-platform desktop apps.
@@ -105,7 +107,7 @@ This project was **vibecoded** using **Antigravity Gemini 3 Pro** and **Claude 4
 
 ### Architectural Evolution: Monolithic vs. Modular
 
-During development, we attempted to transition from a **monolithic structure** to a more **modular architecture**. This experiment revealed interesting insights about AI-assisted coding:
+During development, we attempted to transition from a **monolithic structure** to a more **modular architecture**. This experiment revealed interesting insights about AI-assisted development:
 
 #### Monolithic Architecture
 - **Challenge**: Memory and context window limitations with too many lines of code in single files

@@ -11,6 +11,8 @@ const multer = require('multer');
 const FileStorage = require('./file-storage');
 const bayes = require('bayes');
 const deepLearningFilter = require('./deep-learning-filter');
+const Filter = require('bad-words');
+const filter = new Filter();
 
 // ===== NAIVE BAYES CLASSIFIER FOR ADVANCED FILTERING =====
 let classifier = bayes();
@@ -175,9 +177,13 @@ const networkDiscovery = new NetworkDiscovery();
 const TEACHER_DISCONNECT_GRACE_PERIOD = 10000;
 
 // ===== FORBIDDEN WORDS MANAGEMENT =====
+// ===== FORBIDDEN WORDS MANAGEMENT =====
 const baseDir = process.env.USER_DATA_PATH || __dirname;
-const CUSTOM_WORDS_FILE = path.join(baseDir, 'data', 'custom-forbidden-words.json');
+const CUSTOM_BLACKLIST_FILE = path.join(baseDir, 'data', 'custom-forbidden-words.json');
+const CUSTOM_WHITELIST_FILE = path.join(baseDir, 'data', 'custom-whitelisted-words.json');
+
 let customForbiddenWords = [];
+let customWhitelistedWords = [];
 
 // AI Training State
 let isTraining = false;
@@ -219,10 +225,15 @@ if (!fs.existsSync(dataDir)) {
 // Load custom forbidden words from file
 function loadCustomForbiddenWords() {
   try {
-    if (fs.existsSync(CUSTOM_WORDS_FILE)) {
-      const data = fs.readFileSync(CUSTOM_WORDS_FILE, 'utf-8');
+    if (fs.existsSync(CUSTOM_BLACKLIST_FILE)) {
+      const data = fs.readFileSync(CUSTOM_BLACKLIST_FILE, 'utf-8');
       customForbiddenWords = JSON.parse(data);
       console.log(`📚 Loaded ${customForbiddenWords.length} custom forbidden words`);
+    } else {
+      // Fallback for transition
+      if (fs.existsSync(path.join(baseDir, 'data', 'custom-words.json'))) {
+        // ... handle legacy if needed, but not critical now
+      }
     }
   } catch (err) {
     console.error('Failed to load custom forbidden words:', err);
@@ -233,15 +244,40 @@ function loadCustomForbiddenWords() {
 // Save custom forbidden words to file
 function saveCustomForbiddenWords() {
   try {
-    fs.writeFileSync(CUSTOM_WORDS_FILE, JSON.stringify(customForbiddenWords, null, 2), 'utf-8');
+    fs.writeFileSync(CUSTOM_BLACKLIST_FILE, JSON.stringify(customForbiddenWords, null, 2), 'utf-8');
     console.log(`💾 Saved ${customForbiddenWords.length} custom forbidden words`);
   } catch (err) {
     console.error('Failed to save custom forbidden words:', err);
   }
 }
 
+// Load custom whitelisted words from file
+function loadCustomWhitelistedWords() {
+  try {
+    if (fs.existsSync(CUSTOM_WHITELIST_FILE)) {
+      const data = fs.readFileSync(CUSTOM_WHITELIST_FILE, 'utf-8');
+      customWhitelistedWords = JSON.parse(data);
+      console.log(`🕊️ Loaded ${customWhitelistedWords.length} custom whitelisted words`);
+    }
+  } catch (err) {
+    console.error('Failed to load custom whitelisted words:', err);
+    customWhitelistedWords = [];
+  }
+}
+
+// Save custom whitelisted words to file
+function saveCustomWhitelistedWords() {
+  try {
+    fs.writeFileSync(CUSTOM_WHITELIST_FILE, JSON.stringify(customWhitelistedWords, null, 2), 'utf-8');
+    console.log(`💾 Saved ${customWhitelistedWords.length} custom whitelisted words`);
+  } catch (err) {
+    console.error('Failed to save custom whitelisted words:', err);
+  }
+}
+
 // Load words on startup
 loadCustomForbiddenWords();
+loadCustomWhitelistedWords();
 
 // ===== PENDING REPORTS MANAGEMENT =====
 const PENDING_REPORTS_FILE = path.join(baseDir, 'data', 'pending-reports.json');
@@ -266,6 +302,8 @@ function savePendingReports() {
   try {
     fs.writeFileSync(PENDING_REPORTS_FILE, JSON.stringify(pendingReports, null, 2), 'utf-8');
     console.log(`💾 Saved ${pendingReports.length} pending reports`);
+    // Broadcast update to all connected clients (client filters by role)
+    if (io) io.emit('pending-reports-updated', pendingReports);
   } catch (err) {
     console.error('Failed to save pending reports:', err);
   }
@@ -274,8 +312,6 @@ function savePendingReports() {
 // Load reports on startup
 loadPendingReports();
 
-// ===== NAIVE BAYES CLASSIFIER TRAINING =====
-// Train the classifier with filter words and custom words
 // ===== NAIVE BAYES CLASSIFIER TRAINING =====
 // Train the classifier with filter words and custom words
 async function trainClassifier() {
@@ -320,11 +356,37 @@ async function trainClassifier() {
       }
     }
 
-    // 3. Train with custom forbidden words (Teacher added)
-    for (const item of customForbiddenWords) {
-      await classifier.learn(item.word.toLowerCase(), 'profane');
+    // 3. Train with mild bad words (Bullying/Gaming terms common in schools)
+    const MILD_BAD_WORDS = [
+      // --- Greek Bullying/School ---
+      'βλάκας', 'βλακα', 'ηλίθιος', 'ηλίθια', 'χαζός', 'χαζή',
+      'άσχετος', 'άσχετη', 'άχρηστος', 'άχρηστη', 'φλούφλης',
+      'κοτούλα', 'μπέμπης', 'φυτό',
+
+      // --- English/Gaming (Πολύ συχνά σε μαθητές) ---
+      'stupid', 'idiot', 'noob', 'nob', 'n00b', 'loser', 'bot',
+      'trash', 'bad', 'lag', 'hack', 'hacker', 'cheater',
+      'shut up', 'stfu', 'wtf', 'omg', 'hell'
+    ];
+
+    for (const word of MILD_BAD_WORDS) {
+      await classifier.learn(word.toLowerCase(), 'profane');
     }
-    console.log(`🧠 Added ${customForbiddenWords.length} custom user words to training`);
+    console.log(`🧠 Added ${MILD_BAD_WORDS.length} mild bad words (bullying/gaming terms)`);
+
+    // 4. Train with custom forbidden words (Teacher added)
+    // Train on custom blacklist
+    customForbiddenWords.forEach(item => {
+      classifier.learn(item.word, 'profane');
+    });
+
+    // Train on custom whitelist (Good List)
+    customWhitelistedWords.forEach(item => {
+      classifier.learn(item.word, 'clean');
+    });
+
+    console.log(`🧠 Added ${customForbiddenWords.length} custom user words to training (profane)`);
+    console.log(`🧠 Added ${customWhitelistedWords.length} custom safe words to training (clean)`);
 
     classifierTrained = true;
     console.log('✅ Naive Bayes classifier training complete!');
@@ -383,7 +445,14 @@ io.on('connection', (socket) => {
       students: [],
       messages: [],
       users: [{ id: socket.id, name: userName, role: 'teacher', handRaised: false }],
-      deletionTimeout: null // Initialize deletion timeout
+      deletionTimeout: null, // Initialize deletion timeout
+      // Advanced Model Settings (Default: 50% block, 30% report)
+      advancedSettings: {
+        blockEnabled: true,
+        blockThreshold: 90, // Low Sensitivity (10%) = High Threshold
+        reportEnabled: true,
+        reportThreshold: 10 // High Sensitivity (90%) = Low Threshold
+      }
     });
     socket.join(classId);
     console.log(`Class created: ${classId} by ${userName} (${socket.id})`);
@@ -521,31 +590,172 @@ io.on('connection', (socket) => {
   });
 
   // Send chat message
-  socket.on('send-message', ({ classId, content, type = 'text', fileData = null }) => {
-    if (!activeClasses.has(classId)) return;
+  socket.on('send-message', async ({ classId, content, type = 'text', fileData = null }) => {
+    try {
+      if (!activeClasses.has(classId)) {
+        console.warn(`Attempted to send message to non-existent class: ${classId}`);
+        return;
+      }
 
-    const classData = activeClasses.get(classId);
-    const user = classData.users.find(u => u.id === socket.id);
-    if (!user) return;
+      const classData = activeClasses.get(classId);
+      const user = classData.users.find(u => u.id === socket.id);
+      if (!user) {
+        console.warn(`User ${socket.id} not found in class ${classId}`);
+        return;
+      }
 
-    const message = {
-      id: Date.now() + Math.random(),
-      classId, // Include classId
-      senderId: socket.id,
-      senderName: user.name,
-      senderRole: user.role,
-      content,
-      type, // 'text' or 'file'
-      fileData, // { name, size, type, url } for files
-      timestamp: new Date().toISOString()
-    };
+      // === DEEP LEARNING FILTER CHECK ===
+      // Only check text messages, not files, and only if deep-learning mode is active
+      if (type === 'text' && classData.filterMode === 'deep-learning') {
+        const settings = classData.advancedSettings || {
+          blockEnabled: true,
+          blockThreshold: 50,
+          reportEnabled: true,
+          reportThreshold: 30
+        };
 
-    classData.messages.push(message);
+        // 1. Check against blacklist/basic filter first (Fast & Explicit)
+        const lowerContent = content.toLowerCase();
+        // Check custom blacklist
+        const isBlacklisted = customForbiddenWords.some(item => lowerContent.includes(item.word));
+        // Check basic filter if enabled (assuming we want to combine logic)
+        const isBasicProfane = filter.isProfane(content);
 
-    // Broadcast to all participants in the class
-    io.to(classId).emit('new-message', message);
+        if (isBlacklisted || isBasicProfane) {
+          console.log(`🚫 Blocked by Blacklist/Basic Filter: "${content}"`);
 
-    console.log(`Message from ${user.name} in ${classId}: ${type === 'text' ? content : 'file'}`);
+          // Block immediately
+          socket.emit('message-blocked', {
+            content,
+            reason: 'profanity (explicit)',
+            confidence: 100,
+            classId
+          });
+
+          if (classData.teacherId) {
+            io.to(classData.teacherId).emit('auto-blocked-message', {
+              message: content,
+              senderName: user.name,
+              confidence: 100,
+              category: 'explicit profanity',
+              addedWords: [], // Already known
+              classId
+            });
+          }
+
+          // Flag the user
+          io.to(classId).emit('user-was-flagged', { userId: socket.id, userName: user.name });
+
+          console.log(`[DEBUG] Message blocked (Blacklist): "${content}" from ${user.name}`);
+          return;
+        }
+
+        // 2. Only if safe, try Deep Learning (if ready)
+        if (deepLearningFilter.isModelReady()) {
+          console.log(`[DEBUG] AI Analyzing: "${content}"`);
+          const result = await deepLearningFilter.classifyMessage(content);
+          console.log(`[DEBUG] AI Result: ${result.tier} (${result.confidence}%)`);
+
+          // Helper to check thresholds
+          const shouldBlock = settings.blockEnabled && result.confidence >= settings.blockThreshold;
+          const shouldReport = settings.reportEnabled && result.confidence >= settings.reportThreshold;
+
+          if (shouldBlock) {
+            // High confidence toxic: Block the message, notify sender
+            socket.emit('message-blocked', {
+              content,
+              reason: result.category,
+              confidence: result.confidence,
+              classId
+            });
+
+            // Auto-add suspicious words to blacklist
+            const suspiciousWords = deepLearningFilter.extractSuspiciousWords(content);
+            for (const word of suspiciousWords) {
+              if (!customForbiddenWords.some(w => w.word === word)) {
+                customForbiddenWords.push({
+                  word: word,
+                  addedAt: new Date().toISOString(),
+                  source: 'deep-learning-auto'
+                });
+              }
+            }
+            if (suspiciousWords.length > 0) {
+              saveCustomForbiddenWords();
+              io.emit('forbidden-words-updated', customForbiddenWords);
+              console.log(`🧠 Auto-blocked: "${content.substring(0, 30)}..." (${result.confidence}% ${result.category})`);
+            }
+
+            // Notify teacher
+            if (classData.teacherId) {
+              io.to(classData.teacherId).emit('auto-blocked-message', {
+                message: content,
+                senderName: user.name,
+                confidence: result.confidence,
+                category: result.category,
+                addedWords: suspiciousWords,
+                classId
+              });
+            }
+
+            // Flag the user
+            io.to(classId).emit('user-was-flagged', { userId: socket.id, userName: user.name });
+
+            console.log(`[DEBUG] Message blocked (AI High): "${content}" from ${user.name}`);
+            return; // Don't broadcast the message
+          } else if (shouldReport) {
+            // Medium confidence: Send but create a report for teacher
+            const suspiciousWords = deepLearningFilter.extractSuspiciousWords(content);
+            if (suspiciousWords.length > 0) {
+              const report = {
+                id: Date.now().toString(),
+                word: suspiciousWords[0],
+                context: content,
+                reporterName: 'AI Detection',
+                reporterId: 'deep-learning',
+                senderName: user.name,
+                classId,
+                timestamp: new Date().toISOString(),
+                aiConfidence: result.confidence,
+                aiCategory: result.category
+              };
+              pendingReports.push(report);
+              savePendingReports();
+
+              if (classData.teacherId) {
+                io.to(classData.teacherId).emit('new-report', report);
+              }
+              console.log(`🧠 AI flagged for review: "${content.substring(0, 30)}..." (${result.confidence}% ${result.category})`);
+            }
+            // Continue to broadcast the message (medium tier doesn't block)
+          }
+          // Safe tier: Just continue normally
+          console.log(`[DEBUG] Message passed AI (Safe/Low): "${content}"`);
+        }
+      }
+
+      const message = {
+        id: Date.now() + Math.random(),
+        classId, // Include classId
+        senderId: socket.id,
+        senderName: user.name,
+        senderRole: user.role,
+        content,
+        type, // 'text' or 'file'
+        fileData, // { name, size, type, url } for files
+        timestamp: new Date().toISOString()
+      };
+
+      classData.messages.push(message);
+
+      // Broadcast to all participants in the class
+      io.to(classId).emit('new-message', message);
+      console.log(`[DEBUG] Broadcasted new-message: "${content}" to ${classId}`);
+
+      console.log(`Message from ${user.name} in ${classId}: ${type === 'text' ? content : 'file'}`);
+    } catch (error) {
+      console.error('❌ Error in send-message handler:', error);
+    }
   });
 
   // User flagged for inappropriate content
@@ -595,6 +805,56 @@ io.on('connection', (socket) => {
 
     console.log(`Message ${messageId} pinned in class ${classId}`);
     callback({ success: true });
+  });
+
+  // Get Filter Mode
+  socket.on('get-filter-mode', ({ classId }, callback) => {
+    if (activeClasses.has(classId)) {
+      callback(activeClasses.get(classId).filterMode);
+    } else {
+      callback('legacy');
+    }
+  });
+
+  // Get Advanced Settings
+  socket.on('get-advanced-settings', ({ classId }, callback) => {
+    if (activeClasses.has(classId)) {
+      callback(activeClasses.get(classId).advancedSettings);
+    } else {
+      callback(null);
+    }
+  });
+
+  // Set Filter Mode
+  socket.on('set-filter-mode', ({ classId, mode }, callback) => {
+    if (!activeClasses.has(classId)) return callback({ success: false, message: 'Class not found' });
+
+    const classData = activeClasses.get(classId);
+
+    // Only teacher
+    if (classData.teacherId !== socket.id) return callback({ success: false, message: 'Unauthorized' });
+
+    classData.filterMode = mode;
+    io.to(classId).emit('filter-mode-changed', { classId, mode });
+
+    console.log(`Filter mode for class ${classId} set to ${mode}`);
+    callback({ success: true });
+  });
+
+  // Update Advanced Settings
+  socket.on('update-advanced-settings', ({ classId, settings }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+
+    // Only teacher
+    if (classData.teacherId !== socket.id) return;
+
+    classData.advancedSettings = {
+      ...classData.advancedSettings,
+      ...settings
+    };
+
+    console.log(`Advanced settings updated for class ${classId}:`, classData.advancedSettings);
   });
 
   // Unpin message (Teacher only)
@@ -701,7 +961,6 @@ io.on('connection', (socket) => {
     callback();
   });
 
-  // Get Server Info (IP/Port)
   // Get Server Info (IP/Port)
   socket.on('get-server-info', (arg1, arg2) => {
     // Handle variable arguments: (callback) or (data, callback)
@@ -968,6 +1227,50 @@ io.on('connection', (socket) => {
     if (typeof callback === 'function') {
       callback(customForbiddenWords);
     }
+  });
+
+  // Get Whitelist
+  socket.on('get-whitelisted-words', (callback) => {
+    if (typeof callback === 'function') {
+      callback(customWhitelistedWords);
+    }
+  });
+
+  // Add Whitelisted Word
+  socket.on('add-whitelisted-word', ({ word }, callback) => {
+    if (!word) return callback({ success: false });
+    const normalized = word.trim().toLowerCase();
+
+    if (customWhitelistedWords.some(w => w.word === normalized)) {
+      return callback({ success: false, message: 'Word already exists' });
+    }
+
+    customWhitelistedWords.push({
+      word: normalized,
+      addedAt: new Date().toISOString(),
+      source: 'manual'
+    });
+    saveCustomWhitelistedWords();
+    io.emit('whitelisted-words-updated', customWhitelistedWords);
+
+    // Retrain logic could go here, or use triggerBatchTraining if available
+    triggerBatchTraining();
+
+    callback({ success: true });
+  });
+
+  // Remove Whitelisted Word
+  socket.on('remove-whitelisted-word', ({ word }, callback) => {
+    const initialLen = customWhitelistedWords.length;
+    customWhitelistedWords = customWhitelistedWords.filter(w => w.word !== word);
+
+    if (customWhitelistedWords.length !== initialLen) {
+      saveCustomWhitelistedWords();
+      io.emit('whitelisted-words-updated', customWhitelistedWords);
+      triggerBatchTraining();
+    }
+
+    callback({ success: true });
   });
 
   // ===== FILTER MODE & AI CHECK =====
@@ -1283,8 +1586,24 @@ io.on('connection', (socket) => {
 
     // Notify teacher of update
     io.to(classData.teacherId).emit('report-resolved', { reportId, action: 'rejected' });
-
     console.log(`❌ Report rejected: '${report.word}'`);
+
+    // Auto-add to Whitelist (Good List) for future training
+    const exists = customWhitelistedWords.some(w => w.word === report.word.toLowerCase());
+    if (!exists) {
+      customWhitelistedWords.push({
+        word: report.word.toLowerCase(),
+        addedAt: new Date().toISOString(),
+        source: 'rejected-report'
+      });
+      saveCustomWhitelistedWords();
+      io.emit('whitelisted-words-updated', customWhitelistedWords);
+      console.log(`🕊️ Auto-added safe word: '${report.word}' to Good List`);
+
+      // Trigger Batch Training
+      triggerBatchTraining();
+    }
+
     if (typeof callback === 'function') callback({ success: true });
   });
 
@@ -1320,7 +1639,6 @@ io.on('connection', (socket) => {
     triggerBatchTraining();
   });
 
-  // ===== WEB RTC SCREEN SHARING =====
   // ===== WEB RTC SCREEN SHARING =====
   socket.on('screen-share-status', ({ classId, isSharing }) => {
     if (!activeClasses.has(classId)) return;

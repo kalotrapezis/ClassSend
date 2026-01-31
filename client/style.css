@@ -2488,13 +2488,15 @@ input:checked+.slider:before {
 
 .logs-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .logs-actions .secondary-btn {
   flex: 1;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.85rem;
+  /* Removed overridden padding to match default button size */
+  justify-content: center;
+  /* Center content since flex: 1 stretches them */
 }
 
 /* Logs Viewer */
@@ -3082,4 +3084,24 @@ input:checked+.slider:before {
   font-size: 0.8rem;
   color: var(--text-tertiary);
   font-style: italic;
+}
+
+/* Good List Button */
+.good-list-btn {
+  width: 100%;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.good-list-btn:hover {
+  border-color: #92c353;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(98, 100, 167, 0.4);
+}
+
+.whitelist-tag {
+  background-color: #28a745 !important;
+  color: white;
 }

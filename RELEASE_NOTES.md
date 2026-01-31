@@ -1,3 +1,34 @@
+# Release Notes - v7.0.0
+
+## 🚀 Major Features
+
+### 3-Layer AI Filtering Architecture
+We've completely overhauled the content filtering engine to provide three distinct levels of security:
+- **Legacy (Fast)**: Standard client-side blacklist filtering for older devices.
+- **Advanced (Adaptive)**: Server-side Naive Bayes classification that learns from your corrections.
+- **Deep Learning (Smart)**: **New** integration of `Toxic-BERT` (via Transformers.js) for human-like understanding of context, insults, and harassment.
+
+### ⚙️ Customizable Model Sensitivity
+Teachers are now in full control of the AI's behavior:
+- **Blocking Sensitivity**: Set how strict the model should be when blocking messages (10% - 100%).
+- **Reporting Sensitivity**: Configure the threshold for flagging suspicious content for review.
+- **Defaults**: Tuned for optimal safety (10% Blocking, 90% Reporting).
+
+### 🛡️ Role-Based Interface
+- **student View**: Simplified interface hiding all administrative settings (Streaming, Data, Filtering). Students only see Language options.
+- **Teacher View**: Full control panel with automatic setting synchronization to all connected students.
+
+### 📋 Enhanced List Management
+- **Good List (Whitelist)**: Explicitly allow safe words that might otherwise be flagged.
+- **Blacklist (Forbidden)**: Add custom words to be blocked instantly.
+- **Data Portability**: Import and Export both lists as JSON files to share between classrooms.
+
+### ⚡ Performance & Privacy
+- **Memory-Only Logs**: Application logs are now stored in RAM and automatically cleared when the app closes, ensuring privacy and reducing disk usage.
+- **Optimized MobileBERT**: The Deep Learning model is optimized for minimal resource usage while maintaining high accuracy.
+
+---
+
 # Release Notes - v6.7.0
 
 ## 🚀 New Features
