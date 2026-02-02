@@ -150,19 +150,17 @@ app.get('/api/download/:fileId', (req, res) => {
 
   console.log(`[Download] Sending file from: ${file.path}`);
 
-  // Set headers manually for download
-  res.setHeader('Content-Disposition', `attachment; filename="${file.name}"`);
-  res.setHeader('Content-Type', file.type || 'application/octet-stream');
+  // Set Content-Type manually if available, otherwise res.download will attempt to guess it
+  if (file.type) {
+    res.setHeader('Content-Type', file.type);
+  }
 
-  // Use sendFile with root option to avoid path resolution issues
-  const rootDir = path.dirname(file.path);
-  const fileName = path.basename(file.path);
-
-  res.sendFile(fileName, { root: rootDir }, (err) => {
+  // Use res.download for a robust, standard way to serve files with proper encoding
+  res.download(file.path, file.name, (err) => {
     if (err) {
-      console.error(`[Download] Error sending file:`, err);
+      console.error(`[Download] Error during res.download:`, err);
       if (!res.headersSent) {
-        res.status(404).json({ error: 'File sending failed' });
+        res.status(404).json({ error: 'File download failed' });
       }
     } else {
       console.log(`[Download] File sent successfully: ${file.name}`);
@@ -604,6 +602,21 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // Generate message object first so we have the ID to link with reports
+      const messageId = Date.now() + Math.random();
+
+      const message = {
+        id: messageId,
+        classId, // Include classId
+        senderId: socket.id,
+        senderName: user.name,
+        senderRole: user.role,
+        content,
+        type, // 'text' or 'file'
+        fileData, // { name, size, type, url } for files
+        timestamp: new Date().toISOString()
+      };
+
       // === DEEP LEARNING FILTER CHECK ===
       // Only check text messages, not files, and only if deep-learning mode is active
       if (type === 'text' && classData.filterMode === 'deep-learning') {
@@ -614,43 +627,54 @@ io.on('connection', (socket) => {
           reportThreshold: 30
         };
 
-        // 1. Check against blacklist/basic filter first (Fast & Explicit)
+        // 0. Check against Whitelist first (Priority)
         const lowerContent = content.toLowerCase();
-        // Check custom blacklist
-        const isBlacklisted = customForbiddenWords.some(item => lowerContent.includes(item.word));
-        // Check basic filter if enabled (assuming we want to combine logic)
-        const isBasicProfane = filter.isProfane(content);
+        const isWhitelisted = customWhitelistedWords.some(item => lowerContent.includes(item.word.toLowerCase()));
 
-        if (isBlacklisted || isBasicProfane) {
-          console.log(`🚫 Blocked by Blacklist/Basic Filter: "${content}"`);
+        if (isWhitelisted) {
+          console.log(`[DEBUG] Message whitelisted: "${content}"`);
+          // Skip all other filters
+        } else {
+          // 1. Check against blacklist/basic filter (Fast & Explicit)
+          // Check custom blacklist
+          const isBlacklisted = customForbiddenWords.some(item => lowerContent.includes(item.word));
+          // Check basic filter if enabled (assuming we want to combine logic)
+          const isBasicProfane = filter.isProfane(content);
 
-          // Block immediately
-          socket.emit('message-blocked', {
-            content,
-            reason: 'profanity (explicit)',
-            confidence: 100,
-            classId
-          });
+          if (isBlacklisted || isBasicProfane) {
 
-          if (classData.teacherId) {
-            io.to(classData.teacherId).emit('auto-blocked-message', {
-              message: content,
-              senderName: user.name,
+            console.log(`🚫 Blocked by Blacklist/Basic Filter: "${content}"`);
+
+            // Block immediately
+            socket.emit('message-blocked', {
+              content,
+              reason: 'profanity (explicit)',
               confidence: 100,
-              category: 'explicit profanity',
-              addedWords: [], // Already known
               classId
             });
+
+            if (classData.teacherId) {
+              io.to(classData.teacherId).emit('auto-blocked-message', {
+                message: content,
+                senderName: user.name,
+                confidence: 100,
+                category: 'explicit profanity',
+                addedWords: [], // Already known
+                classId
+              });
+            }
+
+            // Flag the user
+            io.to(classId).emit('user-was-flagged', { userId: socket.id, userName: user.name });
+
+            console.log(`[DEBUG] Message blocked (Blacklist): "${content}" from ${user.name}`);
+            return;
           }
-
-          // Flag the user
-          io.to(classId).emit('user-was-flagged', { userId: socket.id, userName: user.name });
-
-          console.log(`[DEBUG] Message blocked (Blacklist): "${content}" from ${user.name}`);
-          return;
         }
 
-        // 2. Only if safe, try Deep Learning (if ready)
+
+
+        // 2. AI Content Filtering (Deep Learning) (if ready)
         if (deepLearningFilter.isModelReady()) {
           console.log(`[DEBUG] AI Analyzing: "${content}"`);
           const result = await deepLearningFilter.classifyMessage(content);
@@ -711,6 +735,7 @@ io.on('connection', (socket) => {
                 id: Date.now().toString(),
                 word: suspiciousWords[0],
                 context: content,
+                messageId: messageId, // Link to the message for deletion
                 reporterName: 'AI Detection',
                 reporterId: 'deep-learning',
                 senderName: user.name,
@@ -734,17 +759,8 @@ io.on('connection', (socket) => {
         }
       }
 
-      const message = {
-        id: Date.now() + Math.random(),
-        classId, // Include classId
-        senderId: socket.id,
-        senderName: user.name,
-        senderRole: user.role,
-        content,
-        type, // 'text' or 'file'
-        fileData, // { name, size, type, url } for files
-        timestamp: new Date().toISOString()
-      };
+      // Message object already created above
+
 
       classData.messages.push(message);
 
@@ -1256,6 +1272,15 @@ io.on('connection', (socket) => {
     // Retrain logic could go here, or use triggerBatchTraining if available
     triggerBatchTraining();
 
+    // Check if it exists in Blacklist and remove it
+    const blacklistIndex = customForbiddenWords.findIndex(w => w.word === normalized);
+    if (blacklistIndex !== -1) {
+      customForbiddenWords.splice(blacklistIndex, 1);
+      saveCustomForbiddenWords();
+      io.emit('forbidden-words-updated', customForbiddenWords); // Notify clients to update blacklist UI
+      console.log(`🔄 Auto-removed "${normalized}" from Blacklist because it was added to Whitelist`);
+    }
+
     callback({ success: true });
   });
 
@@ -1334,17 +1359,27 @@ io.on('connection', (socket) => {
       return;
     }
 
-    if (deepLearningFilter.isModelLoading()) {
-      if (typeof callback === 'function') callback({ success: false, status: 'loading', progress: deepLearningFilter.getLoadProgress() });
+    if (deepLearningFilter.isModelReady()) {
+      if (typeof callback === 'function') callback({ success: true, status: 'ready', logs: ['Model already ready via check'] });
       return;
     }
 
+    // REMOVED isModelLoading check - let loadModel handle downstream waiting
+    // if (deepLearningFilter.isModelLoading()) { ... }
+
     // Start loading with progress updates
-    const success = await deepLearningFilter.loadModel((progress) => {
+    const result = await deepLearningFilter.loadModel((progress) => {
       socket.emit('deep-learning-progress', progress);
     });
 
-    if (typeof callback === 'function') callback({ success, status: success ? 'ready' : 'error' });
+    if (typeof callback === 'function') {
+      callback({
+        success: result.success,
+        status: result.success ? 'ready' : 'error',
+        logs: result.logs,
+        error: result.error
+      });
+    }
   });
 
   // Check model status

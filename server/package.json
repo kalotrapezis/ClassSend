@@ -1,6 +1,6 @@
 {
     "name": "classsend",
-    "version": "7.0.0",
+    "version": "7.2.0",
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
@@ -11,6 +11,7 @@
         "make": "electron-forge make",
         "make:appimage": "electron-forge make --platform=linux",
         "make:win32-zip": "electron-forge make --arch=ia32 --platform=win32",
+        "make:win64-zip": "electron-forge make --arch=x64 --platform=win32",
         "generate-icon": "node convert-icon.js",
         "server": "node index.js",
         "dev": "node --watch index.js",
@@ -27,6 +28,12 @@
                     "^/out",
                     "^/uploads",
                     "^/node_modules/[.]cache"
+                ],
+                "asar": {
+                    "unpack": "**/*.{node,dll}"
+                },
+                "extraResource": [
+                    "./models"
                 ],
                 "arch": [
                     "x64",

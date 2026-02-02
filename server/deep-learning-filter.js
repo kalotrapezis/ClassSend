@@ -104,31 +104,33 @@ const ALL_STOPWORDS = new Set([...GREEK_STOPWORDS, ...GREEKLISH_STOPWORDS, ...EN
  */
 async function loadModel(progressCallback) {
     if (classifier) {
-        return true; // Already loaded
+        return { success: true, logs: ['🧠 Model already loaded and ready.'] };
     }
 
     // If already loading, wait for the existing load to complete
     if (isLoading && loadPromise) {
-        console.log('🧠 Model load already in progress, waiting...');
+        // console.log('🧠 Model load already in progress, waiting...');
         try {
-            await loadPromise;
-            return classifier !== null;
+            const result = await loadPromise;
+            return result; // Propagate the full result object
         } catch (error) {
-            return false;
+            console.warn('🧠 Previous model load failed:', error.message);
+            // Fall through to new load attempt
         }
     }
 
     isLoading = true;
     loadProgress = 0;
+    const logBuffer = []; // Initialize logBuffer here
 
     // Create the load promise so other callers can wait on it
     loadPromise = (async () => {
         try {
-            console.log('🧠 Loading Deep Learning model (MobileBERT)...');
+            logBuffer.push('🧠 Loading Deep Learning model (MobileBERT)...');
 
             // Dynamic import for ESM module
             if (!pipeline) {
-                console.log('🧠 Importing Transformers.js...');
+                logBuffer.push('🧠 Importing Transformers.js...');
                 const transformers = await import('@xenova/transformers');
                 pipeline = transformers.pipeline;
                 env = transformers.env;
@@ -138,19 +140,52 @@ async function loadModel(progressCallback) {
                 env.allowLocalModels = true;
 
                 // Point to bundled model directory
-                const modelsPath = path.join(__dirname, 'models');
+                // Check process.resourcesPath first (for packaged Electron app)
+                // Fallback to __dirname (for local development)
+                const isPackaged = process.resourcesPath && !process.resourcesPath.includes('node_modules');
+                const modelsPath = isPackaged
+                    ? path.join(process.resourcesPath, 'models')
+                    : path.join(__dirname, 'models');
+
+                logBuffer.push('🔍 [DEBUG] Model Loading Diagnostic:');
+                logBuffer.push(`   - isPackaged: ${isPackaged}`);
+                logBuffer.push(`   - process.resourcesPath: ${process.resourcesPath}`);
+                logBuffer.push(`   - __dirname: ${__dirname}`);
+                logBuffer.push(`   - Resolved modelsPath: ${modelsPath}`);
+
+                // Verify file system
+                const fs = require('fs');
+                if (fs.existsSync(modelsPath)) {
+                    logBuffer.push('   - modelsPath exists ✅');
+                    try {
+                        const contents = fs.readdirSync(modelsPath);
+                        logBuffer.push(`   - contents: ${contents.join(', ')}`);
+                        if (contents.includes('Xenova')) {
+                            const xenovaPath = path.join(modelsPath, 'Xenova');
+                            try {
+                                logBuffer.push(`   - Xenova contents: ${fs.readdirSync(xenovaPath).join(', ')}`);
+                            } catch (e) { logBuffer.push(`   - Error listing Xenova: ${e.message}`); }
+                        }
+                    } catch (e) {
+                        logBuffer.push(`   - Error listing directory: ${e.message}`);
+                    }
+                } else {
+                    logBuffer.push('   - modelsPath does NOT exist ❌');
+                }
+
                 env.localModelPath = modelsPath;
 
                 // Check if bundled model exists, otherwise allow remote download
-                const fs = require('fs');
                 const modelPath = path.join(modelsPath, 'Xenova', 'mobilebert-uncased-mnli', 'config.json');
+                logBuffer.push(`   - Checking specific config: ${modelPath}`);
+
                 if (fs.existsSync(modelPath)) {
                     env.allowRemoteModels = false;
-                    console.log('🧠 Using bundled model from:', modelsPath);
+                    logBuffer.push(`🧠 Using bundled model from: ${modelsPath}`);
                 } else {
                     env.allowRemoteModels = true;
-                    console.log('🧠 Bundled model not found. Downloading MobileBERT from Hugging Face...');
-                    console.log('🧠 Model will be cached for future use.');
+                    logBuffer.push(`🧠 Bundled model not found at specific path. Fail-safe to download...`);
+                    logBuffer.push(`🧠 Model will be cached for future use.`);
                 }
             }
 
@@ -169,7 +204,6 @@ async function loadModel(progressCallback) {
                                     file: progress.file || 'model'
                                 });
                             }
-                            console.log(`🧠 Model loading: ${loadProgress}%`);
                         } else if (progress.status === 'done') {
                             if (progressCallback) {
                                 progressCallback({ status: 'ready', progress: 100 });
@@ -179,12 +213,17 @@ async function loadModel(progressCallback) {
                 }
             );
 
-            console.log('✅ Multilingual Deep Learning model loaded successfully!');
-            return true;
+            logBuffer.push('✅ Multilingual Deep Learning model loaded successfully!');
+            // Log to console as well
+            logBuffer.forEach(l => console.log(l));
+
+            return { success: true, logs: logBuffer };
         } catch (error) {
             console.error('❌ Failed to load Deep Learning model:', error);
+            logBuffer.push(`❌ Failed to load Deep Learning model: ${error.message}`);
+            logBuffer.push(`❌ Error Stack: ${error.stack}`);
             classifier = null;
-            return false;
+            return { success: false, logs: logBuffer, error: error.message };
         } finally {
             isLoading = false;
             loadPromise = null;

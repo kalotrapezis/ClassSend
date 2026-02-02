@@ -1,3 +1,54 @@
+# Release Notes - v7.2.0
+## ✨ UI Redesign & UX Improvements
+This release focuses on a major UI overhaul of the Media Library and Settings modal.
+
+### 📋 Media Library List View
+- **Redesigned Layout**: Switched from cards to a horizontal list layout matching the User List.
+- **Pill Shape**: Items now use a modern pill shape with glassmorphism (blur) effects.
+- **Quick Actions**: "Pin" and "Download" buttons are now neatly grouped on the right.
+- **Better Alignment**: File name and metadata (size/sender) are horizontal for better space utilization.
+
+### ⚙️ Redesigned Settings Modal
+- **Categorized Sidebar**: Added a sidebar to the settings modal for better organization (Personalization, Moderation, Connection, etc.).
+- **Smooth Navigation**: Fast tab switching with clear SVG icons for each category.
+- **About Page**: Updated with version information and a direct link to GitHub Releases.
+
+### ⚡ Technical Improvements
+- **CSS Versioning**: Added version query strings to CSS links to force cache refreshes.
+- **Consolidated Styles**: Cleaned up conflicting CSS to ensure a consistent look and feel.
+
+### 🚫 Moderation Updates
+- **Blacklist Terminology**: Renamed "dictionary" to "Blacklist" throughout the app for clarity.
+- **Whitelist Renaming**: Renamed "Good List" to "Whitelist" to match industry standard terminology.
+- **Priority Filtering**: Whitelisted words now bypass ALL filters (including AI and Blacklist), ensuring safe words are never blocked.
+- **Auto-Cleanup**: Adding a word to the Whitelist automatically removes it from the Blacklist.
+
+### 🐛 Bug Fixes
+- **Message Blocking**: Fixed a critical bug where approving a report would not delete the message from the chat.
+- **Toast Notifications**: Repositioned notifications to the bottom-center for better visibility and less obstruction.
+- **Client Validation**: Fixed an issue where the client would show a warning for whitelisted words even if they were allowed by the server.
+
+---
+
+# Release Notes - v7.0.1
+## 📦 Offline AI & Engine Improvements
+ClassSend is now fully optimized for offline use and modern hardware!
+
+### 🌍 Truly Offline AI
+- **Bundled Model**: The Deep Learning AI model (`~100MB`) is now embedded directly inside the application.
+- **No Internet Required**: ClassSend detects the bundled model and loads it instantly from your local disk, requiring **zero** internet connection at runtime.
+- **Fail-Safe**: Smart fallback logic ensures the app keeps working even if the model files are moved or corrupted.
+
+### 🛠️ Architecture Upgrade (x64)
+- **64-bit Exclusive**: We have upgraded the Windows build to **64-bit (x64)** to fully leverage modern processors and RAM for AI tasks.
+- **Native Performance**: Native modules (`sharp`, `onnxruntime`) are now properly compiled and unpacked, resolving all previous "missing module" errors.
+- **Concurrency Fix**: Fixed a race condition where quickly toggling the filter could cause silent failures.
+
+### 🔍 Debugging Tools
+- **Deep Server Logs**: Server-side model loading logs are now piped directly to the client's debug console, giving you full visibility into what the AI engine is doing.
+
+---
+
 # Release Notes - v7.0.0
 
 ## 🚀 Major Features

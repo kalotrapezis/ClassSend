@@ -88,10 +88,8 @@ const availableClassesList = document.getElementById("available-classes-list");
 
 // DOM Elements - Chat
 const classesListContainer = document.querySelector(".classes-list");
-const userNameBtn = document.getElementById("user-name-btn");
-const userNameDropdown = document.getElementById("user-name-dropdown");
-const newNameInput = document.getElementById("new-name-input");
-const btnChangeName = document.getElementById("btn-change-name");
+const settingsNameInput = document.getElementById("settings-name-input");
+const btnSettingsChangeName = document.getElementById("btn-settings-change-name");
 const messagesContainer = document.getElementById("messages-container");
 const messageInput = document.getElementById("message-input");
 const btnSendMessage = document.getElementById("btn-send-message");
@@ -116,6 +114,8 @@ const btnSettingsToggle = document.getElementById("btn-settings-toggle");
 const settingsModal = document.getElementById("settings-modal");
 const btnCloseSettings = document.getElementById("btn-close-settings");
 const languageSelect = document.getElementById("language-select");
+const checkAutoOpenConnection = document.getElementById("auto-open-connection");
+const checkAutoCloseConnection = document.getElementById("auto-close-connection");
 
 // Advanced Settings Elements
 const settingsAdvancedSection = document.getElementById("settings-advanced-section");
@@ -205,9 +205,18 @@ if (btnCopyUrl) {
         if (copied) {
             const originalText = btnCopyUrl.textContent;
             btnCopyUrl.textContent = "✅";
-            setTimeout(() => {
-                btnCopyUrl.textContent = originalText;
-            }, 1500);
+
+            // Auto-close connection info if enabled
+            if (checkAutoCloseConnection && checkAutoCloseConnection.checked) {
+                setTimeout(() => {
+                    connectionModal.classList.add("hidden");
+                    btnCopyUrl.textContent = originalText;
+                }, 800);
+            } else {
+                setTimeout(() => {
+                    btnCopyUrl.textContent = originalText;
+                }, 1500);
+            }
         } else {
             // Show error feedback
             const originalText = btnCopyUrl.textContent;
@@ -366,11 +375,11 @@ mediaPopup.addEventListener("click", (e) => {
     }
 });
 
-// Socket Connection
 socket.on("connect", () => {
     connectionStatus.classList.remove("disconnected");
     connectionStatus.classList.add("connected");
-    connectionStatus.textContent = "Connected";
+    const statusText = connectionStatus.querySelector(".status-text");
+    if (statusText) statusText.textContent = "Connected";
     connectionStatus.title = "Connected";
 
     // Re-join if we were in a class
@@ -386,7 +395,8 @@ socket.on("connect", () => {
 socket.on("disconnect", () => {
     connectionStatus.classList.remove("connected");
     connectionStatus.classList.add("disconnected");
-    connectionStatus.textContent = "Disconnected";
+    const statusText = connectionStatus.querySelector(".status-text");
+    if (statusText) statusText.textContent = "Disconnected";
     connectionStatus.title = "Disconnected";
 });
 
@@ -526,10 +536,19 @@ btnSubmitSetup.addEventListener("click", () => {
                     blockedUsers: new Set() // Initialize empty blocked users set
                 });
 
-                // Update UI with user name immediately
-                userNameBtn.textContent = `${userName} ▼`;
+                // Update settings input with user name
+                if (settingsNameInput) settingsNameInput.value = userName;
 
                 switchClass(enteredClassId);
+
+                // Auto-open connection info if enabled
+                if (checkAutoOpenConnection && checkAutoOpenConnection.checked) {
+                    socket.emit("get-server-info", { classId: enteredClassId }, (info) => {
+                        serverInfo = info;
+                        updateConnectionUrl();
+                        connectionModal.classList.remove("hidden");
+                    });
+                }
             } else {
                 alert(response.message);
             }
@@ -621,7 +640,7 @@ function switchClass(id) {
     availableClassesScreen.classList.add("hidden");
     chatInterface.classList.remove("hidden");
 
-    userNameBtn.textContent = `${userName} ▼`;
+    if (settingsNameInput) settingsNameInput.value = userName;
 
     // Load pinned messages for this class
     const classData = joinedClasses.get(id);
@@ -640,9 +659,9 @@ function switchClass(id) {
 
     closeMobileSidebar(); // Close sidebar on mobile
 
-    // Update dictionary button visibility for teacher
-    if (typeof updateDictionaryButtonVisibility === 'function') {
-        updateDictionaryButtonVisibility();
+    // Update blacklist button visibility for teacher
+    if (typeof updateBlacklistButtonVisibility === 'function') {
+        updateBlacklistButtonVisibility();
     }
 }
 
@@ -777,53 +796,38 @@ function renderSidebar() {
 }
 
 
-// User Name Change
-userNameBtn.addEventListener("click", () => {
-    userNameDropdown.classList.toggle("hidden");
-    if (!userNameDropdown.classList.contains("hidden")) {
-        newNameInput.value = "";
-        newNameInput.focus();
-    }
-});
+// User Name Change from Settings
+if (btnSettingsChangeName) {
+    btnSettingsChangeName.addEventListener("click", () => {
+        const newName = settingsNameInput.value.trim();
+        if (!newName) return alert("Please enter a new name");
+        if (newName === userName) return;
 
-btnChangeName.addEventListener("click", () => {
-    const newName = newNameInput.value.trim();
-    if (!newName) return alert("Please enter a new name");
-    if (newName === userName) {
-        userNameDropdown.classList.add("hidden");
-        return;
-    }
-
-    // Change name in ALL joined classes? Or just current?
-    // Requirement says "names are editable", implies global identity for the user session.
-    // We'll iterate and emit for all joined classes.
-    // Actually server handles it per class. Let's just do it for current class for now or all?
-    // Simpler: Change for current class.
-    if (!currentClassId) return;
-
-    socket.emit("change-user-name", { classId: currentClassId, newName }, (response) => {
-        if (response.success) {
+        if (!currentClassId) {
+            // Just update local state if not in a class
             userName = newName;
-            userNameBtn.textContent = `${userName} ▼`;
-            userNameDropdown.classList.add("hidden");
-            // Update local state
-            if (joinedClasses.has(currentClassId)) {
-                const classData = joinedClasses.get(currentClassId);
-                const me = classData.users.find(u => u.id === socket.id);
-                if (me) me.name = newName;
-            }
-        } else {
-            alert(response.message);
+            localStorage.setItem('classsend-userName', newName);
+            showToast("Name updated locally", "success");
+            return;
         }
-    });
-});
 
-// Close dropdown when clicking outside
-document.addEventListener("click", (e) => {
-    if (!userNameBtn.contains(e.target) && !userNameDropdown.contains(e.target)) {
-        userNameDropdown.classList.add("hidden");
-    }
-});
+        socket.emit("change-user-name", { classId: currentClassId, newName }, (response) => {
+            if (response.success) {
+                userName = newName;
+                localStorage.setItem('classsend-userName', newName);
+                if (joinedClasses.has(currentClassId)) {
+                    const classData = joinedClasses.get(currentClassId);
+                    const me = classData.users.find(u => u.id === socket.id);
+                    if (me) me.name = newName;
+                }
+                showToast("Name updated successfully", "success");
+            } else {
+                alert(response.message);
+                settingsNameInput.value = userName; // Revert
+            }
+        });
+    });
+}
 
 // Send Message
 function sendMessage() {
@@ -1058,7 +1062,7 @@ function renderMessage(message) {
           <div class="file-size">${formatFileSize(message.fileData.size)}</div>
           <div class="message-actions">
             ${isImage ? '<button class="action-btn open-btn" title="Open Image">👁️</button>' : ''}
-            <button class="action-btn download-btn" title="Download">⬇️</button>
+            <button class="action-btn download-btn" title="Download"><span class="btn-icon-download"></span></button>
           </div>
         </div>
       </div>
@@ -1263,10 +1267,12 @@ function renderMediaHistory() {
                     <span>${msg.senderName}</span>
                 </div>
             </div>
-            ${pinBtn}
-            <button class="media-download-btn" title="Download" onclick="downloadFile('${msg.fileData.id || msg.fileData.data}', '${escapeHtml(msg.fileData.name)}')">
-                ⬇️
-            </button>
+            <div class="media-actions-group">
+                ${pinBtn}
+                <button class="media-download-btn" title="Download" onclick="downloadFile('${msg.fileData.id || msg.fileData.data}', '${escapeHtml(msg.fileData.name)}')">
+                    <span class="btn-icon-download"></span>
+                </button>
+            </div>
         `;
 
         // Add pin button listener
@@ -1331,42 +1337,49 @@ function renderUsersList() {
         const chatBlockedForNewUsers = classData.chatBlockedForNewUsers || false;
         const allBlocked = allStudentsBlocked || (students.length === 0 && chatBlockedForNewUsers);
 
-        const toggleBtn = document.createElement('button');
-        toggleBtn.className = 'toggle-block-all-btn';
-        toggleBtn.style.cssText = 'padding: 6px 12px; font-size: 0.9rem; cursor: pointer; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; display: flex; align-items: center; gap: 6px; transition: background 0.2s;';
+        const toggleContainer = document.createElement('div');
+        toggleContainer.className = 'block-toggle-container';
+        toggleContainer.title = chatBlockedForNewUsers && students.length === 0
+            ? 'New users will join blocked'
+            : 'Toggle communication blocking for all students';
 
-        if (allBlocked) {
-            toggleBtn.innerHTML = '✅ Unblock All';
-            toggleBtn.title = chatBlockedForNewUsers && students.length === 0
-                ? 'Chat will be unblocked for new users'
-                : 'Unblock All Students';
-            toggleBtn.onclick = (e) => {
-                e.stopPropagation();
-                classData.chatBlockedForNewUsers = false;
-                socket.emit('unblock-all-users', { classId: currentClassId });
-                renderUsersList();
-            };
-        } else {
-            toggleBtn.innerHTML = '⛔ Block All';
-            toggleBtn.title = students.length === 0
-                ? 'New users will have chat blocked when they join'
-                : 'Block All Students';
-            toggleBtn.onclick = (e) => {
-                e.stopPropagation();
+        // HTML Structure for Toggle
+        toggleContainer.innerHTML = `
+            <label class="toggle-switch">
+                <input type="checkbox" id="block-all-checkbox" ${allBlocked ? 'checked' : ''}>
+                <span class="slider round"></span>
+            </label>
+            <span class="toggle-label" data-i18n="label-block-all">Block all communications</span>
+        `;
+
+        const checkbox = toggleContainer.querySelector('#block-all-checkbox');
+
+        checkbox.addEventListener('change', (e) => {
+            e.stopPropagation();
+            const isChecked = e.target.checked;
+
+            if (isChecked) {
+                // Block All
                 classData.chatBlockedForNewUsers = true;
                 socket.emit('block-all-users', { classId: currentClassId });
+                // If no students yet, we manually refresh to show state (though renderUsersList is usually called by server response)
                 if (students.length === 0) {
-                    // Show visual feedback that new users will be blocked
-                    toggleBtn.innerHTML = '🔒 Blocked';
                     setTimeout(() => renderUsersList(), 100);
                 }
-            };
-        }
+            } else {
+                // Unblock All
+                classData.chatBlockedForNewUsers = false;
+                socket.emit('unblock-all-users', { classId: currentClassId });
+            }
+        });
 
-        toggleBtn.onmouseover = () => toggleBtn.style.background = 'rgba(0,0,0,0.5)';
-        toggleBtn.onmouseout = () => toggleBtn.style.background = 'rgba(0,0,0,0.3)';
+        // Prevent label click from bubbling weirdly if needed, but label wraps input so it triggers change
+        toggleContainer.addEventListener('click', (e) => {
+            // Stop propagation to prevent collapsing sections if we had any (we don't here but good practice)
+            e.stopPropagation();
+        });
 
-        controls.appendChild(toggleBtn);
+        controls.appendChild(toggleContainer);
 
         if (usersHeader && usersHeader.parentElement) {
             usersHeader.parentElement.style.display = 'flex';
@@ -1647,11 +1660,13 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Global function for file download
 // Global function for file download with progress
 window.downloadFile = function (fileIdOrData, fileName) {
+    console.log(`[Download] Initiating download for: ${fileName} (ID/Data: ${fileIdOrData.substring(0, 50)}...)`);
+
     // Check if it's base64 data (legacy)
     if (fileIdOrData.startsWith('data:')) {
+        console.log('[Download] Detected Base64 data, using direct link click');
         const a = document.createElement('a');
         a.href = fileIdOrData;
         a.download = fileName;
@@ -1662,6 +1677,7 @@ window.downloadFile = function (fileIdOrData, fileName) {
     // Use XHR for download progress
     const xhr = new XMLHttpRequest();
     const url = `/api/download/${fileIdOrData}`;
+    console.log(`[Download] Requesting URL: ${url}`);
 
     // Show Progress Modal
     const progressModal = document.getElementById('progress-modal');
@@ -1670,60 +1686,70 @@ window.downloadFile = function (fileIdOrData, fileName) {
     const progressText = document.getElementById('progress-text');
     const btnCancel = document.getElementById('btn-cancel-progress');
 
-    progressTitle.textContent = `Downloading ${fileName}...`;
-    progressBar.style.width = '0%';
-    progressText.textContent = '0%';
-    progressModal.classList.remove('hidden');
+    if (progressTitle) progressTitle.textContent = `Downloading ${fileName}...`;
+    if (progressBar) progressBar.style.width = '0%';
+    if (progressText) progressText.textContent = '0%';
+    if (progressModal) progressModal.classList.remove('hidden');
 
     // Cancel Button
-    btnCancel.onclick = () => {
-        xhr.abort();
-        progressModal.classList.add('hidden');
-    };
+    if (btnCancel) {
+        btnCancel.onclick = () => {
+            console.log('[Download] Cancelled by user');
+            xhr.abort();
+            if (progressModal) progressModal.classList.add('hidden');
+        };
+    }
 
     xhr.responseType = 'blob'; // Important for binary files
 
     xhr.onprogress = (event) => {
         if (event.lengthComputable) {
             const percentComplete = Math.round((event.loaded / event.total) * 100);
-            progressBar.style.width = percentComplete + '%';
-            progressText.textContent = percentComplete + '%';
+            if (progressBar) progressBar.style.width = percentComplete + '%';
+            if (progressText) progressText.textContent = percentComplete + '%';
         } else {
             // If total size is unknown, show indeterminate state
-            progressBar.style.width = '100%';
-            progressText.textContent = 'Downloading...';
-            progressBar.classList.add('indeterminate');
+            if (progressBar) {
+                progressBar.style.width = '100%';
+                progressBar.classList.add('indeterminate');
+            }
+            if (progressText) progressText.textContent = 'Downloading...';
         }
     };
 
     xhr.onload = () => {
-        progressModal.classList.add('hidden');
+        if (progressModal) progressModal.classList.add('hidden');
         if (xhr.status === 200) {
+            console.log(`[Download] Download successful (Status 200). Processing blob...`);
             const blob = xhr.response;
+            console.log(`[Download] Blob size: ${blob.size}, type: ${blob.type}`);
             const downloadUrl = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = downloadUrl;
             a.download = fileName;
             document.body.appendChild(a);
             a.click();
+            console.log('[Download] Anchor clicked, cleanup starting...');
             setTimeout(() => {
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(downloadUrl);
+                console.log('[Download] Cleanup done');
             }, 100);
         } else {
-            console.error('Download failed:', xhr.status);
+            console.error(`[Download] Download failed. Status: ${xhr.status}, StatusText: ${xhr.statusText}`);
             alert('Download failed');
         }
     };
 
     xhr.onerror = () => {
-        progressModal.classList.add('hidden');
-        console.error('Download network error');
+        if (progressModal) progressModal.classList.add('hidden');
+        console.error('[Download] Network error occurred during download request');
         alert('Download failed due to network error');
     };
 
     xhr.open('GET', url, true);
     xhr.send();
+    console.log('[Download] XHR Request sent');
 };
 
 
@@ -1800,6 +1826,23 @@ if (languageSelect) {
     });
 }
 
+// Initialize Personalization Settings
+if (checkAutoOpenConnection) {
+    const saved = localStorage.getItem('autoOpenConnection');
+    checkAutoOpenConnection.checked = saved === 'true'; // Default to false if not set
+    checkAutoOpenConnection.addEventListener('change', (e) => {
+        localStorage.setItem('autoOpenConnection', e.target.checked);
+    });
+}
+
+if (checkAutoCloseConnection) {
+    const saved = localStorage.getItem('autoCloseConnection');
+    checkAutoCloseConnection.checked = saved === 'true'; // Default to false if not set
+    checkAutoCloseConnection.addEventListener('change', (e) => {
+        localStorage.setItem('autoCloseConnection', e.target.checked);
+    });
+}
+
 // Listen for language sync from teacher
 socket.on('language-changed', ({ language, classId }) => {
     if (classId === currentClassId) {
@@ -1857,6 +1900,8 @@ if (btnCloseSettings) {
 // Apply translations on load
 document.addEventListener('DOMContentLoaded', () => {
     updateUIText();
+
+
 });
 
 // Helper to remove accents/diacritics
@@ -2177,68 +2222,67 @@ function renderPinnedMessages() {
 }
 
 
-// ===== DICTIONARY (FORBIDDEN WORDS) FEATURE =====
+// ===== blacklist (FORBIDDEN WORDS) FEATURE =====
 // Custom forbidden words added by teacher
 let customForbiddenWords = [];
 
-// DOM Elements for Dictionary
-const dictionaryModal = document.getElementById('dictionary-modal');
-const btnDictionary = document.getElementById('btn-dictionary');
-const btnCloseDictionary = document.getElementById('btn-close-dictionary');
-const dictionaryWordInput = document.getElementById('dictionary-word-input');
+// DOM Elements for blacklist
+const blacklistModal = document.getElementById('blacklist-modal');
+const btnBlacklist = document.getElementById('btn-blacklist');
+const btnCloseBlacklist = document.getElementById('btn-close-blacklist');
+const blacklistWordInput = document.getElementById('blacklist-word-input');
 const btnAddWord = document.getElementById('btn-add-word');
-const dictionaryWordList = document.getElementById('dictionary-word-list');
+const blacklistWordList = document.getElementById('blacklist-word-list');
 const textSelectionPopup = document.getElementById('text-selection-popup');
-const btnAddSelectionToDictionary = document.getElementById('btn-add-selection-to-dictionary');
+const btnAddSelectionToblacklist = document.getElementById('btn-add-selection-to-blacklist');
 
-// Show/hide dictionary button based on role
+// Show/hide blacklist button based on role
 // Show/hide teacher actions based on role
-function updateDictionaryButtonVisibility() {
+function updateBlacklistButtonVisibility() {
     const teacherActions = document.getElementById("teacher-actions");
     if (teacherActions) {
         if (currentRole === 'teacher') {
             teacherActions.classList.remove('hidden');
-            // Ensure child buttons are visible
-            if (btnDictionary) btnDictionary.classList.remove('hidden');
-            // Screen share visibility is managed by updateScreenShareButton (active state), 
-            // but the button itself should be visible in the layout.
         } else {
             teacherActions.classList.add('hidden');
         }
-    } else {
-        // Fallback for old layout if HTML not updated?
-        if (btnDictionary) {
-            if (currentRole === 'teacher') btnDictionary.classList.remove('hidden');
-            else btnDictionary.classList.add('hidden');
+    }
+
+    // New layout: handle individual buttons in the chat bar
+    if (btnShareScreen) {
+        if (currentRole === 'teacher') {
+            btnShareScreen.classList.remove('hidden');
+        } else {
+            btnShareScreen.classList.add('hidden');
         }
     }
 }
 
-// Open Dictionary Modal
-if (btnDictionary) {
-    btnDictionary.addEventListener('click', () => {
+// Open blacklist Modal
+if (btnBlacklist) {
+    btnBlacklist.addEventListener('click', () => {
         // Close other modals
         if (mediaPopup) mediaPopup.classList.add('hidden');
         if (connectionModal) connectionModal.classList.add('hidden');
 
         // Load words and show modal
         loadForbiddenWords();
-        dictionaryModal.classList.remove('hidden');
+        blacklistModal.classList.remove('hidden');
     });
 }
 
-// Close Dictionary Modal
-if (btnCloseDictionary) {
-    btnCloseDictionary.addEventListener('click', () => {
-        dictionaryModal.classList.add('hidden');
+// Close blacklist Modal
+if (btnCloseBlacklist) {
+    btnCloseBlacklist.addEventListener('click', () => {
+        blacklistModal.classList.add('hidden');
     });
 }
 
 // Close modal when clicking outside
-if (dictionaryModal) {
-    dictionaryModal.addEventListener('click', (e) => {
-        if (e.target === dictionaryModal) {
-            dictionaryModal.classList.add('hidden');
+if (blacklistModal) {
+    blacklistModal.addEventListener('click', (e) => {
+        if (e.target === blacklistModal) {
+            blacklistModal.classList.add('hidden');
         }
     });
 }
@@ -2247,20 +2291,20 @@ if (dictionaryModal) {
 function loadForbiddenWords() {
     socket.emit('get-forbidden-words', (words) => {
         customForbiddenWords = words || [];
-        renderDictionaryWordList();
+        renderBlacklistWordList();
     });
 }
 
 // Render the word list in the modal
-function renderDictionaryWordList() {
-    if (!dictionaryWordList) return;
+function renderBlacklistWordList() {
+    if (!blacklistWordList) return;
 
     if (customForbiddenWords.length === 0) {
-        dictionaryWordList.innerHTML = '<div class="empty-dictionary-state">No custom words added yet</div>';
+        blacklistWordList.innerHTML = '<div class="empty-blacklist-state">No custom words added yet</div>';
         return;
     }
 
-    dictionaryWordList.innerHTML = customForbiddenWords.map(item => {
+    blacklistWordList.innerHTML = customForbiddenWords.map(item => {
         const date = new Date(item.addedAt);
         const dateStr = date.toLocaleDateString('el-GR', {
             day: '2-digit',
@@ -2269,18 +2313,18 @@ function renderDictionaryWordList() {
         });
 
         return `
-            <div class="dictionary-word-item" data-word="${escapeHtml(item.word)}">
-                <span class="dictionary-word-text">${escapeHtml(item.word)}</span>
-                <span class="dictionary-word-date">${dateStr}</span>
-                <button class="dictionary-delete-btn" title="Delete">❌</button>
+            <div class="blacklist-word-item" data-word="${escapeHtml(item.word)}">
+                <span class="blacklist-word-text">${escapeHtml(item.word)}</span>
+                <span class="blacklist-word-date">${dateStr}</span>
+                <button class="blacklist-delete-btn" title="Delete">❌</button>
             </div>
         `;
     }).join('');
 
     // Add delete button listeners
-    dictionaryWordList.querySelectorAll('.dictionary-delete-btn').forEach(btn => {
+    blacklistWordList.querySelectorAll('.blacklist-delete-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const wordItem = e.target.closest('.dictionary-word-item');
+            const wordItem = e.target.closest('.blacklist-word-item');
             const word = wordItem.dataset.word;
             removeForbiddenWord(word);
         });
@@ -2302,7 +2346,7 @@ function addForbiddenWord(word) {
     socket.emit('add-forbidden-word', { word: trimmedWord }, (response) => {
         if (response && response.success) {
             console.log(`✅ Added forbidden word: ${trimmedWord}`);
-            if (dictionaryWordInput) dictionaryWordInput.value = '';
+            if (blacklistWordInput) blacklistWordInput.value = '';
         } else {
             console.error('Failed to add word:', response?.message);
         }
@@ -2323,16 +2367,16 @@ function removeForbiddenWord(word) {
 // Add word button click
 if (btnAddWord) {
     btnAddWord.addEventListener('click', () => {
-        addForbiddenWord(dictionaryWordInput.value);
+        addForbiddenWord(blacklistWordInput.value);
     });
 }
 
 // Add word on Enter key
-if (dictionaryWordInput) {
-    dictionaryWordInput.addEventListener('keypress', (e) => {
+if (blacklistWordInput) {
+    blacklistWordInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            addForbiddenWord(dictionaryWordInput.value);
+            addForbiddenWord(blacklistWordInput.value);
         }
     });
 }
@@ -2340,7 +2384,7 @@ if (dictionaryWordInput) {
 // Listen for updates from server
 socket.on('forbidden-words-updated', (words) => {
     customForbiddenWords = words || [];
-    renderDictionaryWordList();
+    renderBlacklistWordList();
 
     // Update the filter words array to include custom words
     updateFilterWithCustomWords();
@@ -2399,9 +2443,9 @@ function hideTextSelectionPopup() {
     selectedText = '';
 }
 
-// Add selected text to dictionary
-if (btnAddSelectionToDictionary) {
-    btnAddSelectionToDictionary.addEventListener('click', () => {
+// Add selected text to blacklist
+if (btnAddSelectionToblacklist) {
+    btnAddSelectionToblacklist.addEventListener('click', () => {
         if (selectedText) {
             addForbiddenWord(selectedText);
             hideTextSelectionPopup();
@@ -2410,11 +2454,18 @@ if (btnAddSelectionToDictionary) {
     });
 }
 
-// Note: updateDictionaryButtonVisibility is called from within switchClass function
+// Note: updateBlacklistButtonVisibility is called from within switchClass function
 
 // Enhanced containsInappropriateContent to include custom words
 const originalContainsInappropriateContent = containsInappropriateContent;
 containsInappropriateContent = function (text) {
+    // Check custom whitelist FIRST
+    if (customWhitelistedWords && customWhitelistedWords.length > 0) {
+        const lowerText = text.toLowerCase();
+        const isWhitelisted = customWhitelistedWords.some(w => lowerText.includes(w.word.toLowerCase()));
+        if (isWhitelisted) return false;
+    }
+
     // First check original filter
     if (originalContainsInappropriateContent(text)) return true;
 
@@ -2787,12 +2838,15 @@ function stopScreenShare() {
 }
 
 function updateScreenShareButton() {
+    const label = btnShareScreen.querySelector('.btn-label');
     if (isScreenSharing) {
         btnShareScreen.classList.add("active");
-        btnShareScreen.innerHTML = "📺 Stop Sharing";
+        if (label) label.textContent = "Stop Sharing";
+        else btnShareScreen.innerHTML = "Stop Sharing"; // Fallback
     } else {
         btnShareScreen.classList.remove("active");
-        btnShareScreen.innerHTML = "📺 Share Screen";
+        if (label) label.textContent = "Screen Sharing";
+        else btnShareScreen.innerHTML = "Screen Sharing"; // Fallback
     }
 }
 
@@ -2966,10 +3020,13 @@ btnCloseVideo.addEventListener("click", () => {
 const teacherActions = document.getElementById("teacher-actions");
 
 window.updateTeacherActionsVisibility = function () {
+    const btnShareScreen = document.getElementById("btn-share-screen");
     if (currentRole === 'teacher') {
         if (teacherActions) teacherActions.classList.remove('hidden');
+        if (btnShareScreen) btnShareScreen.classList.remove('hidden');
     } else {
         if (teacherActions) teacherActions.classList.add('hidden');
+        if (btnShareScreen) btnShareScreen.classList.add('hidden');
     }
 };
 
@@ -3127,16 +3184,102 @@ socket.on("screen-share-status-update", ({ isSharing, classId }) => {
 
 // ===== ADVANCED SETTINGS & LOGS =====
 
-// Update Advanced Settings visibility when opening settings
+// ===== SETTINGS MODAL & NAVIGATION =====
+
+const settingsSidebar = document.querySelector('.settings-sidebar');
+const settingsTabs = document.querySelectorAll('.settings-tab-btn');
+const settingsPages = document.querySelectorAll('.settings-page');
+
+// Tab Switching Logic
+if (settingsSidebar) {
+    settingsSidebar.addEventListener('click', (e) => {
+        const btn = e.target.closest('.settings-tab-btn');
+        if (btn) {
+            const targetTab = btn.dataset.tab;
+            if (btn.classList.contains('active')) return; // Avoid redundant switches
+            switchSettingsTab(targetTab);
+        }
+    });
+}
+
+function switchSettingsTab(tabName) {
+    // Update active tab
+    settingsTabs.forEach(btn => {
+        if (btn.dataset.tab === tabName) btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
+
+    // Update active page
+    // Update active page
+    settingsPages.forEach(page => {
+        if (page.id === `settings-page-${tabName}`) {
+            page.classList.remove('hidden');
+            page.classList.add('active');
+        } else {
+            page.classList.add('hidden');
+            page.classList.remove('active');
+        }
+    });
+}
+
+// Open Settings & Handle Role Visibility
+// Open Settings & Handle Role Visibility
 if (btnSettingsToggle) {
     btnSettingsToggle.addEventListener("click", () => {
-        if (settingsAdvancedSection) {
-            // Only show for teachers
-            if (currentRole === 'teacher') {
-                settingsAdvancedSection.classList.remove("hidden");
+        if (settingsModal) {
+            settingsModal.classList.remove("hidden");
+
+            // Default to Personalization
+            switchSettingsTab('personalization');
+
+            // --- ROLE BASED VISIBILITY ---
+            // Students: ONLY Personalization & About
+            // Teachers: All tabs
+
+            if (currentRole === 'student') {
+                // Hide all tabs except Personalization & About
+                settingsTabs.forEach(btn => {
+                    if (btn.dataset.tab === 'personalization' || btn.dataset.tab === 'about') {
+                        btn.classList.remove('hidden');
+                    } else {
+                        btn.classList.add('hidden');
+                    }
+                });
             } else {
-                settingsAdvancedSection.classList.add("hidden");
+                // Teacher: Show all tabs
+                settingsTabs.forEach(btn => btn.classList.remove('hidden'));
             }
+        }
+    });
+}
+
+// Close Settings
+if (btnCloseSettings) {
+    btnCloseSettings.addEventListener("click", () => {
+        if (settingsModal) settingsModal.classList.add("hidden");
+    });
+}
+
+// Hook up Manage Buttons in Content Moderation
+const btnOpenBlacklistModal = document.getElementById('btn-open-blacklist-modal');
+const btnOpenWhitelistModal = document.getElementById('btn-open-whitelist-modal');
+
+if (btnOpenBlacklistModal) {
+    btnOpenBlacklistModal.addEventListener('click', () => {
+        if (blacklistModal) {
+            blacklistModal.classList.remove('hidden');
+            renderBlacklistWordList();
+            blacklistWordInput.focus();
+        }
+    });
+}
+
+if (btnOpenWhitelistModal) {
+    btnOpenWhitelistModal.addEventListener('click', () => {
+        if (whitelistModal) {
+            whitelistModal.classList.remove("hidden");
+            renderWhitelistWordsList();
+            whitelistWordInput.focus();
         }
     });
 }
@@ -3306,7 +3449,7 @@ if (fileImportData) {
                     totalWhitelist = importList(data.whitelist, 'whitelist');
                 }
 
-                alert(`Import Complete!\n🚫 Blacklist: ${totalBlacklist} words\n✅ Good List: ${totalWhitelist} words`);
+                alert(`Import Complete!\n🚫 Blacklist: ${totalBlacklist} words\n✅ Whitelist: ${totalWhitelist} words`);
 
             } catch (err) {
                 console.error("Import failed", err);
@@ -3341,24 +3484,12 @@ function importList(items, type) {
 
 
 
-const btnOpenWhitelistModal = document.getElementById("btn-open-whitelist-modal");
 const btnCloseWhitelistModal = document.getElementById("btn-close-whitelist-modal");
+const whitelistModal = document.getElementById("whitelist-modal");
 const whitelistWordsListModalElement = document.getElementById("whitelist-words-list-modal");
 const whitelistWordInput = document.getElementById("whitelist-word-input");
 const btnAddWhitelistWordModal = document.getElementById("btn-add-whitelist-word-modal");
 // Legacy references removed (btnImportWhitelist, btnExportWhitelist, etc.)
-
-
-// Open Modal
-if (btnOpenWhitelistModal) {
-    btnOpenWhitelistModal.addEventListener("click", () => {
-        if (whitelistModal) {
-            whitelistModal.classList.remove("hidden");
-            renderWhitelistWordsList();
-            if (whitelistWordInput) whitelistWordInput.focus();
-        }
-    });
-}
 
 // Close Modal
 if (btnCloseWhitelistModal) {
@@ -3373,13 +3504,13 @@ function renderWhitelistWordsList() {
     whitelistWordsListModalElement.innerHTML = "";
 
     if (customWhitelistedWords.length === 0) {
-        whitelistWordsListModalElement.innerHTML = '<div class="empty-dictionary-state">No safe words added yet</div>';
+        whitelistWordsListModalElement.innerHTML = '<div class="empty-blacklist-state">No safe words added yet</div>';
         return;
     }
 
     customWhitelistedWords.slice().reverse().forEach(item => {
         const row = document.createElement("div");
-        row.className = "dictionary-word-item"; // Reusing Blacklist style class if available, or we will define it
+        row.className = "blacklist-word-item"; // Reusing Blacklist style class if available, or we will define it
         row.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #333; margin-bottom: 5px; border-radius: 5px;";
 
         const dateStr = item.addedAt ? new Date(item.addedAt).toLocaleDateString() : '';
@@ -3396,7 +3527,7 @@ function renderWhitelistWordsList() {
         `;
 
         row.querySelector(".remove-word-btn").addEventListener("click", () => {
-            if (confirm(`Remove '${item.word}' from good list?`)) {
+            if (confirm(`Remove '${item.word}' from whitelist?`)) {
                 socket.emit('remove-whitelisted-word', { word: item.word }, (res) => {
                     if (!res.success) alert(res.message || "Failed to remove");
                 });
@@ -3494,6 +3625,7 @@ function updateFilterUIVisibility() {
         });
         loadPendingReports();
         loadWhitelistedWords();
+        loadForbiddenWords();
     } else {
         // Hide filter section and report button for students
         if (settingsFilterSection) settingsFilterSection.classList.add('hidden');
@@ -3777,13 +3909,23 @@ async function loadDeepLearningModel() {
             socket.emit('load-deep-learning-model', (result) => {
                 if (aiLoadingModal) aiLoadingModal.classList.add('hidden');
 
+                // Log server-side debug logs if available
+                if (result && result.logs && Array.isArray(result.logs)) {
+                    console.log('--- SERVER SIDE MODEL LOADING LOGS ---');
+                    result.logs.forEach(log => console.log(log));
+                    console.log('--------------------------------------');
+                }
+
                 if (result && result.success) {
                     deepLearningReady = true;
                     console.log('🧠 Deep Learning model ready!');
                     resolve(true);
                 } else {
                     console.error('❌ Failed to load Deep Learning model');
-                    alert('Failed to load AI model. Please try again or select a different filter mode.');
+                    if (result && result.error) {
+                        console.error('SERVER ERROR:', result.error);
+                    }
+                    alert('Failed to load AI model. Check the logs for "SERVER SIDE MODEL LOADING LOGS".');
                     resolve(false);
                 }
             });
@@ -3809,7 +3951,7 @@ function showToast(message, type = 'info', duration = 4000) {
     if (!container) {
         container = document.createElement('div');
         container.id = 'toast-container';
-        container.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;';
+        container.style.cssText = 'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none;';
         document.body.appendChild(container);
     }
 
@@ -3818,18 +3960,19 @@ function showToast(message, type = 'info', duration = 4000) {
     toast.style.cssText = `
         background: ${type === 'error' ? '#ef4444' : type === 'success' ? '#22c55e' : type === 'warning' ? '#eab308' : '#3b82f6'};
         color: white;
-        padding: 12px 24px;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 10px 20px;
+        border-radius: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         font-family: system-ui, -apple-system, sans-serif;
         font-size: 14px;
         font-weight: 500;
         opacity: 0;
         transform: translateY(20px);
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         display: flex;
         align-items: center;
         gap: 8px;
+        pointer-events: auto;
     `;
 
     // Add icon based on type
@@ -3894,7 +4037,7 @@ document.addEventListener('click', (e) => {
 });
 
 // Remove Text Selection Popup Report Handler (User requested removal)
-// The text selection popup will now only show "Add to dictionary" for teachers
+// The text selection popup will now only show "Add to blacklist" for teachers
 // Students report via message action button.
 
 // Text selection popup removed as per user request (replaced by direct buttons)

@@ -1,7 +1,15 @@
-# ClassSend (v7.0.0 Latest)
+# ClassSend (v7.2.0 Latest)
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 Latest Features (v7.0.0)
+## 🚀 Latest Features (v7.2.0)
+- **📋 New Media Library List View**: Redesigned for a cleaner, horizontal "name list" look with quick action buttons.
+- **⚙️ Redesigned Settings Modal**: Categorized sidebar layout for easier navigation and feature discoverability.
+- **✨ UI Polish**: Refined action buttons with glassmorphism effects and improved alignment throughout the app.
+- **⚡ Performance**: Faster loading and forced cache refreshes for CSS updates.
+
+## 🚀 Previous Features (v7.0.1)
+- **📦 Offline AI**: Deep Learning model is now fully bundled and works without internet.
+- **⚡ Native x64 Performance**: Rebuilt for 64-bit Windows systems for faster AI inference.
 - **🧠 3-Layer AI Filtering**:
     - **Legacy**: Lightweight client-side word matching.
     - **Advanced (Naive Bayes)**: Probabilistic filtering that learns from context.
@@ -12,7 +20,7 @@
 - **⚠️ Smart Notifications**: Real-time warnings when content is blocked or reported for review.
 - **⚡ Memory-Only Logs**: Session logs are stored in RAM for privacy and performance, automatically clearing when the app closes. 
 
-## 🚀 Previous Features (v6.7.0)
+## 🚀 Previous Features (v7.0.0)
 - **⚠️ Reporting System**: Students can report inappropriate messages directly to the teacher via a "Report ⚠️" button.
 - **🚫 Teacher Moderation**: New "Block & Delete" button in messages for instant action, plus a sliding report panel for resolving student reports.
 - **🔄 Batch Training**: AI automatically retrains in background batches of 2 words with a visual progress indicator.
@@ -33,12 +41,18 @@
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Linux AppImage**: `ClassSend-7.0.0-x64.AppImage`
-- **Linux Zip**: `ClassSend-linux-x64-7.0.0.zip`
-- **Windows Installer (64-bit)**: `ClassSend-7.0.0 Setup.exe`
-- **Windows Installer (32-bit)**: `ClassSend-7.0.0 Setup-x32.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-7.0.0.zip`
-- **Windows Portable (32-bit)**: `ClassSend-win32-ia32-7.0.0.zip`
+- **Linux AppImage**: `ClassSend-7.0.1-x64.AppImage`
+- **Linux Zip**: `ClassSend-linux-x64-7.0.1.zip`
+- **Windows Installer (64-bit)**: `ClassSend-7.0.1 Setup.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-7.0.1.zip`
+
+## 🧠 Offline AI Setup (Required for Deep Learning)
+The "Deep Learning" filter requires the `toxic-bert` model, which is excluded from this repository due to size limits.
+
+To enable it:
+1.  Download the **Xenova/toxic-bert** model (ONNX quantized) from Hugging Face.
+2.  Place the files in: `server/models/Xenova/toxic-bert/onnx/`
+3.  Ensure `model_quantized.onnx` is present in that folder.
 
 ## 🛠️ How to Run (Development)
 If you want to modify the code or contribute:
