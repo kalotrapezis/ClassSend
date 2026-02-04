@@ -1,5 +1,6 @@
 import { io } from "socket.io-client";
 import { translations } from "./translations.js";
+import { generateRandomName } from "./name-generator.js";
 
 // Logger for Advanced Settings
 const capturedLogs = [];
@@ -57,15 +58,24 @@ const socket = io(serverUrl);
 console.log(`Connecting to ClassSend server at: ${serverUrl}`);
 
 
-// State
-let currentRole = null; // 'teacher' or 'student'
-let userName = null;
+// State - with localStorage persistence
+let savedRole = localStorage.getItem('classsend-role'); // Persistent role
+let currentRole = savedRole; // 'teacher' or 'student'
+let userName = localStorage.getItem('classsend-userName');
 let currentClassId = null;
 let joinedClasses = new Map(); // classId -> { messages: [], users: [], teacherName: string }
 let availableClasses = []; // [{ id, teacherName }]
 let customWhitelistedWords = [];
 let currentLanguage = localStorage.getItem('language') || 'en';
 let pinnedFiles = new Set(); // Track pinned file IDs in media library
+let autoFlowTriggered = false; // Prevent multiple auto-flow triggers
+
+// Auto-generate name if none exists
+if (!userName) {
+    userName = generateRandomName();
+    localStorage.setItem('classsend-userName', userName);
+    console.log(`Generated random name: ${userName}`);
+}
 
 // DOM Elements - Screens
 const roleSelection = document.getElementById("role-selection");
@@ -390,6 +400,18 @@ socket.on("connect", () => {
 
     // Refresh active classes
     socket.emit("get-active-classes");
+
+    // Auto-flow: if role is saved, trigger auto-flow
+    if (savedRole && !autoFlowTriggered && !currentClassId) {
+        autoFlowTriggered = true;
+        console.log(`Auto-flow: Role is ${savedRole}, starting auto-flow...`);
+
+        if (savedRole === 'teacher') {
+            // Teacher: auto-create class and go to chat
+            triggerTeacherAutoFlow();
+        }
+        // Student auto-flow handled in active-classes event
+    }
 });
 
 socket.on("disconnect", () => {
@@ -409,7 +431,140 @@ socket.on("active-classes", (classes) => {
     if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
         renderAvailableClasses();
     }
+
+    // Auto-flow for students: auto-join if only one class
+    if (savedRole === 'student' && autoFlowTriggered && !currentClassId) {
+        if (classes.length === 1) {
+            // Auto-join the single class
+            console.log(`Auto-flow: Only one class available (${classes[0].id}), auto-joining...`);
+            roleSelection.classList.add('hidden');
+            classSetup.classList.add('hidden');
+            joinClass(classes[0].id, userName);
+        } else if (classes.length > 1) {
+            // Show class selection
+            console.log(`Auto-flow: Multiple classes available (${classes.length}), showing selection...`);
+            roleSelection.classList.add('hidden');
+            classSetup.classList.add('hidden');
+            availableClassesScreen.classList.remove('hidden');
+            renderAvailableClasses();
+        } else {
+            // No classes - create/join Lobby as student
+            console.log('Auto-flow: No classes available, creating/joining Lobby...');
+            roleSelection.classList.add('hidden');
+            classSetup.classList.add('hidden');
+            joinOrCreateLobby();
+        }
+    }
 });
+
+// Auto-flow helper: Teacher auto-creates class or takes over Lobby
+function triggerTeacherAutoFlow() {
+    roleSelection.classList.add('hidden');
+    classSetup.classList.add('hidden');
+
+    // First check if there's a Lobby waiting for a teacher
+    socket.emit("take-over-lobby", { userName }, (response) => {
+        if (response.success) {
+            // Successfully took over an existing Lobby
+            const classId = response.classId;
+            joinedClasses.set(classId, {
+                messages: response.messages || [],
+                users: response.users || [{ id: socket.id, name: userName, role: "teacher" }],
+                teacherName: userName,
+                blockedUsers: new Set(),
+                hasTeacher: true
+            });
+
+            if (settingsNameInput) settingsNameInput.value = userName;
+            switchClass(classId);
+            console.log(`Auto-flow: Took over Lobby as teacher`);
+        } else {
+            // No Lobby exists, create a new class
+            socket.emit("auto-create-class", { userName }, (createResponse) => {
+                if (createResponse.success) {
+                    const classId = createResponse.classId;
+                    joinedClasses.set(classId, {
+                        messages: [],
+                        users: [{ id: socket.id, name: userName, role: "teacher" }],
+                        teacherName: userName,
+                        blockedUsers: new Set(),
+                        hasTeacher: true
+                    });
+
+                    if (settingsNameInput) settingsNameInput.value = userName;
+                    switchClass(classId);
+                    console.log(`Auto-flow: Created and joined class ${classId}`);
+                } else {
+                    console.error('Auto-flow: Failed to create class', createResponse.message);
+                    classSetup.classList.remove('hidden');
+                }
+            });
+        }
+    });
+}
+
+// Auto-flow helper: Join or create shared Lobby for students
+function joinOrCreateLobby() {
+    socket.emit("join-or-create-lobby", { userName }, (response) => {
+        if (response.success) {
+            const classId = response.classId;
+            joinedClasses.set(classId, {
+                messages: response.messages || [],
+                users: response.users || [{ id: socket.id, name: userName, role: "student" }],
+                teacherName: response.teacherName || null,
+                blockedUsers: new Set(),
+                hasTeacher: response.hasTeacher || false
+            });
+
+            if (settingsNameInput) settingsNameInput.value = userName;
+            switchClass(classId);
+
+            // Check if chat should be disabled (no teacher yet)
+            updateChatDisabledState();
+
+            console.log(`Auto-flow: Joined Lobby ${classId}, hasTeacher: ${response.hasTeacher}`);
+        } else {
+            console.error('Auto-flow: Failed to join/create Lobby', response.message);
+            availableClassesScreen.classList.remove('hidden');
+            showWaitingForClass();
+        }
+    });
+}
+
+// Update chat disabled state based on teacher presence
+function updateChatDisabledState() {
+    if (!currentClassId) return;
+
+    const classData = joinedClasses.get(currentClassId);
+    const hasTeacher = classData?.hasTeacher || classData?.users?.some(u => u.role === 'teacher');
+
+    if (!hasTeacher && currentRole === 'student') {
+        // Disable chat input
+        messageInput.disabled = true;
+        messageInput.placeholder = "Waiting for teacher to join...";
+        sendBtn.disabled = true;
+        sendBtn.style.opacity = '0.5';
+    } else {
+        // Enable chat
+        messageInput.disabled = false;
+        messageInput.placeholder = "Type a message...";
+        sendBtn.disabled = false;
+        sendBtn.style.opacity = '1';
+    }
+}
+
+// Auto-flow helper: Show waiting screen for students
+function showWaitingForClass() {
+    availableClassesList.innerHTML = `
+        <div class="empty-state">
+            <div class="spinner"></div>
+            <div>Connecting to Lobby...</div>
+            <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+                Please wait while we set up the class.
+            </p>
+        </div>
+    `;
+}
 
 // Hand-Raising Socket Events
 socket.on("hand-raised", ({ userId, handRaised, users, classId }) => {
@@ -460,11 +615,15 @@ socket.on("all-hands-lowered", ({ users, classId }) => {
 // Role Selection
 document.getElementById("btn-teacher").addEventListener("click", () => {
     currentRole = "teacher";
+    savedRole = "teacher";
+    localStorage.setItem('classsend-role', 'teacher');
     showClassSetup();
 });
 
 document.getElementById("btn-student").addEventListener("click", () => {
     currentRole = "student";
+    savedRole = "student";
+    localStorage.setItem('classsend-role', 'student');
     showClassSetup();
 });
 
@@ -641,6 +800,25 @@ function switchClass(id) {
     chatInterface.classList.remove("hidden");
 
     if (settingsNameInput) settingsNameInput.value = userName;
+
+    // Update role display in settings
+    if (typeof updateRoleDisplay === 'function') {
+        updateRoleDisplay();
+    }
+
+    // Update class name input for teachers
+    if (renameClassInput) {
+        renameClassInput.value = id;
+    }
+
+    // Show/hide class management section based on role
+    if (classManagementSection) {
+        if (currentRole === 'teacher') {
+            classManagementSection.classList.remove('hidden');
+        } else {
+            classManagementSection.classList.add('hidden');
+        }
+    }
 
     // Load pinned messages for this class
     const classData = joinedClasses.get(id);
@@ -828,6 +1006,123 @@ if (btnSettingsChangeName) {
         });
     });
 }
+
+// Regenerate Random Name
+const btnRegenerateName = document.getElementById("btn-regenerate-name");
+if (btnRegenerateName) {
+    btnRegenerateName.addEventListener("click", () => {
+        const newName = generateRandomName();
+        settingsNameInput.value = newName;
+        userName = newName;
+        localStorage.setItem('classsend-userName', newName);
+        showToast(`New name: ${newName}`, "success");
+
+        // Update on server if in a class
+        if (currentClassId) {
+            socket.emit("change-user-name", { classId: currentClassId, newName }, (response) => {
+                if (!response.success) {
+                    console.warn("Failed to update name on server:", response.message);
+                }
+            });
+        }
+    });
+}
+
+// Change Role
+const btnChangeRole = document.getElementById("btn-change-role");
+const currentRoleDisplay = document.getElementById("current-role-display");
+
+// Update role display
+function updateRoleDisplay() {
+    if (currentRoleDisplay) {
+        const lang = translations[currentLanguage] ? currentLanguage : 'en';
+        if (currentRole === 'teacher') {
+            currentRoleDisplay.textContent = `👨‍🏫 ${translations[lang]['role-teacher']}`;
+            currentRoleDisplay.className = 'role-badge teacher';
+        } else if (currentRole === 'student') {
+            currentRoleDisplay.textContent = `👨‍🎓 ${translations[lang]['role-student']}`;
+            currentRoleDisplay.className = 'role-badge student';
+        } else {
+            currentRoleDisplay.textContent = '-';
+            currentRoleDisplay.className = 'role-badge';
+        }
+    }
+}
+
+if (btnChangeRole) {
+    btnChangeRole.addEventListener("click", () => {
+        if (!confirm("Changing your role will disconnect you from the current class. Continue?")) {
+            return;
+        }
+
+        // Leave current class if any
+        if (currentClassId) {
+            socket.emit("leave-class", { classId: currentClassId });
+        }
+
+        // Clear saved role and state
+        localStorage.removeItem('classsend-role');
+        savedRole = null;
+        currentRole = null;
+        currentClassId = null;
+        joinedClasses.clear();
+        autoFlowTriggered = false;
+
+        // Close settings modal
+        if (settingsModal) settingsModal.classList.add('hidden');
+
+        // Go back to role selection
+        chatInterface.classList.add('hidden');
+        classSetup.classList.add('hidden');
+        availableClassesScreen.classList.add('hidden');
+        roleSelection.classList.remove('hidden');
+
+        showToast("Role cleared. Please select a new role.", "info");
+    });
+}
+
+// Rename Class (Teacher only)
+const btnRenameClass = document.getElementById("btn-rename-class");
+const renameClassInput = document.getElementById("rename-class-input");
+const classManagementSection = document.getElementById("class-management-section");
+
+if (btnRenameClass) {
+    btnRenameClass.addEventListener("click", () => {
+        const newName = renameClassInput.value.trim();
+        if (!newName) return alert("Please enter a class name");
+        if (!currentClassId) return alert("No class to rename");
+        if (newName === currentClassId) return;
+
+        socket.emit("rename-class", { classId: currentClassId, newName }, (response) => {
+            if (response.success) {
+                // Update local state
+                const classData = joinedClasses.get(currentClassId);
+                joinedClasses.delete(currentClassId);
+                joinedClasses.set(newName, classData);
+                currentClassId = newName;
+
+                renderSidebar();
+                showToast(`Class renamed to ${newName}`, "success");
+            } else {
+                alert(response.message);
+            }
+        });
+    });
+}
+
+// Handle class-renamed event from server
+socket.on("class-renamed", ({ oldName, newName }) => {
+    console.log(`Class renamed: ${oldName} -> ${newName}`);
+    if (currentClassId === oldName) {
+        currentClassId = newName;
+    }
+    if (joinedClasses.has(oldName)) {
+        const classData = joinedClasses.get(oldName);
+        joinedClasses.delete(oldName);
+        joinedClasses.set(newName, classData);
+    }
+    renderSidebar();
+});
 
 // Send Message
 function sendMessage() {
@@ -1467,8 +1762,17 @@ function tagUser(name) {
 socket.on("user-joined", ({ user, users: updatedUsers, classId }) => {
     if (joinedClasses.has(classId)) {
         joinedClasses.get(classId).users = updatedUsers;
+
+        // Check if a teacher joined - update hasTeacher flag
+        if (user.role === 'teacher') {
+            joinedClasses.get(classId).hasTeacher = true;
+        }
+
         if (currentClassId === classId) {
             renderUsersList();
+
+            // Update chat disabled state (enables chat when teacher joins)
+            updateChatDisabledState();
 
             const systemMsg = {
                 senderName: "System",
@@ -1818,6 +2122,7 @@ if (languageSelect) {
         currentLanguage = e.target.value;
         localStorage.setItem('language', currentLanguage);
         updateUIText();
+        updateRoleDisplay(); // Update role text
 
         // If teacher in a class, sync language to all students
         if (currentRole === 'teacher' && currentClassId) {
@@ -1850,6 +2155,7 @@ socket.on('language-changed', ({ language, classId }) => {
         localStorage.setItem('language', currentLanguage);
         if (languageSelect) languageSelect.value = currentLanguage;
         updateUIText();
+        updateRoleDisplay(); // Update role text
         console.log(`Language synced to ${language} from teacher`);
     }
 });
@@ -4121,3 +4427,31 @@ socket.on('training-ended', () => {
     // Refresh badge
     loadPendingReports();
 });
+// STARTUP SETTINGS HANDLING
+const startupToggle = document.getElementById("startup-toggle");
+
+if (startupToggle) {
+    startupToggle.addEventListener("change", (e) => {
+        console.log("Toggling startup:", e.target.checked);
+        socket.emit("set-startup-status", { openAtLogin: e.target.checked }, (response) => {
+            if (!response.success) {
+                e.target.checked = !e.target.checked; // Revert
+                alert("Failed to update startup setting: " + response.message || "Unknown error");
+            }
+        });
+    });
+}
+
+// Fetch startup status when opening settings
+if (btnSettingsToggle) {
+    btnSettingsToggle.addEventListener("click", () => {
+        if (startupToggle) {
+            socket.emit("get-startup-status", (response) => {
+                if (response.success) {
+                    startupToggle.checked = response.openAtLogin;
+                    console.log("Startup status loaded:", response.openAtLogin);
+                }
+            });
+        }
+    });
+}

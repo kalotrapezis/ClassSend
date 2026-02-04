@@ -11,8 +11,8 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Raleway:wght@100;200;300;400;500;600&display=swap"
     rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index--LVKtXLd.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-CPz9tjbl.css">
+  <script type="module" crossorigin src="/assets/index-B8YaMH0L.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DKugpa8O.css">
 </head>
 
 <body>
@@ -130,7 +130,7 @@
                 </button>
                 <button class="settings-tab-btn" data-tab="data">
                   <span class="tab-icon">🔒</span>
-                  <span data-i18n="settings-section-data">Data & Security</span>
+                  <span data-i18n="settings-section-admin">Administration</span>
                 </button>
                 <button class="settings-tab-btn hidden" id="tab-system" data-tab="system">
                   <span class="tab-icon">🔧</span>
@@ -163,6 +163,17 @@
                       <input type="text" id="settings-name-input" class="setting-input" maxlength="20">
                       <button id="btn-settings-change-name" class="small-primary-btn"
                         data-i18n="btn-change-name">Change</button>
+                      <button id="btn-regenerate-name" class="small-secondary-btn"
+                        title="Generate random name">🎲</button>
+                    </div>
+                  </div>
+
+                  <div class="setting-item">
+                    <label data-i18n="label-role">Your Role</label>
+                    <div class="role-display-section">
+                      <span id="current-role-display" class="role-badge">-</span>
+                      <button id="btn-change-role" class="secondary-btn" data-i18n="btn-change-role">🔄 Change
+                        Role</button>
                     </div>
                   </div>
                 </div>
@@ -274,9 +285,19 @@
                   </div>
                 </div>
 
-                <!-- Data & Security Page -->
+                <!-- Administration Page -->
                 <div id="settings-page-data" class="settings-page hidden">
-                  <h4 class="settings-page-header" data-i18n="settings-section-data">Data and Privacy</h4>
+                  <h4 class="settings-page-header" data-i18n="settings-section-admin">Administration</h4>
+
+                  <!-- Class Management (Teacher Only) -->
+                  <div id="class-management-section" class="setting-item hidden">
+                    <label for="rename-class-input" data-i18n="label-class-name">Class Name</label>
+                    <div class="input-with-button">
+                      <input type="text" id="rename-class-input" class="setting-input" maxlength="30">
+                      <button id="btn-rename-class" class="small-primary-btn" data-i18n="btn-rename">Rename</button>
+                    </div>
+                    <p class="setting-hint">Change the name of your current class.</p>
+                  </div>
 
                   <div class="setting-item">
                     <label>Data Management</label>

@@ -1,3 +1,21 @@
+# Release Notes - v8.1.0
+
+## 🚀 Enhancements & Polish
+
+### 🖥️ Improved User Experience
+- **Custom Splash Screen**: The application now starts with a custom-branded animation, replacing the default "green" installer experience.
+- **No Menu Bar**: The top menu bar has been removed for a cleaner, more immersive app interface.
+- **Desktop Shortcut**: The installer now automatically creates a desktop shortcut for easier access.
+
+### ⚙️ New Settings
+- **Open on Startup**: Added a new "Start on Login" toggle in the Administration settings. Teachers can now choose to have ClassSend launch automatically when they log in to Windows.
+
+### 🛠️ Fixes
+- **Startup Stability**: Resolved issues where the app would restart or loop during the initial launch.
+- **Visual Improvements**: Fixed the "green flash" during startup by syncing the window background color with the dark theme.
+
+---
+
 # Release Notes - v7.2.0
 ## ✨ UI Redesign & UX Improvements
 This release focuses on a major UI overhaul of the Media Library and Settings modal.

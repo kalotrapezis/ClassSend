@@ -1,6 +1,13 @@
 const { app, BrowserWindow, Tray, Menu } = require('electron');
 const path = require('path');
 
+// Handle creating/removing shortcuts on Windows when installing/uninstalling.
+// eslint-disable-next-line global-require
+if (require('electron-squirrel-startup')) {
+    app.quit();
+    process.exit(0); // Ensure immediate exit
+}
+
 // Set USER_DATA_PATH for the server to use (Must be before requiring index.js)
 // This ensures we write to a writable location (e.g. ~/.config/...) instead of the read-only AppImage mount
 // app.getPath('userData') is only available after app is ready or in main process, but we need it for top-level requires if they run immediately.
@@ -9,7 +16,10 @@ if (app) {
     process.env.USER_DATA_PATH = app.getPath('userData');
 }
 
-const { server, stopServer, getTrainingStatus } = require('./index.js'); // Import the server to start it and stop it
+// Server import moved to startServer function to avoid blocking startup
+let serverInstance;
+let stopServerFunc;
+let getTrainingStatusFunc;
 
 let mainWindow;
 let tray;
@@ -30,20 +40,63 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
     }
 });
 
+function startAppServer() {
+    console.log("Starting server...");
+    try {
+        const { server, stopServer, getTrainingStatus } = require('./index.js');
+        // Store references
+        serverInstance = server;
+        stopServerFunc = stopServer;
+        getTrainingStatusFunc = getTrainingStatus;
+
+        console.log("Server module loaded.");
+    } catch (err) {
+        console.error("Failed to start server:", err);
+    }
+}
+
 function createWindow() {
     let iconFilename = 'icon.ico';
     if (process.platform === 'linux' || process.platform === 'darwin') {
         iconFilename = 'tray.png';
     }
     const iconPath = path.join(__dirname, 'assets', iconFilename);
-    mainWindow = new BrowserWindow({
-        width: 1200,
-        height: 800,
+
+    // Create splash screen first
+    const splashWindow = new BrowserWindow({
+        width: 450,
+        height: 450,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        resizable: false,
         icon: iconPath,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
         },
+    });
+
+    splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+    splashWindow.center();
+
+    // Initialize server AFTER showing splash screen
+    setTimeout(() => {
+        startAppServer();
+    }, 100);
+
+    // Create main window (hidden initially)
+    mainWindow = new BrowserWindow({
+        width: 1200,
+        height: 800,
+        icon: iconPath,
+        show: false, // Don't show until ready
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+        },
+        backgroundColor: '#0f172a' // Prevent white flash on load
     });
 
     // Load the local server URL
@@ -54,12 +107,26 @@ function createWindow() {
     console.log(`Loading window from: ${serverUrl}`);
     mainWindow.loadURL(serverUrl);
 
+    // When main window is ready, close splash and show main
+    mainWindow.once('ready-to-show', () => {
+        setTimeout(() => {
+            if (splashWindow && !splashWindow.isDestroyed()) {
+                splashWindow.close();
+            }
+            mainWindow.show();
+            mainWindow.focus();
+        }, 500); // Small delay for smoother transition
+    });
+
+    // Hide the menu bar (User request)
+    mainWindow.setMenu(null);
+
 
     mainWindow.on('close', async (event) => {
         if (isQuitting) return;
 
         // Check if training is in progress
-        if (getTrainingStatus && getTrainingStatus()) {
+        if (getTrainingStatusFunc && getTrainingStatusFunc()) {
             event.preventDefault();
             const { dialog } = require('electron');
             const choice = await dialog.showMessageBox(mainWindow, {
@@ -194,7 +261,7 @@ function createTray() {
                 click: async () => {
                     isQuitting = true;
                     try {
-                        await stopServer();
+                        if (stopServerFunc) await stopServerFunc();
                     } catch (error) {
                         console.error('Error stopping server:', error);
                     }
@@ -248,7 +315,7 @@ app.on('before-quit', async (event) => {
 
     // Attempt to stop server gracefully
     try {
-        await stopServer();
+        if (stopServerFunc) await stopServerFunc();
         console.log('Server stopped successfully');
     } catch (error) {
         console.error('Error stopping server during quit:', error);

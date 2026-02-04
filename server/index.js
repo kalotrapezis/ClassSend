@@ -14,6 +14,15 @@ const deepLearningFilter = require('./deep-learning-filter');
 const Filter = require('bad-words');
 const filter = new Filter();
 
+// Try to load Electron (only works if running in Electron process)
+let electronApp = null;
+try {
+  // eslint-disable-next-line global-require
+  const { app } = require('electron');
+  electronApp = app;
+} catch (e) {
+  console.log('Running in Node.js mode (no Electron features)');
+}
 // ===== NAIVE BAYES CLASSIFIER FOR ADVANCED FILTERING =====
 let classifier = bayes();
 let classifierTrained = false;
@@ -87,10 +96,20 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     return res.status(400).json({ error: 'Class ID required' });
   }
 
+  // Fix Greek/UTF-8 filename encoding (multer uses Latin-1 by default)
+  let originalName = req.file.originalname;
+  try {
+    // Convert Latin-1 encoded string back to UTF-8
+    originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+  } catch (e) {
+    // Keep original if conversion fails
+    console.warn('Filename encoding conversion failed:', e.message);
+  }
+
   const fileId = path.parse(req.file.filename).name;
   const metadata = {
     id: fileId,
-    name: req.file.originalname,
+    name: originalName,
     size: req.file.size,
     type: req.file.mimetype,
     path: req.file.path,
@@ -108,11 +127,11 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     senderId: socketId,
     senderName: userName,
     senderRole: role,
-    content: `Shared a file: ${req.file.originalname}`,
+    content: `Shared a file: ${originalName}`,
     type: 'file',
     fileData: {
       id: fileId,
-      name: req.file.originalname,
+      name: originalName,
       size: req.file.size,
       type: req.file.mimetype
     },
@@ -127,7 +146,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   // Notify class via Socket.IO
   io.to(classId).emit('new-message', message);
 
-  console.log(`File uploaded: ${req.file.originalname} (${fileId}) to class ${classId}`);
+  console.log(`File uploaded: ${originalName} (${fileId}) to class ${classId}`);
   res.json({ success: true, fileId: fileId });
 });
 
@@ -170,6 +189,9 @@ app.get('/api/download/:fileId', (req, res) => {
 
 const activeClasses = new Map(); // classId -> { teacherId, students: [], deletionTimeout: null }
 const networkDiscovery = new NetworkDiscovery();
+
+// Auto-incrementing class counter for auto-naming
+let classCounter = 0;
 
 // Grace period for teacher disconnections (10 seconds)
 const TEACHER_DISCONNECT_GRACE_PERIOD = 10000;
@@ -465,6 +487,195 @@ io.on('connection', (socket) => {
 
     broadcastActiveClasses();
     callback({ success: true });
+  });
+
+  // Auto-create class with auto-generated name (Class-01, Class-02, etc.)
+  socket.on('auto-create-class', ({ userName }, callback) => {
+    classCounter++;
+    const classId = `Class-${String(classCounter).padStart(2, '0')}`;
+
+    // Ensure unique class ID
+    while (activeClasses.has(classId)) {
+      classCounter++;
+    }
+    const finalClassId = `Class-${String(classCounter).padStart(2, '0')}`;
+
+    activeClasses.set(finalClassId, {
+      teacherId: socket.id,
+      teacherName: userName,
+      students: [],
+      messages: [],
+      users: [{ id: socket.id, name: userName, role: 'teacher', handRaised: false }],
+      deletionTimeout: null,
+      advancedSettings: {
+        blockEnabled: true,
+        blockThreshold: 90,
+        reportEnabled: true,
+        reportThreshold: 10
+      }
+    });
+    socket.join(finalClassId);
+    console.log(`Auto-created class: ${finalClassId} by ${userName} (${socket.id})`);
+
+    // Publish mDNS hostname
+    if (networkDiscovery) {
+      const safeClassId = finalClassId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+      const hostname = `${safeClassId}.local`;
+      networkDiscovery.publishClassHostname(finalClassId, hostname);
+    }
+
+    broadcastActiveClasses();
+    callback({ success: true, classId: finalClassId });
+  });
+
+  // Rename class (teacher only)
+  socket.on('rename-class', ({ classId, newName }, callback) => {
+    const classData = activeClasses.get(classId);
+    if (!classData) {
+      return callback({ success: false, message: 'Class not found' });
+    }
+
+    // Verify teacher
+    if (classData.teacherId !== socket.id) {
+      return callback({ success: false, message: 'Only the teacher can rename the class' });
+    }
+
+    // Check if new name already exists
+    if (activeClasses.has(newName) && newName !== classId) {
+      return callback({ success: false, message: 'A class with this name already exists' });
+    }
+
+    // Rename the class
+    activeClasses.delete(classId);
+    activeClasses.set(newName, classData);
+
+    // Update mDNS
+    if (networkDiscovery) {
+      networkDiscovery.unpublishClassHostname(classId);
+      const safeNewName = newName.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+      networkDiscovery.publishClassHostname(newName, `${safeNewName}.local`);
+    }
+
+    // Notify all participants
+    io.to(classId).emit('class-renamed', { oldName: classId, newName });
+
+    // Move all sockets to new room
+    const socketsInRoom = io.sockets.adapter.rooms.get(classId);
+    if (socketsInRoom) {
+      for (const socketId of socketsInRoom) {
+        const s = io.sockets.sockets.get(socketId);
+        if (s) {
+          s.leave(classId);
+          s.join(newName);
+        }
+      }
+    }
+
+    console.log(`Class renamed: ${classId} -> ${newName}`);
+    broadcastActiveClasses();
+    callback({ success: true, newName });
+  });
+
+  // Join or create a shared Lobby (for students when no classes exist)
+  socket.on('join-or-create-lobby', ({ userName }, callback) => {
+    const lobbyId = 'Lobby';
+
+    // Check if Lobby exists
+    if (!activeClasses.has(lobbyId)) {
+      // Create Lobby without a teacher
+      activeClasses.set(lobbyId, {
+        teacherId: null,
+        teacherName: null,
+        students: [],
+        messages: [],
+        users: [],
+        deletionTimeout: null,
+        advancedSettings: {
+          blockEnabled: true,
+          blockThreshold: 90,
+          reportEnabled: true,
+          reportThreshold: 10
+        }
+      });
+      console.log(`Lobby created by student ${userName}`);
+      broadcastActiveClasses();
+    }
+
+    const classData = activeClasses.get(lobbyId);
+
+    // Add user as student
+    const existingUser = classData.users.find(u => u.id === socket.id);
+    if (!existingUser) {
+      classData.users.push({ id: socket.id, name: userName, role: 'student', handRaised: false });
+      classData.students.push(socket.id);
+    }
+
+    socket.join(lobbyId);
+
+    // Notify others
+    io.to(lobbyId).emit('user-list', classData.users);
+
+    const hasTeacher = classData.teacherId !== null;
+
+    callback({
+      success: true,
+      classId: lobbyId,
+      messages: classData.messages,
+      users: classData.users,
+      teacherName: classData.teacherName,
+      hasTeacher: hasTeacher
+    });
+
+    console.log(`Student ${userName} joined Lobby (hasTeacher: ${hasTeacher})`);
+  });
+
+  // Teacher takes over an existing Lobby
+  socket.on('take-over-lobby', ({ userName }, callback) => {
+    const lobbyId = 'Lobby';
+
+    if (!activeClasses.has(lobbyId)) {
+      return callback({ success: false, message: 'No Lobby exists' });
+    }
+
+    const classData = activeClasses.get(lobbyId);
+
+    // Check if Lobby already has a teacher
+    if (classData.teacherId !== null) {
+      return callback({ success: false, message: 'Lobby already has a teacher' });
+    }
+
+    // Take over as teacher
+    classData.teacherId = socket.id;
+    classData.teacherName = userName;
+
+    // Update user in the users list or add as teacher
+    const existingUser = classData.users.find(u => u.id === socket.id);
+    if (existingUser) {
+      existingUser.role = 'teacher';
+      existingUser.name = userName;
+    } else {
+      classData.users.push({ id: socket.id, name: userName, role: 'teacher', handRaised: false });
+    }
+
+    socket.join(lobbyId);
+
+    // Notify all participants that teacher has joined
+    io.to(lobbyId).emit('user-joined', {
+      user: { id: socket.id, name: userName, role: 'teacher' },
+      users: classData.users,
+      classId: lobbyId
+    });
+
+    broadcastActiveClasses();
+
+    callback({
+      success: true,
+      classId: lobbyId,
+      messages: classData.messages,
+      users: classData.users
+    });
+
+    console.log(`Teacher ${userName} took over Lobby`);
   });
 
   socket.on('join-class', ({ classId, userName }, callback) => {
@@ -1792,7 +2003,35 @@ io.on('connection', (socket) => {
         console.log(`User ${user.name} (${socket.id}) left class ${classId}`);
       }
     }
+  }
   });
+
+// STARTUP SETTINGS HANDLERS
+socket.on('get-startup-status', (callback) => {
+  if (electronApp) {
+    const settings = electronApp.getLoginItemSettings();
+    callback({ success: true, openAtLogin: settings.openAtLogin });
+  } else {
+    callback({ success: false, message: 'Not supported in browser mode' });
+  }
+});
+
+socket.on('set-startup-status', ({ openAtLogin }, callback) => {
+  if (electronApp) {
+    if (typeof openAtLogin === 'boolean') {
+      electronApp.setLoginItemSettings({
+        openAtLogin: openAtLogin,
+        openAsHidden: false // Optional: start hidden?
+      });
+      console.log(`Startup setting changed: ${openAtLogin}`);
+      callback({ success: true });
+    } else {
+      callback({ success: false, message: 'Invalid value' });
+    }
+  } else {
+    callback({ success: false, message: 'Not supported in browser mode' });
+  }
+});
 });
 
 const PORT = process.env.PORT || 3000;

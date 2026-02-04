@@ -77,7 +77,13 @@ export const translations = {
         "modal-reports-title": "⚠️ Reported Words",
         "reports-empty": "No pending reports",
         "text-selection-popup-report": "Report ⚠️",
-        "btn-download-all": "Download All"
+        "btn-download-all": "Download All",
+        "settings-section-admin": "Administration",
+        "label-role": "Your Role",
+        "btn-change-role": "🔄 Change Role",
+        "label-class-name": "Class Name",
+        "btn-rename": "Rename",
+        "waiting-for-class": "Waiting for a class to join..."
     },
     el: {
         "app-title": "ClassSend",
@@ -157,6 +163,12 @@ export const translations = {
         "modal-reports-title": "⚠️ Αναφερόμενες Λέξεις",
         "reports-empty": "Δεν υπάρχουν εκκρεμείς αναφορές",
         "text-selection-popup-report": "Αναφορά ⚠️",
-        "btn-download-all": "Λήψη Όλων"
+        "btn-download-all": "Λήψη Όλων",
+        "settings-section-admin": "Διαχείριση",
+        "label-role": "Ο Ρόλος σας",
+        "btn-change-role": "🔄 Αλλαγή Ρόλου",
+        "label-class-name": "Όνομα Τάξης",
+        "btn-rename": "Μετονομασία",
+        "waiting-for-class": "Αναμονή για τάξη..."
     }
 };
