@@ -80,38 +80,46 @@ class NetworkDiscovery {
 
     // Publish a hostname for a specific class (e.g., c-math.local)
     publishClassHostname(classId, hostname) {
-        // Sanitize hostname to ensure it ends with .local
-        if (!hostname.endsWith('.local')) {
-            hostname += '.local';
-        }
-
-        // Stop existing service for this class if any
-        if (this.classServices.has(classId)) {
-            this.classServices.get(classId).stop();
-        }
-
-        console.log(`Publishing hostname ${hostname} for class ${classId}`);
-
-        // Publish a service that advertises this hostname
-        // We use a distinct type or name to avoid confusion, but the key is the 'host' field
-        const service = this.bonjour.publish({
-            name: `ClassSend-${classId}`,
-            type: 'http', // Standard HTTP type
-            port: this.port,
-            host: hostname, // This triggers the A-record for c-math.local
-            txt: {
-                classId: classId
+        try {
+            // Sanitize hostname to ensure it ends with .local
+            if (!hostname.endsWith('.local')) {
+                hostname += '.local';
             }
-        });
 
-        this.classServices.set(classId, service);
+            // Stop existing service for this class if any
+            if (this.classServices.has(classId)) {
+                this.classServices.get(classId).stop();
+            }
+
+            console.log(`Publishing hostname ${hostname} for class ${classId}`);
+
+            // Publish a service that advertises this hostname
+            // We use a distinct type or name to avoid confusion, but the key is the 'host' field
+            const service = this.bonjour.publish({
+                name: `ClassSend-${classId}`,
+                type: 'http', // Standard HTTP type
+                port: this.port,
+                host: hostname, // This triggers the A-record for c-math.local
+                txt: {
+                    classId: classId
+                }
+            });
+
+            this.classServices.set(classId, service);
+        } catch (err) {
+            console.error(`Failed to publish hostname for class ${classId}:`, err);
+        }
     }
 
     unpublishClassHostname(classId) {
-        if (this.classServices.has(classId)) {
-            console.log(`Unpublishing hostname for class ${classId}`);
-            this.classServices.get(classId).stop();
-            this.classServices.delete(classId);
+        try {
+            if (this.classServices.has(classId)) {
+                console.log(`Unpublishing hostname for class ${classId}`);
+                this.classServices.get(classId).stop();
+                this.classServices.delete(classId);
+            }
+        } catch (err) {
+            console.error(`Failed to unpublish hostname for class ${classId}:`, err);
         }
     }
 

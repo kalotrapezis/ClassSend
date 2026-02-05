@@ -457,15 +457,14 @@ socket.on("active-classes", (classes) => {
     }
 });
 
-// Auto-flow helper: Teacher auto-creates class or takes over Lobby
+// Auto-flow helper: Teacher joins or creates Lobby
 function triggerTeacherAutoFlow() {
     roleSelection.classList.add('hidden');
     classSetup.classList.add('hidden');
 
-    // First check if there's a Lobby waiting for a teacher
+    // Join or create Lobby as teacher
     socket.emit("take-over-lobby", { userName }, (response) => {
         if (response.success) {
-            // Successfully took over an existing Lobby
             const classId = response.classId;
             joinedClasses.set(classId, {
                 messages: response.messages || [],
@@ -477,28 +476,23 @@ function triggerTeacherAutoFlow() {
 
             if (settingsNameInput) settingsNameInput.value = userName;
             switchClass(classId);
-            console.log(`Auto-flow: Took over Lobby as teacher`);
-        } else {
-            // No Lobby exists, create a new class
-            socket.emit("auto-create-class", { userName }, (createResponse) => {
-                if (createResponse.success) {
-                    const classId = createResponse.classId;
-                    joinedClasses.set(classId, {
-                        messages: [],
-                        users: [{ id: socket.id, name: userName, role: "teacher" }],
-                        teacherName: userName,
-                        blockedUsers: new Set(),
-                        hasTeacher: true
-                    });
+            console.log(`Auto-flow: Teacher joined Lobby`);
 
-                    if (settingsNameInput) settingsNameInput.value = userName;
-                    switchClass(classId);
-                    console.log(`Auto-flow: Created and joined class ${classId}`);
-                } else {
-                    console.error('Auto-flow: Failed to create class', createResponse.message);
-                    classSetup.classList.remove('hidden');
-                }
-            });
+            // Auto-rename to saved class name if exists
+            const savedClassName = localStorage.getItem('classsend-classId');
+            if (savedClassName && savedClassName !== classId && savedClassName !== 'Lobby') {
+                socket.emit("rename-class", { classId, newName: savedClassName }, (renameResponse) => {
+                    if (renameResponse.success) {
+                        console.log(`Auto-renamed Lobby to ${savedClassName}`);
+                    } else {
+                        console.log(`Could not rename to ${savedClassName}: ${renameResponse.message}`);
+                    }
+                });
+            }
+        } else {
+            console.error('Auto-flow: Failed to join Lobby', response.message);
+            // Fallback: show role selection again
+            roleSelection.classList.remove('hidden');
         }
     });
 }
@@ -617,14 +611,19 @@ document.getElementById("btn-teacher").addEventListener("click", () => {
     currentRole = "teacher";
     savedRole = "teacher";
     localStorage.setItem('classsend-role', 'teacher');
-    showClassSetup();
+    // Skip class setup, immediately join Lobby
+    autoFlowTriggered = true;
+    triggerTeacherAutoFlow();
 });
 
 document.getElementById("btn-student").addEventListener("click", () => {
     currentRole = "student";
     savedRole = "student";
     localStorage.setItem('classsend-role', 'student');
-    showClassSetup();
+    // Skip class setup, immediately join Lobby
+    autoFlowTriggered = true;
+    roleSelection.classList.add('hidden');
+    joinOrCreateLobby();
 });
 
 function showClassSetup() {
@@ -1115,6 +1114,11 @@ socket.on("class-renamed", ({ oldName, newName }) => {
     console.log(`Class renamed: ${oldName} -> ${newName}`);
     if (currentClassId === oldName) {
         currentClassId = newName;
+        // Save new class name for persistence (teacher's saved preference)
+        if (currentRole === 'teacher') {
+            localStorage.setItem('classsend-classId', newName);
+            console.log(`Saved class name: ${newName}`);
+        }
     }
     if (joinedClasses.has(oldName)) {
         const classData = joinedClasses.get(oldName);

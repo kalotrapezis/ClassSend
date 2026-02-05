@@ -1,3 +1,25 @@
+# Release Notes - v8.1.1
+
+## 🚀 Streamlined Lobby & Localization
+
+### 🖥️ Auto-Lobby Flow
+- **Direct Entry**: Both Teachers and Students now skip the class setup screen and join a shared "Lobby" immediately after role selection.
+- **Auto-Generated Identity**: Users receive a random temporary name instantly, reducing friction for first-time use.
+- **Consolidated Connection**: Fixed issues where teachers and students would end up in different "rooms," ensuring everyone lands in the Lobby by default.
+
+### ⚙️ Persistence & Rename
+- **Saved Class Names**: Teachers can rename the Lobby, and this name is now saved locally. Upon return, the app automatically takes over the Lobby and restores the saved class name.
+
+### 🌍 Enhanced Greek Localization
+- **100% Translated Settings**: The entire settings menu, including advanced AI filtering and administration tools, is now fully localized in Greek.
+- **Localized Placeholders**: Improved hint text and placeholders in Greek for better usability.
+
+### 🛠️ Fixes
+- **Tablet Discovery**: Resolved discovery issues on mobile devices that prevented them from seeing or joining classes automatically.
+- **Version Clarity**: Updated all info panels to correctly reflect version 8.1.1.
+
+---
+
 # Release Notes - v8.1.0
 
 ## 🚀 Enhancements & Polish

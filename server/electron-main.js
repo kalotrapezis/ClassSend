@@ -87,11 +87,13 @@ function createWindow() {
     }, 100);
 
     // Create main window (hidden initially)
+    // Create main window (hidden initially)
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
         icon: iconPath,
         show: false, // Don't show until ready
+        autoHideMenuBar: true, // Auto-hide menu bar (better than setMenu(null))
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -118,8 +120,8 @@ function createWindow() {
         }, 500); // Small delay for smoother transition
     });
 
-    // Hide the menu bar (User request)
-    mainWindow.setMenu(null);
+    // Hide the menu bar (User request) - handled by autoHideMenuBar: true
+    // mainWindow.setMenu(null);
 
 
     mainWindow.on('close', async (event) => {

@@ -11,7 +11,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Raleway:wght@100;200;300;400;500;600&display=swap"
     rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index-B8YaMH0L.js"></script>
+  <script type="module" crossorigin src="/assets/index-CEG49l-Y.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index-DKugpa8O.css">
 </head>
 
@@ -21,15 +21,15 @@
     <div id="role-selection" class="screen">
       <div class="screen-content">
         <h1>ClassSend</h1>
-        <h2>Select Your Role</h2>
+        <h2 data-i18n="select-role-title">Select Your Role</h2>
         <div class="card-container">
           <button id="btn-teacher" class="role-card teacher-card">
             <span class="role-icon">👨‍🏫</span>
-            <span class="role-label">Teacher</span>
+            <span class="role-label" data-i18n="role-teacher">Teacher</span>
           </button>
           <button id="btn-student" class="role-card student-card">
             <span class="role-icon">👨‍🎓</span>
-            <span class="role-label">Student</span>
+            <span class="role-label" data-i18n="role-student">Student</span>
           </button>
         </div>
 
@@ -43,15 +43,17 @@
         <div id="setup-form">
           <h2 id="setup-title">Create Class</h2>
           <div class="input-group">
-            <label for="class-id-input">Class ID</label>
-            <input type="text" id="class-id-input" placeholder="e.g., MATH101" autocomplete="off">
+            <label for="class-id-input" data-i18n="label-class-id">Class ID</label>
+            <input type="text" id="class-id-input" placeholder="e.g., MATH101" autocomplete="off"
+              data-i18n-placeholder="placeholder-class-id-example">
           </div>
           <div class="input-group">
-            <label for="user-name-input">Your Name</label>
-            <input type="text" id="user-name-input" placeholder="e.g., John Doe" autocomplete="off">
+            <label for="user-name-input" data-i18n="label-name">Your Name</label>
+            <input type="text" id="user-name-input" placeholder="e.g., John Doe" autocomplete="off"
+              data-i18n-placeholder="placeholder-name-example">
           </div>
-          <button id="btn-submit-setup" class="primary-btn">Create Class</button>
-          <button id="btn-back" class="secondary-btn">Back</button>
+          <button id="btn-submit-setup" class="primary-btn" data-i18n="btn-create">Create Class</button>
+          <button id="btn-back" class="secondary-btn" data-i18n="btn-back">Back</button>
         </div>
       </div>
     </div>
@@ -60,12 +62,12 @@
     <div id="available-classes" class="screen hidden">
       <div class="screen-content">
         <h1>ClassSend</h1>
-        <h2>Available Classes</h2>
+        <h2 data-i18n="header-available-classes">Available Classes</h2>
         <div id="available-classes-list" class="available-classes-list">
           <!-- Classes will be dynamically added here -->
-          <div class="empty-state">Looking for classes...</div>
+          <div class="empty-state" data-i18n="searching-classes">Looking for classes...</div>
         </div>
-        <button id="btn-back-from-classes" class="secondary-btn">Back</button>
+        <button id="btn-back-from-classes" class="secondary-btn" data-i18n="btn-back">Back</button>
       </div>
     </div>
 
@@ -138,7 +140,7 @@
                 </button>
                 <button class="settings-tab-btn" data-tab="about">
                   <span class="tab-icon">ℹ️</span>
-                  <span>About</span>
+                  <span data-i18n="about-tab">About</span>
                 </button>
               </div>
 
@@ -198,12 +200,12 @@
 
                   <!-- Advanced Model Preferences -->
                   <div id="advanced-model-preferences" class="advanced-model-preferences hidden">
-                    <h5 class="subsection-header">Advanced Model Preferences</h5>
+                    <h5 class="subsection-header" data-i18n="advanced-model-preferences">Advanced Model Preferences</h5>
 
                     <!-- Blocking Sensitivity -->
                     <div class="setting-sub-group">
                       <div class="setting-header-row">
-                        <label for="model-block-toggle">Model Automatic Blocking</label>
+                        <label for="model-block-toggle" data-i18n="model-block-toggle">Model Automatic Blocking</label>
                         <label class="switch small">
                           <input type="checkbox" id="model-block-toggle" checked>
                           <span class="slider round"></span>
@@ -211,17 +213,19 @@
                       </div>
                       <input type="range" id="model-block-threshold" min="0" max="100" value="10" class="slider-range">
                       <div class="range-labels">
-                        <span>Lenient</span>
+                        <span data-i18n="lenient">Lenient</span>
                         <span id="model-block-val">10%</span>
-                        <span>Strict</span>
+                        <span data-i18n="strict">Strict</span>
                       </div>
-                      <p class="setting-hint">Automatically block words the AI thinks are dangerous.</p>
+                      <p class="setting-hint" data-i18n="model-block-hint">Automatically block words the AI thinks are
+                        dangerous.</p>
                     </div>
 
                     <!-- Reporting Sensitivity -->
                     <div class="setting-sub-group">
                       <div class="setting-header-row">
-                        <label for="model-report-toggle">Model Automatic Reporting</label>
+                        <label for="model-report-toggle" data-i18n="model-report-toggle">Model Automatic
+                          Reporting</label>
                         <label class="switch small">
                           <input type="checkbox" id="model-report-toggle" checked>
                           <span class="slider round"></span>
@@ -229,21 +233,24 @@
                       </div>
                       <input type="range" id="model-report-threshold" min="0" max="100" value="90" class="slider-range">
                       <div class="range-labels">
-                        <span>Lenient</span>
+                        <span data-i18n="lenient">Lenient</span>
                         <span id="model-report-val">90%</span>
-                        <span>Strict</span>
+                        <span data-i18n="strict">Strict</span>
                       </div>
-                      <p class="setting-hint">Automatically flag words the AI thinks are dangerous for teacher review.
+                      <p class="setting-hint" data-i18n="model-report-hint">Automatically flag words the AI thinks are
+                        dangerous for teacher review.
                       </p>
                     </div>
                   </div>
 
                   <!-- Lists Management -->
                   <div class="setting-item" style="margin-top: 1.5rem;">
-                    <label>Manage Lists</label>
+                    <label data-i18n="manage-lists">Manage Lists</label>
                     <div class="lists-actions">
-                      <button id="btn-open-blacklist-modal" class="secondary-btn">🚫 Manage Blacklist</button>
-                      <button id="btn-open-whitelist-modal" class="secondary-btn whitelist-settings-btn">✅ Manage
+                      <button id="btn-open-blacklist-modal" class="secondary-btn" data-i18n="btn-blacklist">🚫 Manage
+                        Blacklist</button>
+                      <button id="btn-open-whitelist-modal" class="secondary-btn whitelist-settings-btn"
+                        data-i18n="btn-whitelist">✅ Manage
                         Whitelist</button>
                     </div>
                   </div>
@@ -296,15 +303,34 @@
                       <input type="text" id="rename-class-input" class="setting-input" maxlength="30">
                       <button id="btn-rename-class" class="small-primary-btn" data-i18n="btn-rename">Rename</button>
                     </div>
-                    <p class="setting-hint">Change the name of your current class.</p>
+                    <p class="setting-hint" data-i18n="rename-class-hint">Change the name of your current class.</p>
+                  </div>
+
+                  <!-- Startup Settings -->
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <div>
+                        <label for="startup-toggle" class="setting-label-tight" data-i18n="label-startup">Start on
+                          Login</label>
+                        <p class="setting-description" data-i18n="startup-description">Automatically start ClassSend
+                          when you log in.</p>
+                      </div>
+                      <label class="switch">
+                        <input type="checkbox" id="startup-toggle">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
                   </div>
 
                   <div class="setting-item">
-                    <label>Data Management</label>
-                    <p class="setting-description">Import/Export both Blacklist and Whitelist data.</p>
+                    <label data-i18n="data-management">Data Management</label>
+                    <p class="setting-description" data-i18n="data-management-hint">Import/Export both Blacklist and
+                      Whitelist data.</p>
                     <div class="logs-actions">
-                      <button id="btn-import-data" class="secondary-btn" title="Import Data">📥 Import</button>
-                      <button id="btn-export-data" class="secondary-btn" title="Export Data">📤 Export</button>
+                      <button id="btn-import-data" class="secondary-btn" title="Import Data" data-i18n="btn-import">📥
+                        Import</button>
+                      <button id="btn-export-data" class="secondary-btn" title="Export Data" data-i18n="btn-export">📤
+                        Export</button>
                       <input type="file" id="file-import-data" accept=".json" class="hidden">
                     </div>
                   </div>
@@ -322,8 +348,9 @@
                   <div class="setting-item">
                     <div class="setting-header-row">
                       <div>
-                        <label for="toggle-log-history" class="setting-label-tight">Enable Log History</label>
-                        <p class="setting-description log-history-desc">Logs are
+                        <label for="toggle-log-history" class="setting-label-tight" data-i18n="label-enable-logs">Enable
+                          Log History</label>
+                        <p class="setting-description log-history-desc" data-i18n="logs-description">Logs are
                           deleted when app closes.</p>
                       </div>
                       <label class="switch">
@@ -345,8 +372,10 @@
                   <div id="logs-viewer" class="logs-viewer hidden">
                     <div class="logs-viewer-header">
                       <span data-i18n="logs-title">Session Logs</span>
-                      <button id="btn-pause-logs" class="copy-btn" title="Pause Logs">⏸️</button>
-                      <button id="btn-copy-logs" class="copy-btn" title="Copy">📋</button>
+                      <button id="btn-pause-logs" class="copy-btn" title="Pause Logs"
+                        data-i18n-title="btn-pause-logs">⏸️</button>
+                      <button id="btn-copy-logs" class="copy-btn" title="Copy"
+                        data-i18n-title="btn-copy-logs">📋</button>
                       <button id="btn-close-logs" class="close-btn">×</button>
                     </div>
                     <pre id="logs-content" class="logs-content"></pre>
@@ -355,14 +384,14 @@
 
                 <!-- About Page -->
                 <div id="settings-page-about" class="settings-page hidden">
-                  <h4 class="settings-page-header">About</h4>
+                  <h4 class="settings-page-header" data-i18n="about-header">About</h4>
                   <div class="about-content" style="text-align: center; padding: 2rem;">
                     <div class="about-logo" style="font-size: 3rem; margin-bottom: 1rem;">🚀</div>
                     <h2>ClassSend</h2>
-                    <p>Version 7.2.0</p>
+                    <p><span data-i18n="about-version">Version</span> 8.1.1</p>
                     <a href="https://github.com/kalotrapezis/ClassSend/releases" target="_blank"
                       class="about-update-btn">
-                      <span>Check for Updates</span>
+                      <span data-i18n="btn-check-updates">Check for Updates</span>
                     </a>
                     <p style="margin-top: 1.5rem; color: var(--text-tertiary); font-size: 0.85rem;">&copy; 2026
                       ClassSend Team</p>
@@ -378,7 +407,7 @@
         <div id="video-modal" class="modal hidden">
           <div class="modal-content video-modal-content">
             <div class="popup-header">
-              <h3 id="stream-title">📺 Teacher's Screen</h3>
+              <h3 id="stream-title" data-i18n="stream-title">📺 Teacher's Screen</h3>
               <div class="video-header-controls">
                 <button id="btn-minimize-video" class="header-control-btn" title="Minimize">➖</button>
                 <button id="btn-close-video" class="close-btn" title="Close">×</button>
@@ -448,7 +477,7 @@
       <div id="blacklist-modal" class="modal hidden">
         <div class="modal-content blacklist-modal-content">
           <div class="popup-header">
-            <h3>🚫 Blacklist</h3>
+            <h3 data-i18n="btn-blacklist">🚫 Blacklist</h3>
             <button id="btn-close-blacklist" class="close-btn">×</button>
           </div>
           <div class="blacklist-body">
@@ -459,7 +488,7 @@
             </div>
             <div id="blacklist-word-list" class="blacklist-word-list">
               <!-- Words will be dynamically added here -->
-              <div class="empty-blacklist-state">No custom words added yet</div>
+              <div class="empty-blacklist-state" data-i18n="blacklist-empty">No custom words added yet</div>
             </div>
           </div>
         </div>
@@ -469,18 +498,19 @@
       <div id="whitelist-modal" class="modal hidden">
         <div class="modal-content blacklist-modal-content" style="border-top: 5px solid #28a745;">
           <div class="popup-header">
-            <h3>✅ Whitelist 💖</h3>
+            <h3 data-i18n="whitelist-title">✅ Whitelist 💖</h3>
             <button id="btn-close-whitelist-modal" class="close-btn">×</button>
           </div>
           <div class="blacklist-body">
             <div class="blacklist-add-section">
-              <input type="text" id="whitelist-word-input" placeholder="Enter safe word to add..." autocomplete="off">
-              <button id="btn-add-whitelist-word-modal" class="add-word-btn">Add
+              <input type="text" id="whitelist-word-input" placeholder="Enter safe word to add..." autocomplete="off"
+                data-i18n-placeholder="placeholder-whitelist">
+              <button id="btn-add-whitelist-word-modal" class="add-word-btn" data-i18n="btn-add">Add
                 ➕</button>
             </div>
             <div id="whitelist-words-list-modal" class="blacklist-word-list">
               <!-- Words will be dynamically added here -->
-              <div class="empty-blacklist-state">No safe words added yet</div>
+              <div class="empty-blacklist-state" data-i18n="whitelist-empty">No safe words added yet</div>
             </div>
           </div>
         </div>
@@ -530,7 +560,8 @@
           <div class="sidebar-header" id="users-header-container">
             <h3 data-i18n="header-users">Users</h3>
             <span id="user-count" class="user-count">0</span>
-            <button id="btn-hands-down" class="btn-hands-down hidden" title="Lower All Hands">🖐️ Hands Down</button>
+            <button id="btn-hands-down" class="btn-hands-down hidden" title="Lower All Hands"
+              data-i18n-title="btn-hands-down" data-i18n="btn-hands-down">🖐️ Hands Down</button>
           </div>
           <div id="users-list" class="users-list">
             <!-- Users will be dynamically added here -->
@@ -547,8 +578,9 @@
               ⚠️ Inappropriate content detected
             </div>
             <div class="input-actions-left">
-              <button id="btn-attach-file" class="attach-btn" title="Attach file"></button>
-              <button id="btn-emoji" class="emoji-btn" title="Insert Emoji">
+              <button id="btn-attach-file" class="attach-btn" title="Attach file"
+                data-i18n-title="btn-attach-file"></button>
+              <button id="btn-emoji" class="emoji-btn" title="Insert Emoji" data-i18n-title="btn-insert-emoji">
                 😀
               </button>
               <button id="btn-share-screen" class="share-screen-btn labeled hidden" title="Share Screen"
@@ -560,10 +592,11 @@
                 data-i18n-title="btn-reports-title">
                 ⚠️ <span class="report-badge hidden">0</span>
               </button>
-              <button id="btn-raise-hand" class="raise-hand-btn" title="Raise Hand">
+              <button id="btn-raise-hand" class="raise-hand-btn" title="Raise Hand" data-i18n-title="btn-raise-hand">
                 🖐️
               </button>
-              <button id="btn-view-stream" class="view-stream-btn hidden" title="View Stream">
+              <button id="btn-view-stream" class="view-stream-btn hidden" title="View Stream"
+                data-i18n-title="btn-view-stream">
                 📺
               </button>
               <div id="emoji-picker" class="emoji-picker hidden">
@@ -587,7 +620,8 @@
               </div>
             </div>
             <input type="file" id="file-input" class="hidden">
-            <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+            <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off"
+              data-i18n-placeholder="placeholder-message">
             <button id="btn-send-message" class="send-btn" title="Send Message"></button>
           </div>
         </main>

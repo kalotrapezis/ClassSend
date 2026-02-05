@@ -479,10 +479,14 @@ io.on('connection', (socket) => {
 
     // Publish mDNS hostname for the class
     if (networkDiscovery) {
-      // Sanitize classId to be hostname-safe (alphanumeric + hyphens)
-      const safeClassId = classId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
-      const hostname = `${safeClassId}.local`;
-      networkDiscovery.publishClassHostname(classId, hostname);
+      try {
+        // Sanitize classId to be hostname-safe (alphanumeric + hyphens)
+        const safeClassId = classId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+        const hostname = `${safeClassId}.local`;
+        networkDiscovery.publishClassHostname(classId, hostname);
+      } catch (e) {
+        console.error('Failed to publish hostname (non-fatal):', e);
+      }
     }
 
     broadcastActiveClasses();
@@ -519,9 +523,13 @@ io.on('connection', (socket) => {
 
     // Publish mDNS hostname
     if (networkDiscovery) {
-      const safeClassId = finalClassId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
-      const hostname = `${safeClassId}.local`;
-      networkDiscovery.publishClassHostname(finalClassId, hostname);
+      try {
+        const safeClassId = finalClassId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+        const hostname = `${safeClassId}.local`;
+        networkDiscovery.publishClassHostname(finalClassId, hostname);
+      } catch (e) {
+        console.error('Failed to publish hostname (non-fatal):', e);
+      }
     }
 
     broadcastActiveClasses();
@@ -551,9 +559,13 @@ io.on('connection', (socket) => {
 
     // Update mDNS
     if (networkDiscovery) {
-      networkDiscovery.unpublishClassHostname(classId);
-      const safeNewName = newName.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
-      networkDiscovery.publishClassHostname(newName, `${safeNewName}.local`);
+      try {
+        networkDiscovery.unpublishClassHostname(classId);
+        const safeNewName = newName.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+        networkDiscovery.publishClassHostname(newName, `${safeNewName}.local`);
+      } catch (e) {
+        console.error('Failed to update hostname (non-fatal):', e);
+      }
     }
 
     // Notify all participants
@@ -629,12 +641,35 @@ io.on('connection', (socket) => {
     console.log(`Student ${userName} joined Lobby (hasTeacher: ${hasTeacher})`);
   });
 
-  // Teacher takes over an existing Lobby
+  // Teacher takes over an existing Lobby (or creates it if missing)
   socket.on('take-over-lobby', ({ userName }, callback) => {
     const lobbyId = 'Lobby';
 
+    // If Lobby doesn't exist, create it
     if (!activeClasses.has(lobbyId)) {
-      return callback({ success: false, message: 'No Lobby exists' });
+      activeClasses.set(lobbyId, {
+        teacherId: socket.id,
+        teacherName: userName,
+        students: [],
+        messages: [],
+        users: [{ id: socket.id, name: userName, role: 'teacher', handRaised: false }],
+        deletionTimeout: null,
+        advancedSettings: {
+          blockEnabled: true,
+          blockThreshold: 90,
+          reportEnabled: true,
+          reportThreshold: 10
+        }
+      });
+      socket.join(lobbyId);
+      console.log(`Lobby created and taken over by teacher ${userName}`);
+      broadcastActiveClasses();
+      return callback({
+        success: true,
+        classId: lobbyId,
+        messages: [],
+        users: [{ id: socket.id, name: userName, role: 'teacher' }]
+      });
     }
 
     const classData = activeClasses.get(lobbyId);
@@ -1242,7 +1277,11 @@ io.on('connection', (socket) => {
 
     // Unpublish mDNS hostname
     if (networkDiscovery) {
-      networkDiscovery.unpublishClassHostname(classId);
+      try {
+        networkDiscovery.unpublishClassHostname(classId);
+      } catch (e) {
+        console.error('Failed to unpublish hostname (non-fatal):', e);
+      }
     }
 
     broadcastActiveClasses();
@@ -2003,35 +2042,34 @@ io.on('connection', (socket) => {
         console.log(`User ${user.name} (${socket.id}) left class ${classId}`);
       }
     }
-  }
   });
 
-// STARTUP SETTINGS HANDLERS
-socket.on('get-startup-status', (callback) => {
-  if (electronApp) {
-    const settings = electronApp.getLoginItemSettings();
-    callback({ success: true, openAtLogin: settings.openAtLogin });
-  } else {
-    callback({ success: false, message: 'Not supported in browser mode' });
-  }
-});
-
-socket.on('set-startup-status', ({ openAtLogin }, callback) => {
-  if (electronApp) {
-    if (typeof openAtLogin === 'boolean') {
-      electronApp.setLoginItemSettings({
-        openAtLogin: openAtLogin,
-        openAsHidden: false // Optional: start hidden?
-      });
-      console.log(`Startup setting changed: ${openAtLogin}`);
-      callback({ success: true });
+  // STARTUP SETTINGS HANDLERS
+  socket.on('get-startup-status', (callback) => {
+    if (electronApp) {
+      const settings = electronApp.getLoginItemSettings();
+      callback({ success: true, openAtLogin: settings.openAtLogin });
     } else {
-      callback({ success: false, message: 'Invalid value' });
+      callback({ success: false, message: 'Not supported in browser mode' });
     }
-  } else {
-    callback({ success: false, message: 'Not supported in browser mode' });
-  }
-});
+  });
+
+  socket.on('set-startup-status', ({ openAtLogin }, callback) => {
+    if (electronApp) {
+      if (typeof openAtLogin === 'boolean') {
+        electronApp.setLoginItemSettings({
+          openAtLogin: openAtLogin,
+          openAsHidden: false // Optional: start hidden?
+        });
+        console.log(`Startup setting changed: ${openAtLogin}`);
+        callback({ success: true });
+      } else {
+        callback({ success: false, message: 'Invalid value' });
+      }
+    } else {
+      callback({ success: false, message: 'Not supported in browser mode' });
+    }
+  });
 });
 
 const PORT = process.env.PORT || 3000;
