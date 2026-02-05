@@ -1,7 +1,12 @@
-# ClassSend (v8.0.0 Latest)
+# ClassSend (v8.1.1 Latest)
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 Latest Features (v8.0.0)
+## 🚀 Latest Features (v8.1.1)
+- **🌍 Auto-Lobby**: Streamlined flow where everyone joins a shared lobby automatically.
+- **🇬🇷 Greek Localization**: Full translation of the entire settings menu and administration tools.
+- **💾 Class Persistence**: Renamed Lobby names are saved and restored automatically.
+
+## 🚀 Previous Features (v8.0.0)
 - **🏢 Lobby Mode**: Students can now create and join a shared "Lobby" if no class exists. Chat is disabled until a teacher joins and takes ownership.
 - **🇬🇷 Extended Character Support**: Fixed filename encoding issues for Greek and other non-Latin characters.
 - **🚿 Splash Screen**: New animated splash screen for a smoother loading experience.
