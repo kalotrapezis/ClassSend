@@ -9,6 +9,8 @@
 ### 🛡️ Crash Prevention & Fixes
 - **Block All Sync**: The "Block All Communications" button now correctly reflects the active state when joining or refreshing.
 - **Single Class Protection**: Prevents accidental deletion or leaving of the class if it's the only one active, avoiding application crashes.
+- **Role Switch Stability**: Fixed a critical crash during role switching by handling missing socket callbacks on the server.
+- **Clean State Reload**: Implemented a full application reload when changing roles to ensure a completely clean environment and prevent state residues (like blocked message status).
 
 ---
 

@@ -459,7 +459,8 @@ io.on('connection', (socket) => {
 
   socket.on('create-class', ({ classId, userName }, callback) => {
     if (activeClasses.has(classId)) {
-      return callback({ success: false, message: 'Class ID already exists' });
+      if (typeof callback === 'function') callback({ success: false, message: 'Class ID already exists' });
+      return;
     }
     activeClasses.set(classId, {
       teacherId: socket.id,
@@ -492,7 +493,8 @@ io.on('connection', (socket) => {
     }
 
     broadcastActiveClasses();
-    callback({ success: true });
+    broadcastActiveClasses();
+    if (typeof callback === 'function') callback({ success: true });
   });
 
   // Auto-create class with auto-generated name (Class-01, Class-02, etc.)
@@ -535,24 +537,28 @@ io.on('connection', (socket) => {
     }
 
     broadcastActiveClasses();
-    callback({ success: true, classId: finalClassId });
+    broadcastActiveClasses();
+    if (typeof callback === 'function') callback({ success: true, classId: finalClassId });
   });
 
   // Rename class (teacher only)
   socket.on('rename-class', ({ classId, newName }, callback) => {
     const classData = activeClasses.get(classId);
     if (!classData) {
-      return callback({ success: false, message: 'Class not found' });
+      if (typeof callback === 'function') callback({ success: false, message: 'Class not found' });
+      return;
     }
 
     // Verify teacher
     if (classData.teacherId !== socket.id) {
-      return callback({ success: false, message: 'Only the teacher can rename the class' });
+      if (typeof callback === 'function') callback({ success: false, message: 'Only the teacher can rename the class' });
+      return;
     }
 
     // Check if new name already exists
     if (activeClasses.has(newName) && newName !== classId) {
-      return callback({ success: false, message: 'A class with this name already exists' });
+      if (typeof callback === 'function') callback({ success: false, message: 'A class with this name already exists' });
+      return;
     }
 
     // Rename the class
@@ -587,7 +593,8 @@ io.on('connection', (socket) => {
 
     console.log(`Class renamed: ${classId} -> ${newName}`);
     broadcastActiveClasses();
-    callback({ success: true, newName });
+    broadcastActiveClasses();
+    if (typeof callback === 'function') callback({ success: true, newName });
   });
 
   // Join or create a shared Lobby (for students when no classes exist)
@@ -631,7 +638,7 @@ io.on('connection', (socket) => {
 
     const hasTeacher = classData.teacherId !== null;
 
-    callback({
+    if (typeof callback === 'function') callback({
       success: true,
       classId: lobbyId,
       messages: classData.messages,
@@ -666,19 +673,24 @@ io.on('connection', (socket) => {
       socket.join(lobbyId);
       console.log(`Lobby created and taken over by teacher ${userName}`);
       broadcastActiveClasses();
-      return callback({
+      broadcastActiveClasses();
+      if (typeof callback === 'function') callback({
         success: true,
         classId: lobbyId,
         messages: [],
         users: [{ id: socket.id, name: userName, role: 'teacher' }]
       });
+      return;
     }
 
     const classData = activeClasses.get(lobbyId);
 
     // Check if Lobby already has a teacher
     if (classData.teacherId !== null) {
-      return callback({ success: false, message: 'Lobby already has a teacher' });
+      if (classData.teacherId !== null) {
+        if (typeof callback === 'function') callback({ success: false, message: 'Lobby already has a teacher' });
+        return;
+      }
     }
 
     // Take over as teacher
@@ -705,7 +717,7 @@ io.on('connection', (socket) => {
 
     broadcastActiveClasses();
 
-    callback({
+    if (typeof callback === 'function') callback({
       success: true,
       classId: lobbyId,
       messages: classData.messages,
@@ -718,7 +730,10 @@ io.on('connection', (socket) => {
   socket.on('join-class', ({ classId, userName }, callback) => {
     const classData = activeClasses.get(classId);
     if (!classData) {
-      return callback({ success: false, message: 'Class not found' });
+      if (!classData) {
+        if (typeof callback === 'function') callback({ success: false, message: 'Class not found' });
+        return;
+      }
     }
 
     // If teacher is reconnecting, cancel deletion timeout
@@ -751,7 +766,8 @@ io.on('connection', (socket) => {
           classData.teacherId = socket.id;
         }
       } else {
-        return callback({ success: false, message: 'Name already taken in this class' });
+        if (typeof callback === 'function') callback({ success: false, message: 'Name already taken in this class' });
+        return;
       }
     }
 
@@ -790,7 +806,7 @@ io.on('connection', (socket) => {
     console.log(`User ${userName} (${socket.id}) joined class ${classId} as ${role}`);
 
     // Send history and user list to joiner
-    callback({
+    if (typeof callback === 'function') callback({
       success: true,
       blocked: classData.blockedUsers && classData.blockedUsers.has(socket.id),
       blockAllActive: classData.blockAllActive || false,
@@ -806,7 +822,8 @@ io.on('connection', (socket) => {
   // Leave class
   socket.on('leave-class', ({ classId }, callback) => {
     if (!activeClasses.has(classId)) {
-      return callback({ success: false });
+      if (typeof callback === 'function') callback({ success: false });
+      return;
     }
     const classData = activeClasses.get(classId);
     const userIndex = classData.users.findIndex(u => u.id === socket.id);
@@ -830,9 +847,9 @@ io.on('connection', (socket) => {
       });
 
       console.log(`User ${user.name} (${socket.id}) left class ${classId}`);
-      callback({ success: true });
+      if (typeof callback === 'function') callback({ success: true });
     } else {
-      callback({ success: false, message: 'User not in class' });
+      if (typeof callback === 'function') callback({ success: false, message: 'User not in class' });
     }
   });
 

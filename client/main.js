@@ -1221,22 +1221,9 @@ if (btnChangeRole) {
 
         // Clear saved role and state
         localStorage.removeItem('classsend-role');
-        savedRole = null;
-        currentRole = null;
-        currentClassId = null;
-        joinedClasses.clear();
-        autoFlowTriggered = false;
 
-        // Close settings modal
-        if (settingsModal) settingsModal.classList.add('hidden');
-
-        // Go back to role selection
-        chatInterface.classList.add('hidden');
-        classSetup.classList.add('hidden');
-        availableClassesScreen.classList.add('hidden');
-        roleSelection.classList.remove('hidden');
-
-        showToast("Role cleared. Please select a new role.", "info");
+        // Reload application to reset neutral state
+        window.location.reload();
     });
 }
 
