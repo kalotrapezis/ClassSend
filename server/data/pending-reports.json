@@ -1,0 +1,15 @@
+[
+  {
+    "id": "1770407180786",
+    "word": "idiot",
+    "context": "you are an idiot",
+    "messageId": 1770407180688.8955,
+    "reporterName": "AI Detection",
+    "reporterId": "deep-learning",
+    "senderName": "Calm Cherry",
+    "classId": "Class-01",
+    "timestamp": "2026-02-06T19:46:20.786Z",
+    "aiConfidence": 75,
+    "aiCategory": "inappropriate content"
+  }
+]

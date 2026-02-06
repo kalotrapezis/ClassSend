@@ -1,3 +1,18 @@
+# Release Notes - v8.3.0
+
+## 🧪 Advanced Automation & Testing
+
+### 🏗️ E2E Testing Suite (Playwright)
+- **Comprehensive Coverage**: Added automated end-to-end tests for Connection, Messaging, Class Flow, and Role Management.
+- **Load Testing**: Verified server stability with 5-10 concurrent virtual clients.
+- **Filter Tuning**: Specific tests to verify AI sensitivity levels (Strict/Lenient) and Teacher warnings for borderline content.
+
+### ⚙️ Dynamic UI Enhancements
+- **Auto-Version Injection**: The "About" page now pulls the version number automatically from `package.json` during the build process. No more manual HTML updates!
+- **Vite Build Integration**: Optimized the build pipeline to define global app constants.
+
+---
+
 # Release Notes - v8.2.5
 
 ## 🚀 Streamlined Network & Stability

@@ -1,0 +1,83 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "☰" [ref=e6] [cursor=pointer]
+      - generic "Connected" [ref=e8]:
+        - generic [ref=e10]: Disconnected
+      - heading "ClassSend" [level=1] [ref=e11]
+      - button "Connection Connection Info" [ref=e12] [cursor=pointer]:
+        - img "Connection" [ref=e13]
+        - generic [ref=e14]: Connection Info
+      - button "Media Media Library" [ref=e15] [cursor=pointer]:
+        - img "Media" [ref=e16]
+        - generic [ref=e17]: Media Library
+      - button "Settings Settings" [ref=e18] [cursor=pointer]:
+        - img "Settings" [ref=e19]
+        - generic [ref=e20]: Settings
+  - generic [ref=e21]:
+    - complementary [ref=e22]:
+      - heading "Classes" [level=3] [ref=e24]
+      - generic [ref=e25]:
+        - generic [ref=e26] [cursor=pointer]:
+          - img [ref=e28]
+          - generic [ref=e29]: Class-08
+          - generic "Delete Class" [ref=e30]:
+            - img [ref=e31]
+            - text: Delete
+        - generic [ref=e32] [cursor=pointer]:
+          - img [ref=e34]
+          - generic [ref=e35]: Class-01
+        - generic [ref=e36] [cursor=pointer]:
+          - img [ref=e38]
+          - generic [ref=e39]: Class-02
+        - generic [ref=e40] [cursor=pointer]:
+          - img [ref=e42]
+          - generic [ref=e43]: Class-03
+        - generic [ref=e44] [cursor=pointer]:
+          - img [ref=e46]
+          - generic [ref=e47]: Class-04
+        - generic [ref=e48] [cursor=pointer]:
+          - img [ref=e50]
+          - generic [ref=e51]: Class-05
+        - generic [ref=e52] [cursor=pointer]:
+          - img [ref=e54]
+          - generic [ref=e55]: Class-06
+        - generic [ref=e56] [cursor=pointer]:
+          - img [ref=e58]
+          - generic [ref=e59]: Class-07
+        - generic [ref=e60] [cursor=pointer]:
+          - img [ref=e62]
+          - generic [ref=e63]: Lobby
+        - generic [ref=e64] [cursor=pointer]:
+          - img [ref=e66]
+          - generic [ref=e67]: Class-09
+      - generic [ref=e68]:
+        - heading "Users" [level=3] [ref=e69]
+        - generic [ref=e70]: "2"
+        - generic "Toggle communication blocking for all students" [ref=e72]:
+          - button "Block all communications" [ref=e73] [cursor=pointer]:
+            - img [ref=e74]
+            - generic [ref=e76]: Block all communications
+      - generic [ref=e77]:
+        - generic [ref=e80]: Zesty Berry
+        - generic [ref=e81]:
+          - generic [ref=e83]: Lively Apple
+          - button "Block user" [ref=e84] [cursor=pointer]:
+            - img [ref=e85]
+    - main [ref=e86]:
+      - generic [ref=e88]:
+        - generic [ref=e89]:
+          - button "Attach file" [ref=e90] [cursor=pointer]
+          - button "Emoji" [ref=e91] [cursor=pointer]:
+            - img "Emoji" [ref=e92]
+          - button "Share Screen Screen Sharing" [ref=e93] [cursor=pointer]:
+            - img "Share Screen" [ref=e94]
+            - generic [ref=e95]: Screen Sharing
+          - button "Reports" [ref=e96] [cursor=pointer]:
+            - img "Reports" [ref=e97]
+        - textbox "Type a message..." [active] [ref=e98]: Hello Student
+        - button "Send Message" [disabled] [ref=e99]
+```

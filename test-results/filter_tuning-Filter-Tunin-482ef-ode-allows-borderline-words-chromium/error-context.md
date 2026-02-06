@@ -1,0 +1,152 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "☰" [ref=e6] [cursor=pointer]
+      - generic "Connected" [ref=e8]:
+        - generic [ref=e10]: Disconnected
+      - heading "ClassSend" [level=1] [ref=e11]
+      - button "Connection Connection Info" [ref=e12] [cursor=pointer]:
+        - img "Connection" [ref=e13]
+        - generic [ref=e14]: Connection Info
+      - button "Media Media Library" [ref=e15] [cursor=pointer]:
+        - img "Media" [ref=e16]
+        - generic [ref=e17]: Media Library
+      - button "Settings Settings" [ref=e18] [cursor=pointer]:
+        - img "Settings" [ref=e19]
+        - generic [ref=e20]: Settings
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Settings" [level=3] [ref=e24]
+        - button "×" [ref=e25] [cursor=pointer]
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - button "Personalization Personalization" [ref=e28] [cursor=pointer]:
+            - img "Personalization" [ref=e29]
+            - generic [ref=e30]: Personalization
+          - button "AI Content Filtering" [ref=e31] [cursor=pointer]:
+            - img "AI" [ref=e32]
+            - generic [ref=e33]: Content Filtering
+          - button "Connection Connection Information" [ref=e34] [cursor=pointer]:
+            - img "Connection" [ref=e35]
+            - generic [ref=e36]: Connection Information
+          - button "Screen Sharing Streaming" [ref=e37] [cursor=pointer]:
+            - img "Screen Sharing" [ref=e38]
+            - generic [ref=e39]: Streaming
+          - button "Admin Administration" [ref=e40] [cursor=pointer]:
+            - img "Admin" [ref=e41]
+            - generic [ref=e42]: Administration
+          - button "System Advanced" [ref=e43] [cursor=pointer]:
+            - img "System" [ref=e44]
+            - generic [ref=e45]: Advanced
+          - button "About About" [ref=e46] [cursor=pointer]:
+            - img "About" [ref=e47]
+            - generic [ref=e48]: About
+        - generic [ref=e50]:
+          - heading "Content Filtering" [level=4] [ref=e51]
+          - generic [ref=e52]:
+            - generic [ref=e53]: Filter Mode
+            - combobox "Filter Mode" [ref=e54] [cursor=pointer]:
+              - option "Legacy (Low RAM)"
+              - option "Advanced (AI)"
+              - option "Deep Learning (AI)" [selected]
+          - paragraph [ref=e55]: Legacy mode uses client-side word matching. Advanced mode uses server-side AI classification.
+          - generic [ref=e56]:
+            - heading "Advanced Model Preferences" [level=5] [ref=e57]
+            - generic [ref=e58]:
+              - generic [ref=e59]:
+                - generic [ref=e60]: Model Automatic Blocking
+                - generic [ref=e61]:
+                  - checkbox "Model Automatic Blocking" [checked]
+              - slider [active] [ref=e63]: "5"
+              - generic [ref=e64]:
+                - generic [ref=e65]: Lenient
+                - generic [ref=e66]: 5%
+                - generic [ref=e67]: Strict
+              - paragraph [ref=e68]: Automatically block words the AI thinks are dangerous.
+            - generic [ref=e69]:
+              - generic [ref=e70]:
+                - generic [ref=e71]: Model Automatic Reporting
+                - generic [ref=e72]:
+                  - checkbox "Model Automatic Reporting" [checked]
+              - slider [ref=e74]: "90"
+              - generic [ref=e75]:
+                - generic [ref=e76]: Lenient
+                - generic [ref=e77]: 90%
+                - generic [ref=e78]: Strict
+              - paragraph [ref=e79]: Automatically flag words the AI thinks are dangerous for teacher review.
+          - generic [ref=e80]:
+            - generic [ref=e81]: Manage Lists
+            - generic [ref=e82]:
+              - button "Blacklist Blacklist" [ref=e83] [cursor=pointer]:
+                - img "Blacklist" [ref=e84]
+                - text: Blacklist
+              - button "Whitelist ✅ Manage Whitelist" [ref=e85] [cursor=pointer]:
+                - img "Whitelist" [ref=e86]
+                - text: ✅ Manage Whitelist
+  - generic [ref=e87]:
+    - complementary [ref=e88]:
+      - heading "Classes" [level=3] [ref=e90]
+      - generic [ref=e91]:
+        - generic [ref=e92] [cursor=pointer]:
+          - img [ref=e94]
+          - generic [ref=e95]: Class-03
+          - generic "Delete Class" [ref=e96]:
+            - img [ref=e97]
+            - text: Delete
+        - generic [ref=e98] [cursor=pointer]:
+          - img [ref=e100]
+          - generic [ref=e101]: Class-01
+        - generic [ref=e102] [cursor=pointer]:
+          - img [ref=e104]
+          - generic [ref=e105]: Class-02
+        - generic [ref=e106] [cursor=pointer]:
+          - img [ref=e108]
+          - generic [ref=e109]: Class-04
+        - generic [ref=e110] [cursor=pointer]:
+          - img [ref=e112]
+          - generic [ref=e113]: Class-05
+        - generic [ref=e114] [cursor=pointer]:
+          - img [ref=e116]
+          - generic [ref=e117]: Class-06
+        - generic [ref=e118] [cursor=pointer]:
+          - img [ref=e120]
+          - generic [ref=e121]: Class-07
+        - generic [ref=e122] [cursor=pointer]:
+          - img [ref=e124]
+          - generic [ref=e125]: Class-08
+        - generic [ref=e126] [cursor=pointer]:
+          - img [ref=e128]
+          - generic [ref=e129]: Lobby
+        - generic [ref=e130] [cursor=pointer]:
+          - img [ref=e132]
+          - generic [ref=e133]: Class-09
+      - generic [ref=e134]:
+        - heading "Users" [level=3] [ref=e135]
+        - generic [ref=e136]: "2"
+        - generic "Toggle communication blocking for all students" [ref=e138]:
+          - button "Block all communications" [ref=e139] [cursor=pointer]:
+            - img [ref=e140]
+            - generic [ref=e142]: Block all communications
+      - generic [ref=e143]:
+        - generic [ref=e146]: Happy Lime
+        - generic [ref=e147]:
+          - generic [ref=e149]: 🚩 Noble Coconut
+          - button "Block user" [ref=e150] [cursor=pointer]:
+            - img [ref=e151]
+    - main [ref=e152]:
+      - generic [ref=e154]:
+        - generic [ref=e155]:
+          - button "Attach file" [ref=e156] [cursor=pointer]
+          - button "Emoji" [ref=e157] [cursor=pointer]:
+            - img "Emoji" [ref=e158]
+          - button "Share Screen Screen Sharing" [ref=e159] [cursor=pointer]:
+            - img "Share Screen" [ref=e160]
+            - generic [ref=e161]: Screen Sharing
+          - button "Reports" [ref=e162] [cursor=pointer]:
+            - img "Reports" [ref=e163]
+        - textbox "Type a message..." [ref=e164]
+        - button "Send Message" [ref=e165] [cursor=pointer]
+```

@@ -974,6 +974,8 @@ function switchClass(id) {
     if (typeof updateBlacklistButtonVisibility === 'function') {
         updateBlacklistButtonVisibility();
     }
+
+    updateChatDisabledState();
 }
 
 function deleteClass(id) {
@@ -4639,4 +4641,22 @@ if (btnSettingsToggle) {
             });
         }
     });
+}
+
+// Set Version from Build
+const versionDisplay = document.getElementById('app-version-display');
+if (versionDisplay && typeof __APP_VERSION__ !== 'undefined') {
+    versionDisplay.textContent = __APP_VERSION__;
+}
+
+// Expose for testing
+if (window.Playwright) {
+    window.connectToServer = connectToServer;
+    window.discoveredServers = discoveredServers;
+    window.renderSidebar = renderSidebar;
+} else {
+    // Also expose generally for console debugging if needed, or just always
+    window.connectToServer = connectToServer;
+    window.discoveredServers = discoveredServers;
+    window.renderSidebar = renderSidebar;
 }

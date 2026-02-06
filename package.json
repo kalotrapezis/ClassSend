@@ -1,0 +1,27 @@
+{
+  "name": "classsend",
+  "version": "8.3.0",
+  "description": "**ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run server/tests",
+    "test:e2e": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kalotrapezis/ClassSend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kalotrapezis/ClassSend/issues"
+  },
+  "homepage": "https://github.com/kalotrapezis/ClassSend#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "vitest": "^4.0.18"
+  }
+}
