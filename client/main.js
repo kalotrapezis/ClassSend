@@ -52,10 +52,38 @@ console.error = (...args) => {
 };
 
 // Connect to server dynamically - works for both localhost and LAN
-const serverUrl = window.location.origin;
-const socket = io(serverUrl);
+let currentServerUrl = window.location.origin;
+let socket = io(currentServerUrl);
 
-console.log(`Connecting to ClassSend server at: ${serverUrl}`);
+console.log(`Connecting to ClassSend server at: ${currentServerUrl}`);
+
+// Function to switch to a different server
+function connectToServer(serverUrl) {
+    if (currentServerUrl === serverUrl) return; // Already connected
+
+    console.log(`Switching from ${currentServerUrl} to ${serverUrl}`);
+
+    // Clean up current state
+    stopClassRefreshInterval();
+    stopNetworkDiscovery();
+    discoveredServers.clear();
+    joinedClasses.clear();
+    availableClasses = [];
+    currentClassId = null;
+    autoFlowTriggered = false;
+
+    // Disconnect from current server
+    socket.disconnect();
+
+    // Connect to new server
+    currentServerUrl = serverUrl;
+    socket = io(serverUrl);
+
+    // Re-attach all socket event handlers
+    attachSocketHandlers();
+
+    console.log(`Connected to new server: ${serverUrl}`);
+}
 
 
 // State - with localStorage persistence
@@ -69,6 +97,68 @@ let customWhitelistedWords = [];
 let currentLanguage = localStorage.getItem('language') || 'en';
 let pinnedFiles = new Set(); // Track pinned file IDs in media library
 let autoFlowTriggered = false; // Prevent multiple auto-flow triggers
+
+// Periodic refresh of active classes (every 5 seconds)
+let classRefreshInterval = null;
+function startClassRefreshInterval() {
+    if (classRefreshInterval) return; // Already running
+    classRefreshInterval = setInterval(() => {
+        if (socket.connected) {
+            socket.emit("get-active-classes");
+        }
+    }, 5000);
+}
+function stopClassRefreshInterval() {
+    if (classRefreshInterval) {
+        clearInterval(classRefreshInterval);
+        classRefreshInterval = null;
+    }
+}
+
+// Network Discovery - Find other ClassSend servers on the network
+let discoveredServers = new Map(); // ip:port -> { name, ip, port, classes, version }
+let networkDiscoveryStarted = false;
+
+function startNetworkDiscovery() {
+    if (networkDiscoveryStarted) return;
+    networkDiscoveryStarted = true;
+    socket.emit("start-discovery");
+    console.log("Started network discovery for other ClassSend servers");
+}
+
+function stopNetworkDiscovery() {
+    if (!networkDiscoveryStarted) return;
+    networkDiscoveryStarted = false;
+    socket.emit("stop-discovery");
+    console.log("Stopped network discovery");
+}
+
+// Listen for discovered servers
+socket.on("server-discovered", (serverInfo) => {
+    const key = `${serverInfo.ip}:${serverInfo.port}`;
+    discoveredServers.set(key, serverInfo);
+    console.log(`Discovered ClassSend server: ${serverInfo.name} at ${key}`, serverInfo.classes);
+
+    // If we have a role and are viewing classes, update the UI
+    if (currentRole) {
+        renderSidebar();
+    }
+    // Update available classes screen if visible
+    if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
+        renderAvailableClasses();
+    }
+});
+
+socket.on("server-lost", (serverInfo) => {
+    const key = `${serverInfo.ip}:${serverInfo.port}`;
+    discoveredServers.delete(key);
+    console.log(`Lost ClassSend server: ${serverInfo.name} at ${key}`);
+
+    // Update UI
+    if (currentRole) {
+        renderSidebar();
+    }
+});
 
 // Auto-generate name if none exists
 if (!userName) {
@@ -135,6 +225,10 @@ const logsViewer = document.getElementById("logs-viewer");
 const logsContent = document.getElementById("logs-content");
 const btnCopyLogs = document.getElementById("btn-copy-logs");
 const btnCloseLogs = document.getElementById("btn-close-logs");
+
+// Slider Elements
+const modelBlockSlider = document.getElementById("model-block-threshold");
+const modelReportSlider = document.getElementById("model-report-threshold");
 
 // Blacklist Import/Export Elements
 const btnImportBlacklist = document.getElementById("btn-import-blacklist");
@@ -214,7 +308,7 @@ if (btnCopyUrl) {
 
         if (copied) {
             const originalText = btnCopyUrl.textContent;
-            btnCopyUrl.textContent = "✅";
+            btnCopyUrl.innerHTML = '<img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />';
 
             // Auto-close connection info if enabled
             if (checkAutoCloseConnection && checkAutoCloseConnection.checked) {
@@ -230,7 +324,7 @@ if (btnCopyUrl) {
         } else {
             // Show error feedback
             const originalText = btnCopyUrl.textContent;
-            btnCopyUrl.textContent = "❌";
+            btnCopyUrl.innerHTML = '<img src="/assets/exit-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />';
             setTimeout(() => {
                 btnCopyUrl.textContent = originalText;
             }, 1500);
@@ -401,6 +495,12 @@ socket.on("connect", () => {
     // Refresh active classes
     socket.emit("get-active-classes");
 
+    // Start periodic refresh of class list
+    startClassRefreshInterval();
+
+    // Start network discovery to find other ClassSend servers
+    startNetworkDiscovery();
+
     // Auto-flow: if role is saved, trigger auto-flow
     if (savedRole && !autoFlowTriggered && !currentClassId) {
         autoFlowTriggered = true;
@@ -420,10 +520,18 @@ socket.on("disconnect", () => {
     const statusText = connectionStatus.querySelector(".status-text");
     if (statusText) statusText.textContent = "Disconnected";
     connectionStatus.title = "Disconnected";
+
+    // Stop periodic refresh when disconnected
+    stopClassRefreshInterval();
+
+    // Stop network discovery
+    stopNetworkDiscovery();
+    discoveredServers.clear();
 });
 
 socket.on("active-classes", (classes) => {
     availableClasses = classes;
+    console.log(`[Network] Received ${classes.length} active classes from local server`);
     if (currentRole) {
         renderSidebar();
     }
@@ -432,66 +540,67 @@ socket.on("active-classes", (classes) => {
         renderAvailableClasses();
     }
 
-    // Auto-flow for students: auto-join if only one class
-    if (savedRole === 'student' && autoFlowTriggered && !currentClassId) {
+    // Auto-flow for students:
+    if (savedRole === 'student' && autoFlowTriggered && !currentClassId && !window.joiningInProgress) {
         if (classes.length === 1) {
-            // Auto-join the single class
+            // Case 1: Exactly one class -> Auto-join
+            window.joiningInProgress = true;
             console.log(`Auto-flow: Only one class available (${classes[0].id}), auto-joining...`);
             roleSelection.classList.add('hidden');
             classSetup.classList.add('hidden');
             joinClass(classes[0].id, userName);
         } else if (classes.length > 1) {
-            // Show class selection
+            // Case 2: Multiple classes -> Show selection
             console.log(`Auto-flow: Multiple classes available (${classes.length}), showing selection...`);
             roleSelection.classList.add('hidden');
             classSetup.classList.add('hidden');
             availableClassesScreen.classList.remove('hidden');
             renderAvailableClasses();
         } else {
-            // No classes - create/join Lobby as student
-            console.log('Auto-flow: No classes available, creating/joining Lobby...');
+            // Case 3: No classes -> Show Scanning UI (NO Lobby)
+            console.log('Auto-flow: No classes available, showing Scanning UI...');
             roleSelection.classList.add('hidden');
             classSetup.classList.add('hidden');
-            joinOrCreateLobby();
+            availableClassesScreen.classList.remove('hidden');
+            renderScanningForTeacher();
         }
     }
 });
 
 // Auto-flow helper: Teacher joins or creates Lobby
+// Auto-flow helper: Teacher Auto-Creates Class
 function triggerTeacherAutoFlow() {
     roleSelection.classList.add('hidden');
     classSetup.classList.add('hidden');
 
-    // Join or create Lobby as teacher
-    socket.emit("take-over-lobby", { userName }, (response) => {
+    // Auto-create class (Class-01, etc.)
+    socket.emit("auto-create-class", { userName }, (response) => {
         if (response.success) {
             const classId = response.classId;
             joinedClasses.set(classId, {
-                messages: response.messages || [],
-                users: response.users || [{ id: socket.id, name: userName, role: "teacher" }],
+                messages: [],
+                users: [{ id: socket.id, name: userName, role: "teacher" }],
                 teacherName: userName,
                 blockedUsers: new Set(),
-                hasTeacher: true
+                hasTeacher: true,
+                blockAllActive: false
             });
 
             if (settingsNameInput) settingsNameInput.value = userName;
             switchClass(classId);
-            console.log(`Auto-flow: Teacher joined Lobby`);
+            console.log(`Auto-flow: Teacher created class ${classId}`);
 
-            // Auto-rename to saved class name if exists
+            // Rename if saved preference exists
             const savedClassName = localStorage.getItem('classsend-classId');
             if (savedClassName && savedClassName !== classId && savedClassName !== 'Lobby') {
                 socket.emit("rename-class", { classId, newName: savedClassName }, (renameResponse) => {
                     if (renameResponse.success) {
-                        console.log(`Auto-renamed Lobby to ${savedClassName}`);
-                    } else {
-                        console.log(`Could not rename to ${savedClassName}: ${renameResponse.message}`);
+                        console.log(`Auto-renamed to ${savedClassName}`);
                     }
                 });
             }
         } else {
-            console.error('Auto-flow: Failed to join Lobby', response.message);
-            // Fallback: show role selection again
+            console.error('Auto-flow failed:', response.message);
             roleSelection.classList.remove('hidden');
         }
     });
@@ -499,6 +608,9 @@ function triggerTeacherAutoFlow() {
 
 // Auto-flow helper: Join or create shared Lobby for students
 function joinOrCreateLobby() {
+    if (window.joiningInProgress) return; // Prevent duplicate joins
+    window.joiningInProgress = true;
+
     socket.emit("join-or-create-lobby", { userName }, (response) => {
         if (response.success) {
             const classId = response.classId;
@@ -571,7 +683,7 @@ socket.on("hand-raised", ({ userId, handRaised, users, classId }) => {
 
         if (userId === socket.id && btnRaiseHand) {
             btnRaiseHand.classList.toggle("active", handRaised);
-            btnRaiseHand.title = handRaised ? "Lower Hand" : "Raise Hand";
+            // Title handled by tooltip, icon handled by CSS or static HTML
         }
     }
 });
@@ -586,7 +698,7 @@ socket.on("hand-lowered", ({ userId, users, classId }) => {
 
         if (userId === socket.id && btnRaiseHand) {
             btnRaiseHand.classList.remove("active");
-            btnRaiseHand.title = "Raise Hand";
+            // Toggle state reset
         }
     }
 });
@@ -601,7 +713,7 @@ socket.on("all-hands-lowered", ({ users, classId }) => {
 
         if (btnRaiseHand) {
             btnRaiseHand.classList.remove("active");
-            btnRaiseHand.title = "Raise Hand";
+            // Toggle state reset
         }
     }
 });
@@ -755,22 +867,43 @@ function renderAvailableClasses() {
     });
 }
 
+// Render Scanning UI (replaces Lobby)
+function renderScanningForTeacher() {
+    availableClassesList.innerHTML = `
+        <div class="empty-state">
+            <div class="spinner"></div>
+            <div data-i18n="scanning-for-teacher">Scanning for a teacher...</div>
+            <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;" data-i18n="scanning-description">
+                Please wait. Takes a few seconds.
+            </p>
+        </div>
+    `;
+    updateUIText();
+}
+
 function joinClass(classIdToJoin, nameToUse) {
     socket.emit("join-class", { classId: classIdToJoin, userName: nameToUse }, (response) => {
         if (response.success) {
+            const hasTeacher = response.users?.some(u => u.role === 'teacher') || false;
             joinedClasses.set(classIdToJoin, {
                 messages: response.messages || [],
                 users: response.users || [],
-                teacherName: response.users.find(u => u.role === 'teacher')?.name || 'Unknown',
+                teacherName: response.users?.find(u => u.role === 'teacher')?.name || 'Unknown',
                 pinnedMessages: response.pinnedMessages || [],
-                blockedUsers: new Set(response.blockedUsers || [])
+                blockedUsers: new Set(response.blockedUsers || []),
+                hasTeacher: hasTeacher,
+                chatBlockedForNewUsers: response.blockAllActive || false
             });
 
             // Handle auto-blocked state
             if (response.blocked) {
                 // Manually trigger blocked UI
                 messageInput.disabled = true;
-                messageInput.placeholder = "You have been blocked by the teacher.";
+                messageInput.placeholder = t('You have been blocked by the teacher.');
+                messageInput.style.backgroundImage = "url('/assets/message-square-xmark-svgrepo-com.svg')";
+                messageInput.style.backgroundRepeat = "no-repeat";
+                messageInput.style.backgroundPosition = "right 10px center";
+                messageInput.style.backgroundSize = "20px";
                 messageInput.classList.add('blocked');
                 btnSendMessage.disabled = true;
                 if (btnAttachFile) btnAttachFile.disabled = true;
@@ -779,6 +912,7 @@ function joinClass(classIdToJoin, nameToUse) {
                 // Reset if not blocked (in case of re-join)
                 messageInput.disabled = false;
                 messageInput.placeholder = t('placeholder-message');
+                messageInput.style.backgroundImage = "none";
                 messageInput.classList.remove('blocked');
                 btnSendMessage.disabled = false;
                 if (btnAttachFile) btnAttachFile.disabled = false;
@@ -843,6 +977,10 @@ function switchClass(id) {
 }
 
 function deleteClass(id) {
+    if (joinedClasses.size <= 1) {
+        alert(t('Cannot delete the only active class.'));
+        return;
+    }
     if (!confirm(`Are you sure you want to DELETE class ${id}? This will remove the class for everyone.`)) return;
 
     socket.emit("delete-class", { classId: id }, (response) => {
@@ -850,17 +988,8 @@ function deleteClass(id) {
             joinedClasses.delete(id);
             if (currentClassId === id) {
                 currentClassId = null;
-                // If no classes left, go back to setup
-                if (joinedClasses.size === 0) {
-                    chatInterface.classList.add("hidden");
-                    classSetup.classList.remove("hidden");
-                    // Reset to role selection if completely empty? Or stay in setup?
-                    // Requirement: "returns the app state to the class creation"
-                    // Let's go back to role selection to be safe/clean
-                    classSetup.classList.add("hidden");
-                    roleSelection.classList.remove("hidden");
-                    currentRole = null;
-                } else {
+                // Switch to first available class (guaranteed to exist due to check above)
+                if (joinedClasses.size > 0) {
                     switchClass(joinedClasses.keys().next().value);
                 }
             } else {
@@ -873,6 +1002,10 @@ function deleteClass(id) {
 }
 
 function leaveClass(id) {
+    if (joinedClasses.size <= 1) {
+        alert(t('Cannot leave the only joined class. Join another class first.'));
+        return;
+    }
     if (!confirm(`Are you sure you want to leave ${id}?`)) return;
 
     socket.emit("leave-class", { classId: id }, (response) => {
@@ -880,12 +1013,8 @@ function leaveClass(id) {
             joinedClasses.delete(id);
             if (currentClassId === id) {
                 currentClassId = null;
-                // If no classes left, go back to setup
-                if (joinedClasses.size === 0) {
-                    chatInterface.classList.add("hidden");
-                    classSetup.classList.remove("hidden");
-                } else {
-                    // Switch to first available class
+                // Switch to first available class (guaranteed to exist due to check above)
+                if (joinedClasses.size > 0) {
                     switchClass(joinedClasses.keys().next().value);
                 }
             } else {
@@ -898,8 +1027,26 @@ function leaveClass(id) {
 function renderSidebar() {
     classesListContainer.innerHTML = "";
 
-    // Combine joined and available classes
+    // Combine joined, available (local), and discovered (network) classes
     const allClassIds = new Set([...joinedClasses.keys(), ...availableClasses.map(c => c.id)]);
+
+    // Also add classes from discovered servers
+    const networkClasses = new Map(); // classId -> { serverIp, serverPort, teacherName }
+    discoveredServers.forEach((serverInfo, serverKey) => {
+        if (serverInfo.classes && Array.isArray(serverInfo.classes)) {
+            serverInfo.classes.forEach(cls => {
+                const classId = cls.id || cls;
+                if (!allClassIds.has(classId)) {
+                    allClassIds.add(classId);
+                    networkClasses.set(classId, {
+                        serverIp: serverInfo.ip,
+                        serverPort: serverInfo.port,
+                        teacherName: cls.teacherName || 'Unknown'
+                    });
+                }
+            });
+        }
+    });
 
     allClassIds.forEach(id => {
         const isActive = id === currentClassId;
@@ -928,15 +1075,15 @@ function renderSidebar() {
 
         if (isJoined) {
             // Show checkmark for joined classes
-            leftIcon = `<span class="class-icon status-icon joined-icon">✅</span>`;
+            leftIcon = `<span class="class-icon status-icon joined-icon"><img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /></span>`;
 
             if (isTeacher) {
-                rightIcon = `<span class="class-icon status-icon delete-icon" title="Delete Class" style="margin-left: auto;">🗑️ Delete</span>`;
+                rightIcon = `<span class="class-icon status-icon delete-icon" title="Delete Class" style="margin-left: auto; display: flex; align-items: center;"><img src="/assets/delete-left-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px; margin-right: 4px;" /> Delete</span>`;
             } else {
-                rightIcon = `<span class="class-icon status-icon leave-icon" title="Leave Class" style="margin-left: auto;">❌ Leave</span>`;
+                rightIcon = `<span class="class-icon status-icon leave-icon" title="Leave Class" style="margin-left: auto; display: flex; align-items: center;"><img src="/assets/exit-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px; margin-right: 4px;" /> Leave</span>`;
             }
         } else {
-            leftIcon = `<span class="class-icon status-icon">➕</span>`;
+            leftIcon = `<span class="class-icon status-icon"><img src="/assets/plus-circle-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /></span>`;
         }
 
         item.innerHTML = `
@@ -959,13 +1106,26 @@ function renderSidebar() {
                 }
             });
         } else {
-            item.addEventListener("click", () => {
-                if (userName) {
-                    joinClass(id, userName);
-                } else {
-                    alert("Please setup your name first");
-                }
-            });
+            // Check if this is a network class (on another server)
+            const networkClassInfo = networkClasses.get(id);
+            if (networkClassInfo) {
+                item.addEventListener("click", () => {
+                    // Redirect to the other server (stays in same window/app)
+                    const serverUrl = `http://${networkClassInfo.serverIp}:${networkClassInfo.serverPort}`;
+                    window.location.href = serverUrl;
+                });
+                // Add visual indicator that this is on another server
+                item.title = `On server ${networkClassInfo.serverIp}:${networkClassInfo.serverPort}`;
+                item.classList.add("network-class");
+            } else {
+                item.addEventListener("click", () => {
+                    if (userName) {
+                        joinClass(id, userName);
+                    } else {
+                        alert("Please setup your name first");
+                    }
+                });
+            }
         }
 
         classesListContainer.appendChild(item);
@@ -1036,10 +1196,10 @@ function updateRoleDisplay() {
     if (currentRoleDisplay) {
         const lang = translations[currentLanguage] ? currentLanguage : 'en';
         if (currentRole === 'teacher') {
-            currentRoleDisplay.textContent = `👨‍🏫 ${translations[lang]['role-teacher']}`;
+            currentRoleDisplay.innerHTML = `<img src="/assets/teacher-svgrepo-com.svg" class="icon-svg" style="width: 24px; height: 24px; margin-right: 8px;" /> ${translations[lang]['role-teacher']}`;
             currentRoleDisplay.className = 'role-badge teacher';
         } else if (currentRole === 'student') {
-            currentRoleDisplay.textContent = `👨‍🎓 ${translations[lang]['role-student']}`;
+            currentRoleDisplay.innerHTML = `<img src="/assets/student-person-svgrepo-com.svg" class="icon-svg" style="width: 24px; height: 24px; margin-right: 8px;" /> ${translations[lang]['role-student']}`;
             currentRoleDisplay.className = 'role-badge student';
         } else {
             currentRoleDisplay.textContent = '-';
@@ -1360,8 +1520,8 @@ function renderMessage(message) {
           <div class="file-name">${escapeHtml(message.fileData.name)}</div>
           <div class="file-size">${formatFileSize(message.fileData.size)}</div>
           <div class="message-actions">
-            ${isImage ? '<button class="action-btn open-btn" title="Open Image">👁️</button>' : ''}
-            <button class="action-btn download-btn" title="Download"><span class="btn-icon-download"></span></button>
+            ${isImage ? '<button class="action-btn open-btn" title="Open Image"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /></button>' : ''}
+            <button class="action-btn download-btn" title="Download"><img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" /></button>
           </div>
         </div>
       </div>
@@ -1401,12 +1561,12 @@ function renderMessage(message) {
       <div class="message-content">
         ${contentWithMentions}
         <div class="message-actions">
-          <button class="action-btn copy-btn" title="Copy">📋</button>
-          ${hasEmail ? '<button class="action-btn mailto-btn" title="Email">✉️</button>' : ''}
-          ${hasUrl ? '<button class="action-btn url-btn" title="Open Link">🔗</button>' : ''}
-          ${currentRole === 'teacher' ? `<button class="action-btn pin-action-btn" data-message-id="${message.id}" title="Toggle Pin">📌</button>` : ''}
-          ${currentRole === 'teacher' ? `<button class="action-btn ban-action-btn" data-message-id="${message.id}" data-message-content="${escapeHtml(message.content)}" title="Block & Delete 🚫">🚫</button>` : ''}
-          ${currentRole === 'student' ? `<button class="action-btn report-action-btn" data-message-id="${message.id}" data-message-content="${escapeHtml(message.content)}" title="Report">⚠️ Report</button>` : ''}
+          <button class="action-btn copy-btn" title="Copy"><img src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy" style="width: 16px; height: 16px;" /></button>
+          ${hasEmail ? '<button class="action-btn mailto-btn" title="Email" data-i18n-title="btn-email">✉️</button>' : ''}
+          ${hasUrl ? '<button class="action-btn url-btn" title="Open Link" data-i18n-title="btn-open-link">🔗</button>' : ''}
+          ${currentRole === 'teacher' ? `<button class="action-btn pin-action-btn" data-message-id="${message.id}" title="Toggle Pin"><img src="/assets/pin-svgrepo-com.svg" class="icon-svg" alt="Pin" style="width: 16px; height: 16px;" /></button>` : ''}
+          ${currentRole === 'teacher' ? `<button class="action-btn ban-action-btn" data-message-id="${message.id}" data-message-content="${escapeHtml(message.content)}" title="Block & Delete"><img src="/assets/block-1-svgrepo-com.svg" class="icon-svg" alt="Block" style="width: 16px; height: 16px;" /></button>` : ''}
+          ${currentRole === 'student' ? `<button class="action-btn report-action-btn" data-message-id="${message.id}" data-message-content="${escapeHtml(message.content)}" title="Report"><img src="/assets/report-svgrepo-com.svg" class="icon-svg" alt="Report" style="width: 16px; height: 16px;" /></button>` : ''}
         </div>
       </div>
     `;
@@ -1417,8 +1577,8 @@ function renderMessage(message) {
             copyBtn.addEventListener('click', async () => {
                 try {
                     await navigator.clipboard.writeText(message.content);
-                    copyBtn.textContent = '✅';
-                    setTimeout(() => copyBtn.textContent = '📋', 1500);
+                    copyBtn.innerHTML = '<img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />';
+                    setTimeout(() => copyBtn.innerHTML = '<img src="/assets/copy-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />', 1500);
                 } catch (err) {
                     alert('Failed to copy');
                 }
@@ -1553,12 +1713,12 @@ function renderMediaHistory() {
 
         const pinBtn = currentRole === 'teacher' ? `
             <button class="media-pin-btn" title="${isPinned ? 'Unpin' : 'Pin'}" data-file-id="${fileId}">
-                ${isPinned ? '📌' : '📍'}
+                <img src="/assets/pin-svgrepo-com.svg" class="icon-svg ${isPinned ? 'active' : ''}" alt="Pin" />
             </button>
         ` : '';
 
         item.innerHTML = `
-            <div class="media-icon">${isPinned ? '📌' : '📄'}</div>
+            <div class="media-icon">${isPinned ? '<img src="/assets/pin-svgrepo-com.svg" class="icon-svg" />' : '<img src="/assets/files-svgrepo-com.svg" class="icon-svg" />'}</div>
             <div class="media-info">
                 <div class="media-name" title="${escapeHtml(msg.fileData.name)}">${escapeHtml(msg.fileData.name)}</div>
                 <div class="media-meta">
@@ -1569,7 +1729,7 @@ function renderMediaHistory() {
             <div class="media-actions-group">
                 ${pinBtn}
                 <button class="media-download-btn" title="Download" onclick="downloadFile('${msg.fileData.id || msg.fileData.data}', '${escapeHtml(msg.fileData.name)}')">
-                    <span class="btn-icon-download"></span>
+                    <img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" />
                 </button>
             </div>
         `;
@@ -1642,26 +1802,32 @@ function renderUsersList() {
             ? 'New users will join blocked'
             : 'Toggle communication blocking for all students';
 
-        // HTML Structure for Toggle
+        // SVG Icons for blocked/unblocked states (Bold versions)
+        const blockedIcon = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.63605 18.364L18.364 5.63603M5.63605 5.63603L18.364 18.364M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+        const unblockedIcon = `<svg fill="currentColor" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M760 380.4l-61.6-61.6-263.2 263.1-109.6-109.5L264 534l171.2 171.2L760 380.4z"/></svg>`;
+
+        // Create button with initial state
         toggleContainer.innerHTML = `
-            <label class="toggle-switch">
-                <input type="checkbox" id="block-all-checkbox" ${allBlocked ? 'checked' : ''}>
-                <span class="slider round"></span>
-            </label>
-            <span class="toggle-label" data-i18n="label-block-all">Block all communications</span>
+            <button class="block-toggle-btn" id="block-all-btn" data-blocked="${allBlocked}">
+                ${allBlocked ? blockedIcon : unblockedIcon}
+                <span class="toggle-label" data-i18n="label-block-all">${t('label-block-all')}</span>
+            </button>
         `;
 
-        const checkbox = toggleContainer.querySelector('#block-all-checkbox');
+        const blockBtn = toggleContainer.querySelector('#block-all-btn');
 
-        checkbox.addEventListener('change', (e) => {
+        blockBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isChecked = e.target.checked;
+            const isCurrentlyBlocked = blockBtn.dataset.blocked === 'true';
 
-            if (isChecked) {
+            if (!isCurrentlyBlocked) {
                 // Block All
                 classData.chatBlockedForNewUsers = true;
                 socket.emit('block-all-users', { classId: currentClassId });
-                // If no students yet, we manually refresh to show state (though renderUsersList is usually called by server response)
+                blockBtn.dataset.blocked = 'true';
+                blockBtn.innerHTML = `${blockedIcon}<span class="toggle-label" data-i18n="label-block-all">${t('label-block-all')}</span>`;
+                // If no students yet, we manually refresh to show state
                 if (students.length === 0) {
                     setTimeout(() => renderUsersList(), 100);
                 }
@@ -1669,13 +1835,9 @@ function renderUsersList() {
                 // Unblock All
                 classData.chatBlockedForNewUsers = false;
                 socket.emit('unblock-all-users', { classId: currentClassId });
+                blockBtn.dataset.blocked = 'false';
+                blockBtn.innerHTML = `${unblockedIcon}<span class="toggle-label" data-i18n="label-block-all">${t('label-block-all')}</span>`;
             }
-        });
-
-        // Prevent label click from bubbling weirdly if needed, but label wraps input so it triggers change
-        toggleContainer.addEventListener('click', (e) => {
-            // Stop propagation to prevent collapsing sections if we had any (we don't here but good practice)
-            e.stopPropagation();
         });
 
         controls.appendChild(toggleContainer);
@@ -1699,8 +1861,8 @@ function renderUsersList() {
             userDiv.classList.add('blocked');
         }
 
-        const handIcon = user.handRaised ? ' <span class="hand-raised-icon" title="Hand Raised">🖐️</span>' : '';
-        const blockedIcon = isBlocked ? ' <span class="blocked-icon" title="Blocked">🔇</span>' : '';
+        const handIcon = user.handRaised ? ' <span class="hand-raised-icon" title="Hand Raised"><img src="/assets/hand-shake-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /></span>' : '';
+        const blockedIcon = isBlocked ? ' <span class="blocked-icon" title="Blocked"><img src="/assets/message-square-xmark-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /></span>' : '';
 
         userDiv.innerHTML = `
             <span class="user-status"></span>
@@ -1710,7 +1872,7 @@ function renderUsersList() {
         // Add block/unblock button for teachers (only for students)
         if (isTeacher && isStudent) {
             const blockBtn = document.createElement('button');
-            blockBtn.textContent = isBlocked ? '✅' : '⛔';
+            blockBtn.innerHTML = isBlocked ? '<img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />' : '<img src="/assets/block-1-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />';
             blockBtn.title = isBlocked ? 'Unblock user' : 'Block user';
             blockBtn.style.cssText = 'margin-left: auto; padding: 2px 6px; font-size: 0.9rem; cursor: pointer; background: transparent; border: none;';
             blockBtn.onclick = (e) => {
@@ -1840,11 +2002,18 @@ socket.on("class-ended", ({ message, classId }) => {
             if (joinedClasses.size > 0) {
                 switchClass(joinedClasses.keys().next().value);
             } else {
+                // If no classes left, Go to Scanning UI (Student) or Role Selection (Teacher fallback)
                 chatInterface.classList.add("hidden");
-                // Reset to role selection
                 classSetup.classList.add("hidden");
-                roleSelection.classList.remove("hidden");
-                currentRole = null;
+
+                if (currentRole === 'student') {
+                    // Go to scanning
+                    availableClassesScreen.classList.remove('hidden');
+                    renderScanningForTeacher();
+                } else {
+                    // Teacher fallback
+                    roleSelection.classList.remove("hidden");
+                }
             }
         } else {
             renderSidebar();
@@ -2376,7 +2545,29 @@ renderUsersList = function () {
             });
         }
     });
+
+    // Ensure translations are applied to any new dynamic elements
+    updateUIText();
 };
+
+// Slider Fill Logic
+function updateSliderFill(slider) {
+    if (!slider) return;
+    const val = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+    slider.style.background = `linear-gradient(to right, var(--accent-primary) ${val}%, var(--bg-tertiary) ${val}%)`;
+}
+
+if (modelBlockSlider) {
+    modelBlockSlider.addEventListener('input', () => updateSliderFill(modelBlockSlider));
+    // Initialize
+    updateSliderFill(modelBlockSlider);
+}
+
+if (modelReportSlider) {
+    modelReportSlider.addEventListener('input', () => updateSliderFill(modelReportSlider));
+    // Initialize
+    updateSliderFill(modelReportSlider);
+}
 
 // Update renderMessage to show flags in message headers
 const originalRenderMessage = renderMessage;
@@ -2444,7 +2635,7 @@ function renderPinnedMessages() {
     container.style.display = 'block';
     container.innerHTML = `
         <div class="pinned-header">
-            <span class="pinned-icon">📌</span>
+            <span class="pinned-icon"><img src="/assets/pin-svgrepo-com.svg" class="icon-svg" alt="Pin" /></span>
             <span>Pinned Messages</span>
         </div>
         <div class="pinned-messages-list">
@@ -3611,7 +3802,7 @@ const btnPauseLogs = document.getElementById("btn-pause-logs");
 if (btnPauseLogs) {
     btnPauseLogs.addEventListener("click", () => {
         isLogsPaused = !isLogsPaused;
-        btnPauseLogs.innerHTML = isLogsPaused ? "▶️" : "⏸️";
+        btnPauseLogs.innerHTML = isLogsPaused ? '<img src="/assets/play-svgrepo-com.svg" class="icon-svg" alt="Play" style="width: 16px; height: 16px;" />' : '<img src="/assets/pause-svgrepo-com.svg" class="icon-svg" alt="Pause" style="width: 16px; height: 16px;" />';
         btnPauseLogs.title = isLogsPaused ? "Resume Logs" : "Pause Logs";
 
         // If resuming, immediately flush logs
@@ -3932,6 +4123,9 @@ function updateFilterUIVisibility() {
                 console.log('🧠 Auto-loading Deep Learning model based on preference...');
                 loadDeepLearningModel();
             }
+
+            // Update UI visibility based on loaded mode
+            updateAdvancedModelPreferencesVisibility();
         });
         loadPendingReports();
         loadWhitelistedWords();

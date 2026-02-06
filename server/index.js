@@ -38,6 +38,8 @@ const fileStorage = new FileStorage();
 
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
+// Serve assets directory
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // TLS/HTTPS support (optional)
 const USE_TLS = process.env.USE_TLS === 'true' || false;
@@ -791,6 +793,7 @@ io.on('connection', (socket) => {
     callback({
       success: true,
       blocked: classData.blockedUsers && classData.blockedUsers.has(socket.id),
+      blockAllActive: classData.blockAllActive || false,
       messages: classData.messages,
       users: classData.users,
       pinnedMessages: classData.pinnedMessages || []

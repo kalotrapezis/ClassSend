@@ -11,8 +11,8 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Raleway:wght@100;200;300;400;500;600&display=swap"
     rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index-CEG49l-Y.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DKugpa8O.css">
+  <script type="module" crossorigin src="/assets/index-KaercNV7.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DWFoloax.css">
 </head>
 
 <body>
@@ -24,11 +24,12 @@
         <h2 data-i18n="select-role-title">Select Your Role</h2>
         <div class="card-container">
           <button id="btn-teacher" class="role-card teacher-card">
-            <span class="role-icon">👨‍🏫</span>
+            <span class="role-icon"><img src="/assets/teacher-svgrepo-com.svg" class="role-svg" alt="Teacher" /></span>
             <span class="role-label" data-i18n="role-teacher">Teacher</span>
           </button>
           <button id="btn-student" class="role-card student-card">
-            <span class="role-icon">👨‍🎓</span>
+            <span class="role-icon"><img src="/assets/student-person-svgrepo-com.svg" class="role-svg"
+                alt="Student" /></span>
             <span class="role-label" data-i18n="role-student">Student</span>
           </button>
         </div>
@@ -89,17 +90,18 @@
           <!-- Buttons moved to left -->
           <button id="btn-show-url" class="header-btn connection-btn" title="Connection Information"
             data-i18n-title="btn-show-url-title">
-            <span class="btn-icon-connection"></span>
+            <img src="/assets/connection-pattern-1104-svgrepo-com.svg" class="icon-svg" alt="Connection" />
             <span data-i18n="modal-connection-title" class="desktop-only">Connection</span>
           </button>
           <button id="btn-media-toggle" class="header-btn media-btn" title="Media Library"
             data-i18n-title="btn-media-title">
-            <span class="btn-icon-gallery"></span>
+            <img src="/assets/files-svgrepo-com.svg" class="icon-svg" alt="Media" />
             <span data-i18n="btn-media-title" class="desktop-only">Library</span>
           </button>
           <button id="btn-settings-toggle" class="header-btn settings-btn" title="Settings"
             data-i18n-title="btn-settings-title">
-            ⚙️ <span data-i18n="btn-settings-title" class="desktop-only">Settings</span>
+            <img src="/assets/settings-svgrepo-com.svg" class="icon-svg" alt="Settings" />
+            <span data-i18n="btn-settings-title" class="desktop-only">Settings</span>
           </button>
         </div>
 
@@ -107,7 +109,8 @@
         <div id="settings-modal" class="modal hidden">
           <div class="settings-modal-content">
             <div class="popup-header">
-              <h3 data-i18n="modal-settings-title">⚙️ Settings</h3>
+              <h3 data-i18n="modal-settings-title"><img src="/assets/settings-svgrepo-com.svg" class="icon-svg"
+                  alt="Settings" /> Settings</h3>
               <button id="btn-close-settings" class="close-btn">×</button>
             </div>
 
@@ -115,31 +118,31 @@
               <!-- Sidebar -->
               <div class="settings-sidebar">
                 <button class="settings-tab-btn active" data-tab="personalization">
-                  <span class="tab-icon">👤</span>
+                  <img src="/assets/brush-svgrepo-com.svg" class="tab-icon" alt="Personalization" />
                   <span data-i18n="settings-section-personalization">Personalization</span>
                 </button>
                 <button class="settings-tab-btn hidden" id="tab-moderation" data-tab="moderation">
-                  <span class="tab-icon">🧠</span>
+                  <img src="/assets/brain-svgrepo-com.svg" class="tab-icon" alt="AI" />
                   <span data-i18n="settings-section-filter">Content Moderation</span>
                 </button>
                 <button class="settings-tab-btn" data-tab="connection">
-                  <span class="tab-icon">🔗</span>
+                  <img src="/assets/connection-pattern-1104-svgrepo-com.svg" class="tab-icon" alt="Connection" />
                   <span data-i18n="settings-subsection-connection">Connection</span>
                 </button>
                 <button class="settings-tab-btn" data-tab="streaming">
-                  <span class="tab-icon">📺</span>
+                  <img src="/assets/screen-mirror-svgrepo-com.svg" class="tab-icon" alt="Screen Sharing" />
                   <span data-i18n="settings-section-streaming">Screen Sharing</span>
                 </button>
                 <button class="settings-tab-btn" data-tab="data">
-                  <span class="tab-icon">🔒</span>
+                  <img src="/assets/admin-tools-svgrepo-com.svg" class="tab-icon" alt="Admin" />
                   <span data-i18n="settings-section-admin">Administration</span>
                 </button>
                 <button class="settings-tab-btn hidden" id="tab-system" data-tab="system">
-                  <span class="tab-icon">🔧</span>
+                  <img src="/assets/logs-wood-svgrepo-com.svg" class="tab-icon" alt="System" />
                   <span data-i18n="settings-section-advanced">System Monitoring</span>
                 </button>
                 <button class="settings-tab-btn" data-tab="about">
-                  <span class="tab-icon">ℹ️</span>
+                  <img src="/assets/about-faq-help-svgrepo-com.svg" class="tab-icon" alt="About" />
                   <span data-i18n="about-tab">About</span>
                 </button>
               </div>
@@ -165,8 +168,8 @@
                       <input type="text" id="settings-name-input" class="setting-input" maxlength="20">
                       <button id="btn-settings-change-name" class="small-primary-btn"
                         data-i18n="btn-change-name">Change</button>
-                      <button id="btn-regenerate-name" class="small-secondary-btn"
-                        title="Generate random name">🎲</button>
+                      <button id="btn-regenerate-name" class="small-secondary-btn" title="Generate random name"><img
+                          src="/assets/random-1dice-svgrepo-com.svg" class="icon-svg" alt="Random" /></button>
                     </div>
                   </div>
 
@@ -182,7 +185,8 @@
 
                 <!-- Content Moderation Page (Teacher Only) -->
                 <div id="settings-page-moderation" class="settings-page hidden">
-                  <h4 class="settings-page-header" data-i18n="settings-section-filter">🧠 Content Filtering</h4>
+                  <h4 class="settings-page-header" data-i18n="settings-section-filter"><img
+                      src="/assets/brain-svgrepo-com.svg" class="icon-svg" alt="AI" /> Content Filtering</h4>
 
                   <!-- Filter Mode -->
                   <div class="setting-item">
@@ -247,11 +251,14 @@
                   <div class="setting-item" style="margin-top: 1.5rem;">
                     <label data-i18n="manage-lists">Manage Lists</label>
                     <div class="lists-actions">
-                      <button id="btn-open-blacklist-modal" class="secondary-btn" data-i18n="btn-blacklist">🚫 Manage
-                        Blacklist</button>
-                      <button id="btn-open-whitelist-modal" class="secondary-btn whitelist-settings-btn"
-                        data-i18n="btn-whitelist">✅ Manage
-                        Whitelist</button>
+                      <button id="btn-open-blacklist-modal" class="secondary-btn">
+                        <img src="/assets/list-cross-svgrepo-com.svg" class="icon-svg" alt="Blacklist" />
+                        <span data-i18n="btn-blacklist">Manage Blacklist</span>
+                      </button>
+                      <button id="btn-open-whitelist-modal" class="secondary-btn whitelist-settings-btn">
+                        <img src="/assets/list-heart-minimalistic-svgrepo-com.svg" class="icon-svg" alt="Whitelist" />
+                        <span data-i18n="btn-whitelist">Manage Whitelist</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -261,19 +268,25 @@
                   <h4 class="settings-page-header" data-i18n="settings-subsection-connection">Connection Information
                   </h4>
 
-                  <div class="setting-item checkbox-item">
-                    <label class="checkbox-container">
-                      <input type="checkbox" id="auto-open-connection">
-                      <span class="checkbox-label" data-i18n="label-auto-open-connection">Open connection info
-                        automatically</span>
-                    </label>
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <label for="auto-open-connection" data-i18n="label-auto-open-connection">Open connection info
+                        automatically</label>
+                      <label class="switch">
+                        <input type="checkbox" id="auto-open-connection">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
                   </div>
-                  <div class="setting-item checkbox-item">
-                    <label class="checkbox-container">
-                      <input type="checkbox" id="auto-close-connection">
-                      <span class="checkbox-label" data-i18n="label-auto-close-connection">Close connection info
-                        automatically after copying</span>
-                    </label>
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <label for="auto-close-connection" data-i18n="label-auto-close-connection">Close connection info
+                        automatically after copying</label>
+                      <label class="switch">
+                        <input type="checkbox" id="auto-close-connection">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -327,17 +340,24 @@
                     <p class="setting-description" data-i18n="data-management-hint">Import/Export both Blacklist and
                       Whitelist data.</p>
                     <div class="logs-actions">
-                      <button id="btn-import-data" class="secondary-btn" title="Import Data" data-i18n="btn-import">📥
-                        Import</button>
-                      <button id="btn-export-data" class="secondary-btn" title="Export Data" data-i18n="btn-export">📤
-                        Export</button>
+                      <button id="btn-import-data" class="secondary-btn" title="Import Data">
+                        <img src="/assets/import-svgrepo-com.svg" class="icon-svg" alt="Import" /> <span
+                          data-i18n="btn-import">Import</span>
+                      </button>
+                      <button id="btn-export-data" class="secondary-btn" title="Export Data">
+                        <img src="/assets/export-svgrepo-com.svg" class="icon-svg" alt="Export" /> <span
+                          data-i18n="btn-export">Export</span>
+                      </button>
                       <input type="file" id="file-import-data" accept=".json" class="hidden">
                     </div>
                   </div>
 
                   <div class="setting-item">
                     <label data-i18n="label-clear-data">Clear All Data</label>
-                    <button id="btn-clear-data" class="secondary-btn" data-i18n="btn-clear-data">🗑️ Clear</button>
+                    <button id="btn-clear-data" class="secondary-btn">
+                      <img src="/assets/delete-left-svgrepo-com.svg" class="icon-svg" alt="Clear" /> <span
+                        data-i18n="btn-clear-data">Clear</span>
+                    </button>
                   </div>
                 </div>
 
@@ -363,9 +383,14 @@
                   <div class="setting-item logs-setting">
                     <label data-i18n="label-logs">Session Logs</label>
                     <div class="logs-actions">
-                      <button id="btn-view-logs" class="secondary-btn" data-i18n="btn-view-logs">👁️ View</button>
-                      <button id="btn-download-logs" class="secondary-btn" data-i18n="btn-download-logs">⬇️
-                        Download</button>
+                      <button id="btn-view-logs" class="secondary-btn">
+                        <img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /> <span
+                          data-i18n="btn-view-logs">View</span>
+                      </button>
+                      <button id="btn-download-logs" class="secondary-btn">
+                        <img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" /> <span
+                          data-i18n="btn-download-logs">Download</span>
+                      </button>
                     </div>
                   </div>
 
@@ -373,9 +398,11 @@
                     <div class="logs-viewer-header">
                       <span data-i18n="logs-title">Session Logs</span>
                       <button id="btn-pause-logs" class="copy-btn" title="Pause Logs"
-                        data-i18n-title="btn-pause-logs">⏸️</button>
-                      <button id="btn-copy-logs" class="copy-btn" title="Copy"
-                        data-i18n-title="btn-copy-logs">📋</button>
+                        data-i18n-title="btn-pause-logs"><img src="/assets/pause-svgrepo-com.svg" class="icon-svg"
+                          alt="Pause" style="width: 16px; height: 16px;" /></button>
+                      <button id="btn-copy-logs" class="copy-btn" title="Copy" data-i18n-title="btn-copy-logs"><img
+                          src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy"
+                          style="width: 16px; height: 16px;" /></button>
                       <button id="btn-close-logs" class="close-btn">×</button>
                     </div>
                     <pre id="logs-content" class="logs-content"></pre>
@@ -388,7 +415,7 @@
                   <div class="about-content" style="text-align: center; padding: 2rem;">
                     <div class="about-logo" style="font-size: 3rem; margin-bottom: 1rem;">🚀</div>
                     <h2>ClassSend</h2>
-                    <p><span data-i18n="about-version">Version</span> 8.1.1</p>
+                    <p><span data-i18n="about-version">Version</span> 8.2.0</p>
                     <a href="https://github.com/kalotrapezis/ClassSend/releases" target="_blank"
                       class="about-update-btn">
                       <span data-i18n="btn-check-updates">Check for Updates</span>
@@ -409,8 +436,10 @@
             <div class="popup-header">
               <h3 id="stream-title" data-i18n="stream-title">📺 Teacher's Screen</h3>
               <div class="video-header-controls">
-                <button id="btn-minimize-video" class="header-control-btn" title="Minimize">➖</button>
-                <button id="btn-close-video" class="close-btn" title="Close">×</button>
+                <button id="btn-minimize-video" class="header-control-btn" title="Minimize"><img
+                    src="/assets/minus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+                <button id="btn-close-video" class="close-btn" title="Close"><img src="/assets/exit-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
               </div>
             </div>
             <div class="video-container">
@@ -418,10 +447,13 @@
               <div id="video-status" class="video-status">Connecting...</div>
               <!-- Video Controls -->
               <div class="video-controls">
-                <button id="btn-zoom-out" class="video-control-btn" title="Zoom Out">➖</button>
+                <button id="btn-zoom-out" class="video-control-btn" title="Zoom Out"><img
+                    src="/assets/minus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
                 <button id="btn-zoom-reset" class="video-control-btn" title="Reset Zoom">100%</button>
-                <button id="btn-zoom-in" class="video-control-btn" title="Zoom In">➕</button>
-                <button id="btn-fullscreen" class="video-control-btn" title="Fullscreen">⛶</button>
+                <button id="btn-zoom-in" class="video-control-btn" title="Zoom In"><img
+                    src="/assets/plus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+                <button id="btn-fullscreen" class="video-control-btn" title="Fullscreen"><img
+                    src="/assets/full-screen-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
               </div>
             </div>
           </div>
@@ -433,15 +465,15 @@
       <div id="media-popup" class="media-modal hidden">
         <div class="modal-content">
           <div class="popup-header">
-            <h3>Media Library</h3>
+            <h3 data-i18n="library-title">Media Library</h3>
             <button id="btn-download-all" class="download-all-btn" title="Download All Files">
-              <span class="btn-icon-download"></span>
+              <img src="/assets/download-twice-square-svgrepo-com.svg" class="icon-svg" alt="Download All" />
               <span data-i18n="btn-download-all">Download All</span>
             </button>
             <button id="btn-close-media" class="close-btn">×</button>
           </div>
           <div id="media-list" class="media-list">
-            <div class="empty-media-state">No media shared yet</div>
+            <div class="empty-media-state" data-i18n="library-empty">No media shared yet</div>
           </div>
         </div>
       </div>
@@ -450,14 +482,16 @@
       <div id="connection-modal" class="modal hidden">
         <div class="modal-content connection-modal-content">
           <div class="popup-header">
-            <h3 data-i18n="modal-connection-title">Connection Info</h3>
+            <h3 data-i18n="modal-connection-title"><img src="/assets/connection-pattern-1104-svgrepo-com.svg"
+                class="icon-svg" alt="Connection" /> Connection Info</h3>
             <button id="btn-close-connection" class="close-btn">×</button>
           </div>
           <div class="connection-body">
             <p data-i18n="connection-hint">Students can connect at:</p>
             <div class="url-display-container">
               <code id="connection-url">http://...</code>
-              <button id="btn-copy-url" class="copy-btn" title="Copy URL">📋</button>
+              <button id="btn-copy-url" class="copy-btn" title="Copy URL"><img src="/assets/copy-svgrepo-com.svg"
+                  class="icon-svg" alt="Copy" style="width: 16px; height: 16px;" /></button>
             </div>
 
             <div class="toggle-container">
@@ -484,7 +518,10 @@
             <div class="blacklist-add-section">
               <input type="text" id="blacklist-word-input" placeholder="Enter word to add..." autocomplete="off"
                 data-i18n-placeholder="placeholder-blacklist">
-              <button id="btn-add-word" class="add-word-btn" data-i18n="btn-add">Add ➕</button>
+              <button id="btn-add-word" class="add-word-btn">
+                <span data-i18n="btn-add">Add</span> <img src="/assets/plus-circle-svgrepo-com.svg" class="icon-svg"
+                  style="width: 16px; height: 16px; margin-left: 4px;" />
+              </button>
             </div>
             <div id="blacklist-word-list" class="blacklist-word-list">
               <!-- Words will be dynamically added here -->
@@ -505,8 +542,10 @@
             <div class="blacklist-add-section">
               <input type="text" id="whitelist-word-input" placeholder="Enter safe word to add..." autocomplete="off"
                 data-i18n-placeholder="placeholder-whitelist">
-              <button id="btn-add-whitelist-word-modal" class="add-word-btn" data-i18n="btn-add">Add
-                ➕</button>
+              <button id="btn-add-whitelist-word-modal" class="add-word-btn">
+                <span data-i18n="btn-add">Add</span> <img src="/assets/plus-circle-svgrepo-com.svg" class="icon-svg"
+                  style="width: 16px; height: 16px; margin-left: 4px;" />
+              </button>
             </div>
             <div id="whitelist-words-list-modal" class="blacklist-word-list">
               <!-- Words will be dynamically added here -->
@@ -518,8 +557,11 @@
 
       <!-- Text Selection Popup (for adding words from chat) -->
       <div id="text-selection-popup" class="text-selection-popup hidden">
-        <button id="btn-add-selection-to-blacklist" data-i18n="text-selection-popup-add">Add to forbidden words
-          ➕</button>
+        <button id="btn-add-selection-to-blacklist">
+          <span data-i18n="text-selection-popup-add">Add to forbidden words</span> <img
+            src="/assets/plus-circle-svgrepo-com.svg" class="icon-svg"
+            style="width: 16px; height: 16px; margin-left: 4px;" />
+        </button>
       </div>
 
       <!-- AI Loading Modal -->
@@ -581,23 +623,24 @@
               <button id="btn-attach-file" class="attach-btn" title="Attach file"
                 data-i18n-title="btn-attach-file"></button>
               <button id="btn-emoji" class="emoji-btn" title="Insert Emoji" data-i18n-title="btn-insert-emoji">
-                😀
+                <img src="/assets/emoji-funny-square-svgrepo-com.svg" class="icon-svg" alt="Emoji" />
               </button>
               <button id="btn-share-screen" class="share-screen-btn labeled hidden" title="Share Screen"
                 data-i18n-title="btn-share-screen">
-                <span class="btn-icon"></span>
+                <img src="/assets/screen-mirror-svgrepo-com.svg" class="icon-svg" alt="Share Screen" />
                 <span data-i18n="btn-share-screen" class="btn-label desktop-only">Screen Sharing</span>
               </button>
               <button id="btn-report-toggle" class="report-toggle-btn hidden" title="Word Reports"
                 data-i18n-title="btn-reports-title">
-                ⚠️ <span class="report-badge hidden">0</span>
+                <img src="/assets/report-svgrepo-com.svg" class="icon-svg" alt="Reports" />
+                <span class="report-badge hidden">0</span>
               </button>
               <button id="btn-raise-hand" class="raise-hand-btn" title="Raise Hand" data-i18n-title="btn-raise-hand">
-                🖐️
+                <img src="/assets/hand-shake-svgrepo-com.svg" class="icon-svg" alt="Raise Hand" />
               </button>
               <button id="btn-view-stream" class="view-stream-btn hidden" title="View Stream"
                 data-i18n-title="btn-view-stream">
-                📺
+                <img src="/assets/screen-mirror-svgrepo-com.svg" class="icon-svg" alt="View Stream" />
               </button>
               <div id="emoji-picker" class="emoji-picker hidden">
                 <!-- Emojis will be injected here -->
@@ -605,7 +648,8 @@
               <!-- Report Panel (Teacher Only, like emoji picker) -->
               <div id="report-panel" class="report-panel hidden">
                 <div class="report-panel-header">
-                  <span data-i18n="modal-reports-title">⚠️ Reported Words</span>
+                  <span data-i18n="modal-reports-title"><img src="/assets/notification-13-svgrepo-com.svg"
+                      class="icon-svg" alt="Reports" /> Reported Words</span>
                 </div>
                 <!-- Training Notification -->
                 <div id="training-notification" class="training-notification hidden">

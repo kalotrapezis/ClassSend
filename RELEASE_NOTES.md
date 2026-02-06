@@ -1,3 +1,30 @@
+# Release Notes - v8.2.5
+
+## 🚀 Streamlined Network & Stability
+
+### ⚡ Direct Network Flow
+- **No More Lobby**: We've simplified the connection process. Teachers now skip the Lobby and directly create a class. Students automatically scan for available classes.
+- **Smart Auto-Join**: If only one class is found, students join it automatically for a seamless experience.
+
+### 🛡️ Crash Prevention & Fixes
+- **Block All Sync**: The "Block All Communications" button now correctly reflects the active state when joining or refreshing.
+- **Single Class Protection**: Prevents accidental deletion or leaving of the class if it's the only one active, avoiding application crashes.
+
+---
+
+# Release Notes - v8.2.0
+
+## 🚀 Enhancements & Polish
+
+### 🌐 Localization & UI
+- **Full Greek Localization in Gallery**: Added missing Greek translations for the Media Library title and empty state.
+- **Improved i18n Coverage**: Ensured UI consistency when switching languages.
+
+### ⚙️ Settings Synchronization
+- **Teacher-Student Sync**: Verified that critical settings like Language and Filter Mode are correctly synchronized from the teacher to all students in the class.
+
+---
+
 # Release Notes - v8.1.1
 
 ## 🚀 Streamlined Lobby & Localization

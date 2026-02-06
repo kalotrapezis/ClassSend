@@ -419,6 +419,48 @@ body {
 }
 
 
+
+.icon-svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  fill: currentColor;
+}
+
+/* Settings Tab Icons - strictly sized */
+.tab-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+/* Specific adjustments if needed */
+.emoji-btn .icon-svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Make Notification Bell Larger */
+.report-toggle-btn .icon-svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* Role SVG Icons */
+.role-svg {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+/* Video Control Icons */
+.icon-video-ctrl {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
 /* Hamburger Menu */
 .menu-btn {
   font-size: 1.5rem;
@@ -1615,76 +1657,92 @@ body {
   }
 }
 
-/* Toggle Switch Styles */
+/* Block Toggle Button Styles */
 .block-toggle-container {
   display: flex;
   align-items: center;
-  gap: 16px;
-  /* Increased from 10px */
-  cursor: pointer;
-  padding: 4px 8px;
   border-radius: 6px;
-  transition: background-color 0.2s;
+  width: 100%;
+  /* Ensure full width availability */
 }
 
-.block-toggle-container:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 36px;
-  height: 20px;
-  flex-shrink: 0;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
+.block-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  /* Slightly more rounded */
+  color: var(--text-primary);
   cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #4b5563;
-  /* Gray for inactive/unblocked */
-  transition: .4s;
-  border-radius: 20px;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 2px;
-  bottom: 2px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
-
-input:checked+.slider {
-  background-color: #ef4444;
-  /* Red for blocked focus/danger state, or primary? User said "Block all", usually red/warning. But standard active is toggle color. Let's use red as it signifies blocking. */
-}
-
-input:checked+.slider:before {
-  transform: translateX(16px);
-}
-
-.toggle-label {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.9rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-  user-select: none;
+  width: 100%;
+  /* Occupy full width */
+  text-align: left;
+  /* Align text to left */
+  /* Remove flex-wrap to keep icon and text on same line if possible, or wrap properly */
+  flex-wrap: wrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  line-height: 1.4;
 }
+
+.block-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+  /* Slight lift */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+.block-toggle-btn svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  /* Prevent collapsing */
+  display: block;
+  /* Ensure it renders as block */
+}
+
+.block-toggle-btn span.toggle-label {
+  flex: 1;
+  /* Allow text to take remaining space */
+  white-space: normal;
+  /* Allow text wrapping */
+  word-break: break-word;
+}
+
+/* Blocked State - Intense Red */
+.block-toggle-btn[data-blocked="true"] {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.15), rgba(185, 28, 28, 0.2));
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ff8a80;
+  /* Softer red for text readability */
+}
+
+.block-toggle-btn[data-blocked="true"]:hover {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.2), rgba(185, 28, 28, 0.25));
+  border-color: rgba(239, 68, 68, 0.6);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+}
+
+/* Unblocked State - Vibrant Green */
+.block-toggle-btn[data-blocked="false"] {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.15), rgba(21, 128, 61, 0.2));
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #86efac;
+  /* Softer green for text readability */
+}
+
+.block-toggle-btn[data-blocked="false"]:hover {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.2), rgba(21, 128, 61, 0.25));
+  border-color: rgba(34, 197, 94, 0.6);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.2);
+}
+
 
 
 .btn-icon-gallery,

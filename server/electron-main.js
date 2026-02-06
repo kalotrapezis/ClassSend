@@ -55,6 +55,37 @@ function startAppServer() {
     }
 }
 
+const net = require('net');
+
+function checkServerReady(port) {
+    return new Promise((resolve, reject) => {
+        const client = new net.Socket();
+        client.once('connect', () => {
+            client.destroy();
+            resolve(true);
+        });
+        client.once('error', (err) => {
+            client.destroy();
+            reject(err);
+        });
+        client.connect(port, '127.0.0.1');
+    });
+}
+
+
+async function pollServer(port, retries = 30, interval = 500) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            await checkServerReady(port);
+            return true;
+        } catch (err) {
+            console.log(`Waiting for server on port ${port}... (${i + 1}/${retries})`);
+            await new Promise(resolve => setTimeout(resolve, interval));
+        }
+    }
+    return false;
+}
+
 function createWindow() {
     let iconFilename = 'icon.ico';
     if (process.platform === 'linux' || process.platform === 'darwin') {
@@ -87,27 +118,38 @@ function createWindow() {
     }, 100);
 
     // Create main window (hidden initially)
-    // Create main window (hidden initially)
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
         icon: iconPath,
         show: false, // Don't show until ready
-        autoHideMenuBar: true, // Auto-hide menu bar (better than setMenu(null))
+        autoHideMenuBar: true,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
         },
-        backgroundColor: '#0f172a' // Prevent white flash on load
+        backgroundColor: '#0f172a'
     });
 
-    // Load the local server URL
-    // Use HTTPS if TLS is enabled, otherwise HTTP
+    // Load URL with Polling Mechanism to prevent crash
+    const port = 3000; // Standard port
     const protocol = process.env.USE_TLS === 'true' ? 'https' : 'http';
-    const serverUrl = `${protocol}://localhost:3000`;
+    const serverUrl = `${protocol}://localhost:${port}`;
 
-    console.log(`Loading window from: ${serverUrl}`);
-    mainWindow.loadURL(serverUrl);
+    // Poll for server readiness
+    pollServer(port)
+        .then((isReady) => {
+            if (isReady) {
+                console.log(`Server ready. Loading window from: ${serverUrl}`);
+                mainWindow.loadURL(serverUrl);
+            } else {
+                console.error("Server failed to start within timeout.");
+                // Optionally show an error dialog or quit
+                // mainWindow.loadFile(path.join(__dirname, 'error.html')); // If you had one
+            }
+        })
+        .catch(err => console.error("Polling error:", err));
+
 
     // When main window is ready, close splash and show main
     mainWindow.once('ready-to-show', () => {
@@ -117,7 +159,7 @@ function createWindow() {
             }
             mainWindow.show();
             mainWindow.focus();
-        }, 500); // Small delay for smoother transition
+        }, 500);
     });
 
     // Hide the menu bar (User request) - handled by autoHideMenuBar: true
