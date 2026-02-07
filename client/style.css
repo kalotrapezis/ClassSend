@@ -164,49 +164,102 @@ body {
 }
 
 /* Role Selection */
+/* Role Selection Modal */
+.role-selection-content {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  transform: scale(0.9);
+  opacity: 0;
+  animation: modalPopIn 0.5s var(--bounce) forwards;
+  max-width: 600px;
+  width: 90%;
+  padding: 3rem;
+  border-radius: 24px;
+  /* Background Image removed per user request */
+}
+
+@keyframes modalPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 .card-container {
   display: flex;
-  gap: 1.5rem;
+  gap: 2rem;
   justify-content: center;
+  margin-top: 2rem;
 }
 
 .role-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 2rem 3rem;
-  background: var(--bg-tertiary);
-  border: 2px solid var(--border-color);
-  border-radius: 12px;
+  gap: 1.5rem;
+  padding: 3rem 2rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s var(--smooth);
   font-size: 1rem;
   color: var(--text-primary);
+  width: 180px;
+  position: relative;
+  overflow: hidden;
+}
+
+.role-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, var(--accent-glow), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.role-card:hover::before {
+  opacity: 0.2;
 }
 
 .role-card:hover {
-  background: var(--bg-hover);
+  background: rgba(255, 255, 255, 0.08);
   border-color: var(--accent-primary);
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(98, 100, 167, 0.3);
+  transform: translateY(-8px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
 }
 
 .role-icon {
   font-size: 3rem;
+  z-index: 1;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
 }
 
 .role-label {
-  font-size: 1.2rem;
-  font-weight: 500;
+  font-size: 1.3rem;
+  font-weight: 600;
+  z-index: 1;
+  letter-spacing: 0.5px;
 }
 
 .teacher-card:hover {
-  border-color: #e74856;
+  border-color: #f43f5e;
 }
 
 .student-card:hover {
-  border-color: #92c353;
+  border-color: #84cc16;
 }
 
 /* Setup Form */
@@ -4127,4 +4180,133 @@ input:checked+.slider:before {
   border-color: #28a745 !important;
   color: #28a745 !important;
   background: var(--bg-tertiary) !important;
+}
+
+/* Searching Overlay */
+.searching-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-radius: 20px;
+  /* Match chat area */
+}
+
+.searching-content {
+  color: var(--text-primary);
+  opacity: 0;
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.searching-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-left-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+
+.searching-content h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.searching-content p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.chat-area {
+  position: relative;
+  /* Ensure overlay stays inside */
+}
+
+/* Smart IP Entry */
+.manual-connection-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.manual-connection-section h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.manual-connect-hint {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.smart-ip-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--bg-secondary);
+  padding: 10px;
+  border-radius: 12px;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.smart-ip-prefix {
+  font-family: monospace;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.smart-ip-suffix {
+  width: 60px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  text-align: center;
+  font-size: 1.1rem;
+  font-family: monospace;
+}
+
+.smart-ip-suffix:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.smart-ip-port-display {
+  font-family: monospace;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.modal-manual-join {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.modal-manual-join .manual-connect-hint {
+  margin-bottom: 0.8rem;
+}
+
+.modal-manual-join .smart-ip-group {
+  max-width: 100%;
+  background: rgba(255, 255, 255, 0.05);
 }

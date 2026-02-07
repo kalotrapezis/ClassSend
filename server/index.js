@@ -442,6 +442,16 @@ async function checkMessageWithAI(message) {
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
+  // Send network info for Smart IP Entry
+  const ip = networkDiscovery.localIP || '127.0.0.1';
+  let prefix = '192.168.1.';
+  const parts = ip.split('.');
+  if (parts.length === 4) {
+    prefix = `${parts[0]}.${parts[1]}.${parts[2]}.`;
+  }
+  const port = process.env.PORT || 3000;
+  socket.emit('network-info', { ip, prefix, port });
+
   // Broadcast active classes to all clients
   function broadcastActiveClasses() {
     const classesList = Array.from(activeClasses.entries()).map(([id, data]) => ({
@@ -2010,6 +2020,42 @@ io.on('connection', (socket) => {
       // console.log(`Signal relayed from ${from} to ${to} (${signal.type || 'candidate'})`);
     } else {
       console.log(`Signal failed: Target ${to} not found`);
+    }
+  });
+
+  // Backup Word Lists Event
+  socket.on("backup-word-lists", (data, callback) => {
+    try {
+      const backupDir = path.join(baseDir, 'data', 'backups');
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `word-lists-backup-${timestamp}.json`;
+      const filePath = path.join(backupDir, filename);
+
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      console.log(`💾 Backup created: ${filename}`);
+
+      // Send success callback
+      if (callback) callback({ success: true, filename });
+
+      // Optional: Prune old backups (keep last 10)
+      const files = fs.readdirSync(backupDir)
+        .filter(f => f.startsWith('word-lists-backup-'))
+        .sort()
+        .reverse();
+
+      if (files.length > 10) {
+        files.slice(10).forEach(f => {
+          try { fs.unlinkSync(path.join(backupDir, f)); } catch (e) { }
+        });
+      }
+
+    } catch (err) {
+      console.error("❌ Backup failed:", err);
+      if (callback) callback({ success: false, error: err.message });
     }
   });
 

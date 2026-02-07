@@ -1,3 +1,37 @@
+# Release Notes - v8.4.0
+
+## 🚀 Smart Connectivity & UI Polish
+
+### 🌐 Smart IP Entry (Manual Connection)
+- **Auto-Detection**: The manual connection screens now intelligently detect your local network prefix and pre-fill it for you (e.g., `192.168.1.`).
+- **Port Visibility**: The current server port is now visible and automatically handled during manual connection, ensuring you always connect to the right place.
+- **Unified Helper**: The Smart IP tool is now available both in the "Available Classes" screen and directly within the **Connection Info** modal for instant access.
+- **Greek Localization**: Full Greek translations added for the entire Smart IP feature set.
+
+### 🛡️ Smart UI & Role Awareness
+- **Teacher Polish**: Manual connection tools are automatically hidden when logged in as a **Teacher**, keeping the interface clean and focused.
+- **Improved Overlay**: The "Searching for Class..." overlay is now constrained to the chat area, ensuring header buttons (Settings, Connection Info) remain clickable while searching.
+
+### 📥 Automated Word List Backups
+- **Server-Side Backups**: Word lists are now automatically backed up to the server whenever a teacher switches roles or exits. No more manual CSV downloads required!
+- **Auto-Pruning**: The server intelligently keeps the last 10 backups to save space while ensuring your data is safe.
+
+---
+
+# Release Notes - v8.3.1
+
+## 🛠️ Critical Fixes & Improvements
+
+### 📥 Import/Export Reliability
+- **Smart Import Refresh**: Fixed an issue where imported word lists would not appear immediately in the settings. The app now intelligently forces a refresh from the server to ensure all imported words are visible and ready for export.
+- **Unified List Import**: Importing a single file now correctly populates both the **Blacklist** and **Whitelist** simultaneously.
+- **Crash Prevention**: Resolved a server crash that occurred during the import process due to missing callbacks.
+
+### 🔄 Role Switching Stability
+- **Clean State Transitions**: Fixed potential state leakage when switching between Teacher and Student roles, ensuring a fresh session every time.
+
+---
+
 # Release Notes - v8.3.0
 
 ## 🧪 Advanced Automation & Testing

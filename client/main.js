@@ -147,6 +147,9 @@ socket.on("server-discovered", (serverInfo) => {
     if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
         renderAvailableClasses();
     }
+
+    // Trigger auto-flow re-check when new servers are discovered
+    handleAutoFlow();
 });
 
 socket.on("server-lost", (serverInfo) => {
@@ -172,6 +175,19 @@ const roleSelection = document.getElementById("role-selection");
 const classSetup = document.getElementById("class-setup");
 const availableClassesScreen = document.getElementById("available-classes");
 const chatInterface = document.getElementById("chat-interface");
+
+// Startup Logic
+// Check if we have a saved role
+// savedRole is already declared at top of file
+if (savedRole) {
+    // We have a role, so we can proceed (logic handled lower down)
+    roleSelection.classList.add('hidden');
+} else {
+    // No role, show selection screen immediately
+    roleSelection.classList.remove('hidden');
+    // Ensure chat is hidden
+    chatInterface.classList.add('hidden');
+}
 
 // DOM Elements - Setup
 const setupTitle = document.getElementById("setup-title");
@@ -252,6 +268,17 @@ if (btnShowUrl) {
         socket.emit("get-server-info", { classId: currentClassId }, (info) => {
             serverInfo = info;
             updateConnectionUrl();
+
+            // Hide manual join if teacher
+            const modalManualJoin = document.getElementById("modal-manual-join");
+            if (modalManualJoin) {
+                if (currentRole === 'teacher') {
+                    modalManualJoin.classList.add("hidden");
+                } else {
+                    modalManualJoin.classList.remove("hidden");
+                }
+            }
+
             connectionModal.classList.remove("hidden");
         });
     });
@@ -531,7 +558,12 @@ socket.on("disconnect", () => {
 
 socket.on("active-classes", (classes) => {
     availableClasses = classes;
-    console.log(`[Network] Received ${classes.length} active classes from local server`);
+    availableClasses = classes;
+    const classNames = classes.map(c => c.id).join(', ');
+    console.log(`[Network] Received ${classes.length} active class(es): ${classNames}`);
+
+    handleAutoFlow();
+
     if (currentRole) {
         renderSidebar();
     }
@@ -539,33 +571,84 @@ socket.on("active-classes", (classes) => {
     if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
         renderAvailableClasses();
     }
+});
 
-    // Auto-flow for students:
-    if (savedRole === 'student' && autoFlowTriggered && !currentClassId && !window.joiningInProgress) {
-        if (classes.length === 1) {
-            // Case 1: Exactly one class -> Auto-join
+// Helper to get ALL classes (Local + Remote)
+function getAllAvailableClasses() {
+    const allClasses = [...availableClasses];
+
+    // Add discovered classes
+    discoveredServers.forEach((serverInfo) => {
+        if (serverInfo.classes && Array.isArray(serverInfo.classes)) {
+            serverInfo.classes.forEach(cls => {
+                // Avoid duplicates if multiple discovery packets come in or local server is discovered
+                if (!allClasses.find(c => c.id === cls.id)) {
+                    allClasses.push({
+                        ...cls,
+                        isRemote: true,
+                        serverIp: serverInfo.ip,
+                        serverPort: serverInfo.port
+                    });
+                }
+            });
+        }
+    });
+
+    return allClasses;
+}
+
+// Centralized Auto-Flow Logic
+// Centralized Auto-Flow Logic
+function handleAutoFlow() {
+    // Allow auto-flow if (no class OR in Lobby) to enable switching from Lobby to partial class
+    if (savedRole === 'student' && autoFlowTriggered && (!currentClassId || currentClassId === 'Lobby') && !window.joiningInProgress) {
+
+        const allClasses = getAllAvailableClasses();
+        // Ignore 'Lobby' when looking for classes to join
+        const targetClasses = allClasses.filter(c => c.id !== 'Lobby');
+
+        if (targetClasses.length === 1) {
+            // Case 1: Exactly one REAL class -> Auto-join
             window.joiningInProgress = true;
-            console.log(`Auto-flow: Only one class available (${classes[0].id}), auto-joining...`);
+            const targetClass = targetClasses[0];
+
+            console.log(`Auto-flow: Only one class available (${targetClass.id}), auto-joining...`);
             roleSelection.classList.add('hidden');
             classSetup.classList.add('hidden');
-            joinClass(classes[0].id, userName);
-        } else if (classes.length > 1) {
-            // Case 2: Multiple classes -> Show selection
-            console.log(`Auto-flow: Multiple classes available (${classes.length}), showing selection...`);
+            // Ensure available classes screen is hidden if we were showing it
+            availableClassesScreen.classList.add('hidden');
+
+            if (targetClass.isRemote) {
+                // Redirect to remote server
+                const serverUrl = `http://${targetClass.serverIp}:${targetClass.serverPort}`;
+                window.location.href = serverUrl;
+            } else {
+                joinClass(targetClass.id, userName);
+            }
+        } else if (targetClasses.length > 1) {
+            // Case 2: Multiple REAL classes -> Show selection
+            console.log(`Auto-flow: Multiple classes available (${targetClasses.length}), showing selection...`);
+
+            // Only interrupt Lobby if we found multiple choices
+            if (currentClassId === 'Lobby') {
+                // Optional: Notify user or just switch screen?
+                // For now, let's switch to selection screen to let them choose
+                // But we need to make sure we don't look broken
+            }
+
             roleSelection.classList.add('hidden');
             classSetup.classList.add('hidden');
             availableClassesScreen.classList.remove('hidden');
             renderAvailableClasses();
         } else {
-            // Case 3: No classes -> Show Scanning UI (NO Lobby)
-            console.log('Auto-flow: No classes available, showing Scanning UI...');
-            roleSelection.classList.add('hidden');
-            classSetup.classList.add('hidden');
-            availableClassesScreen.classList.remove('hidden');
-            renderScanningForTeacher();
+            // Case 3: No REAL classes -> Ensure we are in Lobby (Waiting Room)
+            if (currentClassId !== 'Lobby') {
+                console.log('Auto-flow: No classes available, joining Lobby as waiting room...');
+                joinOrCreateLobby();
+            }
         }
     }
-});
+}
 
 // Auto-flow helper: Teacher joins or creates Lobby
 // Auto-flow helper: Teacher Auto-Creates Class
@@ -637,25 +720,48 @@ function joinOrCreateLobby() {
     });
 }
 
-// Update chat disabled state based on teacher presence
+// Update chat disabled state based on teacher presence and user count
 function updateChatDisabledState() {
     if (!currentClassId) return;
 
     const classData = joinedClasses.get(currentClassId);
     const hasTeacher = classData?.hasTeacher || classData?.users?.some(u => u.role === 'teacher');
+    const isAlone = classData?.users?.length === 1;
 
-    if (!hasTeacher && currentRole === 'student') {
-        // Disable chat input
+    // Check if we need to show the Searching Overlay
+    const searchingOverlay = document.getElementById("searching-overlay");
+
+    // Show overlay if (Student AND in Lobby)
+    if (currentRole === 'student' && currentClassId === 'Lobby') {
+        if (searchingOverlay) searchingOverlay.classList.remove("hidden");
+
+        // Also disable input to be safe, though overlay covers it
         messageInput.disabled = true;
-        messageInput.placeholder = "Waiting for teacher to join...";
-        sendBtn.disabled = true;
-        sendBtn.style.opacity = '0.5';
+        btnSendMessage.disabled = true;
+        btnSendMessage.style.opacity = '0.5';
     } else {
-        // Enable chat
-        messageInput.disabled = false;
-        messageInput.placeholder = "Type a message...";
-        sendBtn.disabled = false;
-        sendBtn.style.opacity = '1';
+        if (searchingOverlay) searchingOverlay.classList.add("hidden");
+
+        // Disable if (Student AND (No Teacher OR Alone)) - Normal logic for regular classes
+        if (currentRole === 'student' && (!hasTeacher || isAlone)) {
+            // Disable chat input
+            messageInput.disabled = true;
+
+            if (isAlone) {
+                messageInput.placeholder = "Waiting for teacher/others...";
+            } else {
+                messageInput.placeholder = "Waiting for teacher to join...";
+            }
+
+            btnSendMessage.disabled = true;
+            btnSendMessage.style.opacity = '0.5';
+        } else {
+            // Enable chat
+            messageInput.disabled = false;
+            messageInput.placeholder = "Type a message...";
+            btnSendMessage.disabled = false;
+            btnSendMessage.style.opacity = '1';
+        }
     }
 }
 
@@ -732,10 +838,10 @@ document.getElementById("btn-student").addEventListener("click", () => {
     currentRole = "student";
     savedRole = "student";
     localStorage.setItem('classsend-role', 'student');
-    // Skip class setup, immediately join Lobby
+    // Skip class setup, immediately check flow
     autoFlowTriggered = true;
     roleSelection.classList.add('hidden');
-    joinOrCreateLobby();
+    handleAutoFlow();
 });
 
 function showClassSetup() {
@@ -765,13 +871,34 @@ btnBack.addEventListener("click", () => {
     classSetup.classList.add("hidden");
     roleSelection.classList.remove("hidden");
     currentRole = null;
+    // Clearing saved role allows user to re-select if they made a mistake
+    // Only clear if they explicitly go back, not on refresh
+    localStorage.removeItem('classsend-role');
+    savedRole = null;
+    autoFlowTriggered = false;
+
     classIdInput.value = "";
     userNameInput.value = "";
 });
 
 btnBackFromClasses.addEventListener("click", () => {
     availableClassesScreen.classList.add("hidden");
-    classSetup.classList.remove("hidden");
+
+    // logic: If we have a saved name/role, and we hit back here, we probably want to change role or name
+    // But currently this button just goes back to Class Setup, which might be skipped in auto-flow.
+    // If auto-flow skipped Setup, back should go to Role Selection (and clear persistence).
+
+    if (savedRole && userName) {
+        // We came here via auto-flow likely.
+        // Go back to Role Selection so they can change "Student/Teacher" choice
+        roleSelection.classList.remove("hidden");
+        localStorage.removeItem('classsend-role');
+        savedRole = null;
+        autoFlowTriggered = false;
+        currentRole = null;
+    } else {
+        classSetup.classList.remove("hidden");
+    }
 });
 
 // Class Setup Submit
@@ -834,10 +961,14 @@ btnSubmitSetup.addEventListener("click", () => {
 });
 
 // Render Available Classes for Students
+// Render Available Classes for Students
 function renderAvailableClasses() {
     availableClassesList.innerHTML = "";
 
-    if (availableClasses.length === 0) {
+    // Combine local and remote classes
+    const allClasses = getAllAvailableClasses();
+
+    if (allClasses.length === 0) {
         availableClassesList.innerHTML = `
             <div class="empty-state">
                 <div class="spinner"></div>
@@ -846,21 +977,33 @@ function renderAvailableClasses() {
         return;
     }
 
-    availableClasses.forEach(classInfo => {
+    allClasses.forEach(classInfo => {
         const classCard = document.createElement("div");
         classCard.classList.add("available-class-card");
+        if (classInfo.isRemote) {
+            classCard.classList.add("remote-class-card");
+        }
+
+        const locationLabel = classInfo.isRemote ? `Running on ${classInfo.serverIp}` : 'Local Network';
 
         classCard.innerHTML = `
             <div class="class-card-icon">📚</div>
             <div class="class-card-info">
                 <div class="class-card-name">${escapeHtml(classInfo.id)}</div>
                 <div class="class-card-teacher">Teacher: ${escapeHtml(classInfo.teacherName)}</div>
+                <div class="class-card-location" style="font-size: 0.8em; opacity: 0.7;">${escapeHtml(locationLabel)}</div>
             </div>
             <button class="class-card-join-btn">Join →</button>
         `;
 
         classCard.addEventListener("click", () => {
-            joinClass(classInfo.id, userName);
+            if (classInfo.isRemote) {
+                // Redirect to the other server
+                const serverUrl = `http://${classInfo.serverIp}:${classInfo.serverPort}`;
+                window.location.href = serverUrl;
+            } else {
+                joinClass(classInfo.id, userName);
+            }
         });
 
         availableClassesList.appendChild(classCard);
@@ -869,16 +1012,53 @@ function renderAvailableClasses() {
 
 // Render Scanning UI (replaces Lobby)
 function renderScanningForTeacher() {
-    availableClassesList.innerHTML = `
-        <div class="empty-state">
-            <div class="spinner"></div>
-            <div data-i18n="scanning-for-teacher">Scanning for a teacher...</div>
-            <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;" data-i18n="scanning-description">
-                Please wait. Takes a few seconds.
-            </p>
-        </div>
+    // Instead of showing a card, we show the main chat interface
+    // with a status message
+    availableClassesScreen.classList.add('hidden');
+    roleSelection.classList.add('hidden');
+    classSetup.classList.add('hidden');
+    chatInterface.classList.remove('hidden');
+
+    // Set UI to "Scanning" state
+    renderScanningStateInChat();
+}
+
+function renderScanningStateInChat() {
+    // Clear chat area
+    messagesContainer.innerHTML = '';
+
+    // Add a visual indicator in the chat area
+    const scanningIndicator = document.createElement('div');
+    scanningIndicator.className = 'scanning-indicator';
+    scanningIndicator.style.textAlign = 'center';
+    scanningIndicator.style.padding = '2rem';
+    scanningIndicator.style.color = 'var(--text-secondary)';
+
+    scanningIndicator.innerHTML = `
+        <div class="spinner" style="margin: 0 auto 1rem auto;"></div>
+        <h3>Looking for teachers...</h3>
+        <p>We are scanning the network for available classes.</p>
+        <button id="btn-cancel-scan-chat" class="secondary-btn" style="margin-top: 1rem;">Back / Change Role</button>
     `;
-    updateUIText();
+
+    messagesContainer.appendChild(scanningIndicator);
+
+    // Disable inputs
+    messageInput.disabled = true;
+    messageInput.placeholder = "Scanning for teachers...";
+    btnSendMessage.disabled = true;
+
+    // Cancel button handler
+    const btnCancel = document.getElementById('btn-cancel-scan-chat');
+    if (btnCancel) {
+        btnCancel.onclick = () => {
+            chatInterface.classList.add('hidden');
+            roleSelection.classList.remove('hidden');
+            localStorage.removeItem('classsend-role');
+            savedRole = null;
+            autoFlowTriggered = false;
+        };
+    }
 }
 
 function joinClass(classIdToJoin, nameToUse) {
@@ -1030,7 +1210,9 @@ function renderSidebar() {
     classesListContainer.innerHTML = "";
 
     // Combine joined, available (local), and discovered (network) classes
-    const allClassIds = new Set([...joinedClasses.keys(), ...availableClasses.map(c => c.id)]);
+    // Filter out 'Lobby' for teachers from available classes
+    const visibleAvailable = availableClasses.filter(c => currentRole !== 'teacher' || c.id !== 'Lobby');
+    const allClassIds = new Set([...joinedClasses.keys(), ...visibleAvailable.map(c => c.id)]);
 
     // Also add classes from discovered servers
     const networkClasses = new Map(); // classId -> { serverIp, serverPort, teacherName }
@@ -1038,6 +1220,10 @@ function renderSidebar() {
         if (serverInfo.classes && Array.isArray(serverInfo.classes)) {
             serverInfo.classes.forEach(cls => {
                 const classId = cls.id || cls;
+
+                // Filter out 'Lobby' for teachers here too
+                if (currentRole === 'teacher' && classId === 'Lobby') return;
+
                 if (!allClassIds.has(classId)) {
                     allClassIds.add(classId);
                     networkClasses.set(classId, {
@@ -1132,6 +1318,16 @@ function renderSidebar() {
 
         classesListContainer.appendChild(item);
     });
+
+    // Hide manual connection section if teacher
+    const manualConnectionSection = document.querySelector(".manual-connection-section");
+    if (manualConnectionSection) {
+        if (currentRole === 'teacher') {
+            manualConnectionSection.classList.add("hidden");
+        } else {
+            manualConnectionSection.classList.remove("hidden");
+        }
+    }
 }
 
 
@@ -1210,22 +1406,93 @@ function updateRoleDisplay() {
     }
 }
 
+// Helper: Backup Words to Server
+function backupWordsToServer(callback) {
+    // Check if there are any words to export
+    if (customForbiddenWords.size === 0 && customWhitelistedWords.size === 0) {
+        console.log("No custom words to backup.");
+        if (callback) callback(false);
+        return;
+    }
+
+    const backupData = {
+        forbidden: Array.from(customForbiddenWords),
+        whitelisted: Array.from(customWhitelistedWords),
+        timestamp: new Date().toISOString()
+    };
+
+    console.log("Backing up words to server...");
+
+    // Set a timeout to not block role switch indefinitely
+    let responded = false;
+    const timeout = setTimeout(() => {
+        if (!responded) {
+            console.warn("Backup timed out");
+            if (callback) callback(false);
+        }
+    }, 2000);
+
+    socket.emit("backup-word-lists", backupData, (response) => {
+        if (responded) return;
+        responded = true;
+        clearTimeout(timeout);
+
+        if (response && response.success) {
+            console.log("Backup successful:", response.filename);
+            if (callback) callback(true);
+        } else {
+            console.error("Backup failed:", response?.error);
+            if (callback) callback(false);
+        }
+    });
+}
+
 if (btnChangeRole) {
     btnChangeRole.addEventListener("click", () => {
+        // Close settings modal immediately to feedback action
+        if (settingsModal) settingsModal.classList.add("hidden");
+
         if (!confirm("Changing your role will disconnect you from the current class. Continue?")) {
             return;
         }
 
-        // Leave current class if any
-        if (currentClassId) {
-            socket.emit("leave-class", { classId: currentClassId });
+        const performRoleSwitch = () => {
+            // Clear saved role and state
+            localStorage.removeItem('classsend-role');
+            localStorage.removeItem('classsend-classId'); // CRITICAL: Reset class ID
+            // Reload application to reset neutral state
+            window.location.reload();
+        };
+
+        const handleSwitchSequence = () => {
+            // 1. Try to backup words (if Teacher)
+            if (currentRole === 'teacher') {
+                backupWordsToServer((success) => {
+                    // 2. Switch regardless of success, maybe small delay to ensure log
+                    performRoleSwitch();
+                });
+                return;
+            }
+            // 2. Immediate switch if not teacher
+            performRoleSwitch();
+        };
+
+        // If Teacher, DELETE the class
+        if (currentRole === 'teacher' && currentClassId) {
+            console.log("Teacher switching role, deleting class...");
+            socket.emit("delete-class", { classId: currentClassId }, (response) => {
+                handleSwitchSequence();
+            });
+            // Fallback in case server doesn't respond
+            setTimeout(handleSwitchSequence, 1000);
         }
-
-        // Clear saved role and state
-        localStorage.removeItem('classsend-role');
-
-        // Reload application to reset neutral state
-        window.location.reload();
+        // If Student (or other), just LEAVE
+        else if (currentClassId) {
+            socket.emit("leave-class", { classId: currentClassId });
+            handleSwitchSequence();
+        } else {
+            handleSwitchSequence();
+        }
     });
 }
 
@@ -2781,111 +3048,76 @@ if (blacklistModal) {
 function loadForbiddenWords() {
     socket.emit('get-forbidden-words', (words) => {
         customForbiddenWords = words || [];
-        renderBlacklistWordList();
+        renderForbiddenWordsList();
     });
 }
 
-// Render the word list in the modal
-function renderBlacklistWordList() {
+socket.on('forbidden-words-updated', (words) => {
+    customForbiddenWords = words || [];
+    renderForbiddenWordsList();
+});
+
+// Render Forbidden Words List
+function renderForbiddenWordsList() {
     if (!blacklistWordList) return;
+    blacklistWordList.innerHTML = "";
 
     if (customForbiddenWords.length === 0) {
         blacklistWordList.innerHTML = '<div class="empty-blacklist-state">No custom words added yet</div>';
         return;
     }
 
-    blacklistWordList.innerHTML = customForbiddenWords.map(item => {
-        const date = new Date(item.addedAt);
-        const dateStr = date.toLocaleDateString('el-GR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
+    // Sort by newest first
+    customForbiddenWords.slice().reverse().forEach(item => {
+        const row = document.createElement("div");
+        row.className = "blacklist-word-item";
+        row.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #333; margin-bottom: 5px; border-radius: 5px;";
 
-        return `
-            <div class="blacklist-word-item" data-word="${escapeHtml(item.word)}">
-                <span class="blacklist-word-text">${escapeHtml(item.word)}</span>
-                <span class="blacklist-word-date">${dateStr}</span>
-                <button class="blacklist-delete-btn" title="Delete">❌</button>
+        const dateStr = item.addedAt ? new Date(item.addedAt).toLocaleDateString() : '';
+        const sourceIcon = item.source === 'report' ? '🛡️' : '';
+
+        row.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-weight: bold; color: #ff6b6b;">${escapeHtml(item.word)}</span>
+                ${sourceIcon ? `<span title="From Report">${sourceIcon}</span>` : ''}
+            </div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span style="color: #888; font-size: 0.85rem;">${dateStr}</span>
+                <button class="remove-word-btn" style="background: none; border: none; color: #ff4444; cursor: pointer; font-size: 1.1rem;">✖</button>
             </div>
         `;
-    }).join('');
 
-    // Add delete button listeners
-    blacklistWordList.querySelectorAll('.blacklist-delete-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const wordItem = e.target.closest('.blacklist-word-item');
-            const word = wordItem.dataset.word;
-            removeForbiddenWord(word);
+        row.querySelector(".remove-word-btn").addEventListener("click", () => {
+            if (confirm(`Remove '${item.word}' from blacklist?`)) {
+                socket.emit('remove-forbidden-word', { word: item.word }, (res) => {
+                    if (!res.success) alert(res.message || "Failed to remove");
+                });
+            }
+        });
+
+        blacklistWordList.appendChild(row);
+    });
+}
+
+// Add Blacklist Word
+if (btnAddWord) {
+    btnAddWord.addEventListener("click", () => {
+        if (!blacklistWordInput) return;
+        const word = blacklistWordInput.value.trim();
+        if (!word) return;
+
+        socket.emit('add-forbidden-word', { word }, (res) => {
+            if (res.success) {
+                blacklistWordInput.value = "";
+                blacklistWordInput.focus();
+            } else {
+                alert(res.message || "Failed to add word");
+            }
         });
     });
 }
 
-// Add a forbidden word
-function addForbiddenWord(word) {
-    if (!word || word.trim() === '') return;
 
-    const trimmedWord = word.trim().toLowerCase();
-
-    // Check if already exists
-    if (customForbiddenWords.some(w => w.word === trimmedWord)) {
-        alert('This word is already in the list!');
-        return;
-    }
-
-    socket.emit('add-forbidden-word', { word: trimmedWord }, (response) => {
-        if (response && response.success) {
-            console.log(`✅ Added forbidden word: ${trimmedWord}`);
-            if (blacklistWordInput) blacklistWordInput.value = '';
-        } else {
-            console.error('Failed to add word:', response?.message);
-        }
-    });
-}
-
-// Remove a forbidden word
-function removeForbiddenWord(word) {
-    socket.emit('remove-forbidden-word', { word }, (response) => {
-        if (response && response.success) {
-            console.log(`✅ Removed forbidden word: ${word}`);
-        } else {
-            console.error('Failed to remove word:', response?.message);
-        }
-    });
-}
-
-// Add word button click
-if (btnAddWord) {
-    btnAddWord.addEventListener('click', () => {
-        addForbiddenWord(blacklistWordInput.value);
-    });
-}
-
-// Add word on Enter key
-if (blacklistWordInput) {
-    blacklistWordInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            addForbiddenWord(blacklistWordInput.value);
-        }
-    });
-}
-
-// Listen for updates from server
-socket.on('forbidden-words-updated', (words) => {
-    customForbiddenWords = words || [];
-    renderBlacklistWordList();
-
-    // Update the filter words array to include custom words
-    updateFilterWithCustomWords();
-});
-
-// Update filter words to include custom words
-function updateFilterWithCustomWords() {
-    // The custom words will be checked separately for now
-    // This could be merged with the main filterWords array if needed
-    console.log(`🔄 Custom forbidden words updated: ${customForbiddenWords.length} words`);
-}
 
 // ===== TEXT SELECTION POPUP =====
 let selectedText = '';
@@ -3471,6 +3703,60 @@ function createStudentPeerConnection(teacherId) {
     };
 }
 
+// Smart IP Entry Logic (Shared)
+const smartIpPrefix = document.getElementById('smart-ip-prefix');
+const smartIpSuffix = document.getElementById('smart-ip-suffix');
+const btnManualConnect = document.getElementById('btn-manual-connect');
+
+const smartIpPrefixModal = document.getElementById('smart-ip-prefix-modal');
+const smartIpSuffixModal = document.getElementById('smart-ip-suffix-modal');
+const btnManualConnectModal = document.getElementById('btn-manual-connect-modal');
+
+const smartIpPort = document.getElementById('smart-ip-port');
+const smartIpPortModal = document.getElementById('smart-ip-port-modal');
+
+let currentIpPrefix = '';
+let currentServerPort = 3000;
+
+socket.on('network-info', (data) => {
+    if (data.prefix) {
+        currentIpPrefix = data.prefix;
+        if (smartIpPrefix) smartIpPrefix.textContent = currentIpPrefix;
+        if (smartIpPrefixModal) smartIpPrefixModal.textContent = currentIpPrefix;
+    }
+    if (data.port) {
+        currentServerPort = data.port;
+        if (smartIpPort) smartIpPort.textContent = currentServerPort;
+        if (smartIpPortModal) smartIpPortModal.textContent = currentServerPort;
+    }
+});
+
+const handleManualIpConnect = (suffix) => {
+    if (!suffix) return alert('Please enter the last number of the IP address');
+    const fullIp = `${currentIpPrefix}${suffix}`;
+    const targetUrl = `http://${fullIp}:${currentServerPort}`;
+    console.log(`Manual connection to: ${targetUrl}`);
+    window.location.href = targetUrl;
+};
+
+if (btnManualConnect) {
+    btnManualConnect.addEventListener('click', () => {
+        handleManualIpConnect(smartIpSuffix.value.trim());
+    });
+    smartIpSuffix.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') btnManualConnect.click();
+    });
+}
+
+if (btnManualConnectModal) {
+    btnManualConnectModal.addEventListener('click', () => {
+        handleManualIpConnect(smartIpSuffixModal.value.trim());
+    });
+    smartIpSuffixModal.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') btnManualConnectModal.click();
+    });
+}
+
 // Global Event: Screen Share Status Update
 socket.on("screen-share-status-update", ({ isSharing, classId }) => {
     if (classId !== currentClassId) return;
@@ -3758,7 +4044,7 @@ if (btnOpenBlacklistModal) {
     btnOpenBlacklistModal.addEventListener('click', () => {
         if (blacklistModal) {
             blacklistModal.classList.remove('hidden');
-            renderBlacklistWordList();
+            renderForbiddenWordsList();
             blacklistWordInput.focus();
         }
     });
@@ -3918,6 +4204,10 @@ if (fileImportData) {
                 if (Array.isArray(data)) {
                     if (confirm("Legacy format detected. Import as Blacklist?")) {
                         importList(data, 'blacklist');
+                        setTimeout(() => {
+                            console.log("🔄 Refreshing lists after legacy import...");
+                            loadForbiddenWords();
+                        }, 1000);
                     }
                     fileImportData.value = "";
                     return;
@@ -3939,7 +4229,14 @@ if (fileImportData) {
                     totalWhitelist = importList(data.whitelist, 'whitelist');
                 }
 
-                alert(`Import Complete!\n🚫 Blacklist: ${totalBlacklist} words\n✅ Whitelist: ${totalWhitelist} words`);
+                console.log(`✅ Import finished. Triggering list refresh in 1s...`);
+                setTimeout(() => {
+                    console.log("🔄 Refreshing blacklist and whitelist from server...");
+                    loadForbiddenWords();
+                    loadWhitelistedWords();
+                }, 1000);
+
+                alert(`Import Complete!\n🚫 Blacklist: ${totalBlacklist} requests sent\n✅ Whitelist: ${totalWhitelist} requests sent\n\nLists should update shortly.`);
 
             } catch (err) {
                 console.error("Import failed", err);
@@ -3961,14 +4258,18 @@ function importList(items, type) {
             if (type === 'blacklist') {
                 // Check duplicates client side to save calls? Server handles it too.
                 // Fire and forget mostly, but we use callbacks usually.
-                socket.emit('add-forbidden-word', { word });
+                socket.emit('add-forbidden-word', { word }, () => { });
                 count++;
             } else if (type === 'whitelist') {
-                socket.emit('add-whitelisted-word', { word });
+                socket.emit('add-whitelisted-word', { word }, () => { });
                 count++;
             }
         }
     });
+
+    // Refresh UI immediately if possible, but servers will broadcast updates anyway.
+    // However, for bulk import, broadcasts come one by one.
+    // The lists will update automatically due to socket listeners.
     return count;
 }
 
@@ -4058,7 +4359,7 @@ if (btnAddWhitelistWordModal) {
 
     // Also allow Enter key
     whitelistWordInput.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") btnAddWhitelistWordModal.click();
+        if (e.key === "Enter" && btnAddWhitelistWordModal) btnAddWhitelistWordModal.click();
     });
 }
 

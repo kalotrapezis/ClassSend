@@ -15,29 +15,47 @@ class NetworkDiscovery {
     getLocalIPFallback() {
         const interfaces = os.networkInterfaces();
         // Virtual adapter keywords to skip
-        const virtualKeywords = ['virtual', 'vmware', 'vbox', 'hyperv', 'vethernet', 'wsl', 'loopback'];
+        const virtualKeywords = ['virtual', 'vmware', 'vbox', 'hyperv', 'vethernet', 'wsl', 'loopback', 'docker', 'radmin', 'vpn', 'hamachi'];
 
-        let fallbackIP = null;
+        let bestIP = null;
+        let bestPriority = -100;
+
+        console.log('--- Network Interface Discovery ---');
 
         for (const name of Object.keys(interfaces)) {
             const lowerName = name.toLowerCase();
-            // Skip virtual adapters
-            const isVirtual = virtualKeywords.some(keyword => lowerName.includes(keyword));
+            let priority = 0;
+
+            // 1. Heuristics based on name
+            if (virtualKeywords.some(keyword => lowerName.includes(keyword))) {
+                priority -= 50; // Heavy penalty for virtual adapters
+            }
+            if (lowerName.includes('wi-fi') || lowerName.includes('wireless')) priority += 20;
+            else if (lowerName.includes('ethernet')) priority += 10;
 
             for (const iface of interfaces[name]) {
                 // Skip internal (loopback) and non-IPv4 addresses
                 if (iface.family === 'IPv4' && !iface.internal) {
-                    if (!isVirtual) {
-                        // Prefer non-virtual adapters (WiFi/Ethernet)
-                        return iface.address;
-                    } else if (!fallbackIP) {
-                        // Keep virtual as fallback
-                        fallbackIP = iface.address;
+                    let currentPriority = priority;
+
+                    // 2. Penalize specific subnets (VirtualBox default is 192.168.56.x)
+                    if (iface.address.startsWith('192.168.56.')) currentPriority -= 100;
+                    if (iface.address.startsWith('169.254.')) currentPriority -= 1000; // Link-local (useless)
+
+                    console.log(`Found Interface: ${name} (${iface.address}) - Priority: ${currentPriority}`);
+
+                    if (currentPriority > bestPriority) {
+                        bestPriority = currentPriority;
+                        bestIP = iface.address;
                     }
                 }
             }
         }
-        return fallbackIP || 'localhost';
+
+        console.log(`Selected Best IP: ${bestIP || 'localhost'}`);
+        console.log('-----------------------------------');
+
+        return bestIP || 'localhost';
     }
 
     async initialize(port, getClassesCallback) {

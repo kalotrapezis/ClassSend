@@ -5,14 +5,16 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self' http://localhost:3000 ws://localhost:3000; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' http://localhost:3000 ws://localhost:3000;">
   <title data-i18n="app-title">ClassSend</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Raleway:wght@100;200;300;400;500;600&display=swap"
     rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index-D_Jv_nXp.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DWFoloax.css">
+  <script type="module" crossorigin src="/assets/index-D32HepDI.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-7218VQGr.css">
 </head>
 
 <body>
@@ -33,7 +35,6 @@
             <span class="role-label" data-i18n="role-student">Student</span>
           </button>
         </div>
-
       </div>
     </div>
 
@@ -67,6 +68,18 @@
         <div id="available-classes-list" class="available-classes-list">
           <!-- Classes will be dynamically added here -->
           <div class="empty-state" data-i18n="searching-classes">Looking for classes...</div>
+        </div>
+
+        <!-- Manual Connection (Smart IP) -->
+        <div class="manual-connection-section">
+          <h3 data-i18n="manual-connect-title">Connect Manually</h3>
+          <p class="manual-connect-hint" data-i18n="manual-connect-hint">Don't see your class? Enter the server IP.</p>
+          <div class="smart-ip-group">
+            <span id="smart-ip-prefix" class="smart-ip-prefix">...</span>
+            <input type="number" id="smart-ip-suffix" class="smart-ip-suffix" placeholder="XX" min="0" max="255">
+            <span class="smart-ip-port-display">:<span id="smart-ip-port">...</span></span>
+            <button id="btn-manual-connect" class="small-primary-btn" data-i18n="btn-connect">Connect</button>
+          </div>
         </div>
         <button id="btn-back-from-classes" class="secondary-btn" data-i18n="btn-back">Back</button>
       </div>
@@ -415,7 +428,8 @@
                   <div class="about-content" style="text-align: center; padding: 1.5rem 1rem;">
                     <div class="about-logo" style="font-size: 2.5rem; margin-bottom: 0.5rem;">🚀</div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
-                    <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> 8.2.5</p>
+                    <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
+                        id="app-version-display">8.3.1</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
@@ -506,6 +520,18 @@
               <code id="connection-url">http://...</code>
               <button id="btn-copy-url" class="copy-btn" title="Copy URL"><img src="/assets/copy-svgrepo-com.svg"
                   class="icon-svg" alt="Copy" style="width: 16px; height: 16px;" /></button>
+            </div>
+
+            <!-- Manual Join (Smart IP) Extension -->
+            <div id="modal-manual-join" class="modal-manual-join">
+              <p class="manual-connect-hint" data-i18n="manual-connect-hint-modal">Or connect to another server:</p>
+              <div class="smart-ip-group">
+                <span id="smart-ip-prefix-modal" class="smart-ip-prefix">...</span>
+                <input type="number" id="smart-ip-suffix-modal" class="smart-ip-suffix" placeholder="XX" min="0"
+                  max="255">
+                <span class="smart-ip-port-display">:<span id="smart-ip-port-modal">...</span></span>
+                <button id="btn-manual-connect-modal" class="small-primary-btn" data-i18n="btn-connect">Connect</button>
+              </div>
             </div>
 
             <div class="toggle-container">
@@ -628,6 +654,15 @@
         <main class="chat-area">
           <div id="messages-container" class="messages-container">
             <!-- Messages will be dynamically added here -->
+          </div>
+
+          <!-- Lobby / Searching Overlay -->
+          <div id="searching-overlay" class="searching-overlay hidden">
+            <div class="searching-content">
+              <div class="searching-spinner"></div>
+              <h2 data-i18n="searching-title">Searching for Class...</h2>
+              <p data-i18n="searching-subtitle">Please wait while we connect you to an active class.</p>
+            </div>
           </div>
           <div class="message-input-area">
             <div id="filter-warning" class="filter-warning hidden">
