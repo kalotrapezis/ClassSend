@@ -1,3 +1,22 @@
+# Release Notes - v8.5.0
+
+## 🎨 Visual Overhaul & Media Support
+
+### 🖼️ Enhanced File Icons
+- **SVG Integration**: Replaced all generic file type emojis with high-quality SVG icons for a cleaner, more professional look.
+- **Specific Media Icons**: Added dedicated icons for **Audio** (`.mp3`, `.wav`) and **Video** (`.mp4`, `.avi`) files, making it easier to identify media at a glance.
+- **Application Support**: Added specific icons for executables and installers (`.exe`, `.apk`).
+
+### 📱 Tablet Optimization
+- **Image Viewer Fixes**: The image viewer is now properly sized for tablet screens, ensuring the close button and zoom controls are always accessible.
+- **Better Zoom Controls**: Zoom In/Out buttons are now larger, centered, and have better visibility with a frosted glass background.
+
+### 🛠️ Usability Improvements
+- **Teacher Tools Menu**: Consolidated all teacher actions (Share Screen, Block Messages, etc.) into a convenient popup menu for cleaner UI.
+- **Minimize Wrappers**: Added "Minimize" buttons to both Image and PDF viewers, allowing you to keep files open in the background while chatting.
+
+---
+
 # Release Notes - v8.4.0
 
 ## 🚀 Smart Connectivity & UI Polish

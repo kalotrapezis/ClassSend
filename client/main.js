@@ -1,4 +1,4 @@
-import { io } from "socket.io-client";
+﻿import { io } from "socket.io-client";
 import { translations } from "./translations.js";
 import { generateRandomName } from "./name-generator.js";
 
@@ -258,6 +258,18 @@ const connectionUrl = document.getElementById("connection-url");
 const btnCopyUrl = document.getElementById("btn-copy-url");
 const hostnameToggle = document.getElementById("hostname-toggle");
 
+// Teacher Tools Menu Elements
+const teacherToolsSection = document.getElementById("teacher-tools-section");
+const btnToolsToggle = document.getElementById("btn-tools-toggle");
+const toolsMenu = document.getElementById("tools-menu");
+
+// Teacher Tool Buttons (Consolidated)
+const btnToolShareScreen = document.getElementById("btn-tool-share-screen");
+const btnToolHandsDown = document.getElementById("btn-tool-hands-down");
+
+const btnToolBlockMessages = document.getElementById("btn-tool-block-messages");
+const btnToolAllowHands = document.getElementById("btn-tool-allow-hands");
+
 let serverInfo = null; // { ip, port, hostname }
 
 if (btnShowUrl) {
@@ -449,6 +461,56 @@ if (btnMenuToggle) {
             sidebarLeft.classList.toggle("active");
             sidebarOverlay.classList.toggle("active");
         }
+    });
+}
+
+// Teacher Tools Menu Toggle
+if (btnToolsToggle) {
+    btnToolsToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        btnToolsToggle.classList.toggle("active");
+        toolsMenu.classList.toggle("active");
+    });
+}
+
+// Close tools menu when clicking outside
+document.addEventListener("click", (e) => {
+    if (toolsMenu && !toolsMenu.contains(e.target) && !btnToolsToggle.contains(e.target)) {
+        toolsMenu.classList.remove("active");
+        btnToolsToggle.classList.remove("active");
+    }
+});
+
+// Teacher Tools Event Listeners
+
+
+if (btnToolHandsDown) {
+    btnToolHandsDown.addEventListener("click", () => {
+        socket.emit("lower-all-hands", { classId: currentClassId });
+        toolsMenu.classList.remove("active");
+        btnToolsToggle.classList.remove("active");
+    });
+}
+
+
+
+if (btnToolBlockMessages) {
+    btnToolBlockMessages.addEventListener("click", () => {
+        const classData = joinedClasses.get(currentClassId);
+        const newState = !classData.blockAllActive;
+        socket.emit("toggle-block-all-messages", { classId: currentClassId, enabled: newState });
+        toolsMenu.classList.remove("active");
+        btnToolsToggle.classList.remove("active");
+    });
+}
+
+if (btnToolAllowHands) {
+    btnToolAllowHands.addEventListener("click", () => {
+        const classData = joinedClasses.get(currentClassId);
+        const newState = !classData.allowHandsUp;
+        socket.emit("toggle-allow-hands-up", { classId: currentClassId, enabled: newState });
+        toolsMenu.classList.remove("active");
+        btnToolsToggle.classList.remove("active");
     });
 }
 
@@ -824,6 +886,37 @@ socket.on("all-hands-lowered", ({ users, classId }) => {
     }
 });
 
+socket.on("block-all-messages-updated", (data) => {
+    const classData = joinedClasses.get(data.classId);
+    if (classData) {
+        classData.blockAllActive = data.enabled;
+        if (data.classId === currentClassId) {
+            updateToolStates();
+            const lang = translations[currentLanguage] ? currentLanguage : 'en';
+            const msg = data.enabled ?
+                translations[lang]['Block Messages'] + " " + translations[lang]['active'] :
+                translations[lang]['Block Messages'] + " " + translations[lang]['inactive'];
+            showToast(msg, data.enabled ? "warning" : "success");
+        }
+    }
+});
+
+socket.on("allow-hands-up-updated", (data) => {
+    const classData = joinedClasses.get(data.classId);
+    if (classData) {
+        classData.allowHandsUp = data.enabled;
+        if (data.classId === currentClassId) {
+            updateToolStates();
+        }
+    }
+});
+
+socket.on("error", (data) => {
+    if (data && data.message) {
+        showToast(data.message, "error");
+    }
+});
+
 // Role Selection
 document.getElementById("btn-teacher").addEventListener("click", () => {
     currentRole = "teacher";
@@ -1072,7 +1165,8 @@ function joinClass(classIdToJoin, nameToUse) {
                 pinnedMessages: response.pinnedMessages || [],
                 blockedUsers: new Set(response.blockedUsers || []),
                 hasTeacher: hasTeacher,
-                chatBlockedForNewUsers: response.blockAllActive || false
+                blockAllActive: response.blockAllActive || false,
+                allowHandsUp: response.allowHandsUp !== undefined ? response.allowHandsUp : true
             });
 
             // Handle auto-blocked state
@@ -1155,6 +1249,7 @@ function switchClass(id) {
         updateBlacklistButtonVisibility();
     }
 
+    updateToolStates();
     updateChatDisabledState();
 }
 
@@ -1764,6 +1859,29 @@ function renderMessage(message) {
 
     if (message.type === "file") {
         const isImage = message.fileData.type && message.fileData.type.startsWith('image/');
+        const isPDF = message.fileData.type === 'application/pdf';
+
+        // Determine file icon based on type/extension
+        let fileIconSrc = '/assets/files-svgrepo-com.svg'; // Default format
+        const lowerName = message.fileData.name.toLowerCase();
+
+        if (isImage) {
+            fileIconSrc = '/assets/image-square-svgrepo-com.svg';
+        } else if (isPDF) {
+            fileIconSrc = '/assets/pdf-svgrepo-com.svg';
+        } else if (lowerName.endsWith('.doc') || lowerName.endsWith('.docx')) {
+            fileIconSrc = '/assets/word-file-svgrepo-com.svg';
+        } else if (lowerName.endsWith('.xls') || lowerName.endsWith('.xlsx') || lowerName.endsWith('.csv')) {
+            fileIconSrc = '/assets/excel-file-svgrepo-com.svg';
+        } else if (lowerName.endsWith('.ppt') || lowerName.endsWith('.pptx')) {
+            fileIconSrc = '/assets/powerpoint-file-svgrepo-com.svg';
+        } else if (lowerName.endsWith('.exe') || lowerName.endsWith('.msi') || lowerName.endsWith('.apk') || lowerName.endsWith('.app')) {
+            fileIconSrc = '/assets/application-x-executable-svgrepo-com.svg';
+        } else if (lowerName.endsWith('.mp3') || lowerName.endsWith('.wav') || lowerName.endsWith('.ogg') || lowerName.endsWith('.m4a') || lowerName.endsWith('.flac')) {
+            fileIconSrc = '/assets/music-note-svgrepo-com.svg';
+        } else if (lowerName.endsWith('.mp4') || lowerName.endsWith('.avi') || lowerName.endsWith('.mov') || lowerName.endsWith('.mkv') || lowerName.endsWith('.webm')) {
+            fileIconSrc = '/assets/video-frame-play-horizontal-svgrepo-com.svg';
+        }
 
         messageDiv.innerHTML = `
       <div class="message-header">
@@ -1771,12 +1889,13 @@ function renderMessage(message) {
         <span class="message-time">${formatTime(message.timestamp)}</span>
       </div>
       <div class="file-message">
-        <span class="file-icon">${isImage ? '🖼️' : '📄'}</span>
+        <span class="file-icon"><img src="${fileIconSrc}" class="icon-svg" style="width: 32px; height: 32px;" /></span>
         <div class="file-info">
           <div class="file-name">${escapeHtml(message.fileData.name)}</div>
           <div class="file-size">${formatFileSize(message.fileData.size)}</div>
           <div class="message-actions">
-            ${isImage ? '<button class="action-btn open-btn" title="Open Image"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /></button>' : ''}
+            ${isImage ? '<button class="action-btn open-btn" title="View Image"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /></button>' : ''}
+            ${isPDF ? '<button class="action-btn open-pdf-btn" title="Open PDF"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Open" /></button>' : ''}
             <button class="action-btn download-btn" title="Download"><img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" /></button>
           </div>
         </div>
@@ -1793,8 +1912,18 @@ function renderMessage(message) {
             const openBtn = messageDiv.querySelector('.open-btn');
             if (openBtn) {
                 openBtn.addEventListener('click', () => {
-                    const win = window.open();
-                    win.document.write(`<img src="${message.fileData.data}" style="max-width:100%; height:auto;" />`);
+                    const imageUrl = `/api/download/${message.fileData.id}?inline=true`;
+                    openImageViewer(imageUrl);
+                });
+            }
+        }
+
+        if (isPDF) {
+            const pdfBtn = messageDiv.querySelector('.open-pdf-btn');
+            if (pdfBtn) {
+                pdfBtn.addEventListener('click', () => {
+                    const pdfUrl = `/api/download/${message.fileData.id}?inline=true`;
+                    openPdfViewer(pdfUrl);
                 });
             }
         }
@@ -1963,6 +2092,10 @@ function renderMediaHistory() {
     sortedFiles.forEach(msg => {
         const fileId = msg.fileData.id || msg.id;
         const isPinned = pinnedFiles.has(fileId);
+        const fileName = msg.fileData.name.toLowerCase();
+        const isImage = fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.png') || fileName.endsWith('.gif') || fileName.endsWith('.webp');
+        const isPdf = fileName.endsWith('.pdf');
+
         const item = document.createElement("div");
         item.classList.add("media-item");
         if (isPinned) item.classList.add("pinned");
@@ -1970,6 +2103,12 @@ function renderMediaHistory() {
         const pinBtn = currentRole === 'teacher' ? `
             <button class="media-pin-btn" title="${isPinned ? 'Unpin' : 'Pin'}" data-file-id="${fileId}">
                 <img src="/assets/pin-svgrepo-com.svg" class="icon-svg ${isPinned ? 'active' : ''}" alt="Pin" />
+            </button>
+        ` : '';
+
+        const viewBtn = (isImage || isPdf) ? `
+            <button class="media-view-btn" title="View" data-file-id="${fileId}">
+                <img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" />
             </button>
         ` : '';
 
@@ -1983,12 +2122,30 @@ function renderMediaHistory() {
                 </div>
             </div>
             <div class="media-actions-group">
+                ${viewBtn}
                 ${pinBtn}
                 <button class="media-download-btn" title="Download" onclick="downloadFile('${msg.fileData.id || msg.fileData.data}', '${escapeHtml(msg.fileData.name)}')">
                     <img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" />
                 </button>
             </div>
         `;
+
+        // Add view button listener
+        const viewButton = item.querySelector('.media-view-btn');
+        if (viewButton) {
+            viewButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const fId = msg.fileData.id || msg.id;
+                const url = `/api/download/${fId}?inline=true`;
+                if (isPdf) {
+                    openPdfViewer(url);
+                } else if (isImage) {
+                    openImageViewer(url);
+                }
+                // Close Media Library if viewing
+                if (mediaPopup) mediaPopup.classList.add("hidden");
+            });
+        }
 
         // Add pin button listener
         const pinButton = item.querySelector('.media-pin-btn');
@@ -2035,75 +2192,7 @@ function renderUsersList() {
 
     userCount.textContent = users.length;
 
-    // Add teacher controls header if teacher
-    if (isTeacher) {
-        const usersHeader = document.querySelector('#users-header-container h3');
-        // Remove existing controls if any
-        const existingControls = document.querySelector('.teacher-controls');
-        if (existingControls) existingControls.remove();
 
-        const controls = document.createElement('div');
-        controls.className = 'teacher-controls';
-        controls.style.cssText = 'display: flex; gap: 8px; margin-left: auto;';
-
-        // Check if all students are blocked OR chat is pre-blocked for new users
-        const students = users.filter(u => u.role === 'student');
-        const allStudentsBlocked = students.length > 0 && students.every(s => blockedUsers.has(s.id));
-        const chatBlockedForNewUsers = classData.chatBlockedForNewUsers || false;
-        const allBlocked = allStudentsBlocked || (students.length === 0 && chatBlockedForNewUsers);
-
-        const toggleContainer = document.createElement('div');
-        toggleContainer.className = 'block-toggle-container';
-        toggleContainer.title = chatBlockedForNewUsers && students.length === 0
-            ? 'New users will join blocked'
-            : 'Toggle communication blocking for all students';
-
-        // SVG Icons for blocked/unblocked states (Bold versions)
-        const blockedIcon = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.63605 18.364L18.364 5.63603M5.63605 5.63603L18.364 18.364M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-
-        const unblockedIcon = `<svg fill="currentColor" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M760 380.4l-61.6-61.6-263.2 263.1-109.6-109.5L264 534l171.2 171.2L760 380.4z"/></svg>`;
-
-        // Create button with initial state
-        toggleContainer.innerHTML = `
-            <button class="block-toggle-btn" id="block-all-btn" data-blocked="${allBlocked}">
-                ${allBlocked ? blockedIcon : unblockedIcon}
-                <span class="toggle-label" data-i18n="label-block-all">${t('label-block-all')}</span>
-            </button>
-        `;
-
-        const blockBtn = toggleContainer.querySelector('#block-all-btn');
-
-        blockBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isCurrentlyBlocked = blockBtn.dataset.blocked === 'true';
-
-            if (!isCurrentlyBlocked) {
-                // Block All
-                classData.chatBlockedForNewUsers = true;
-                socket.emit('block-all-users', { classId: currentClassId });
-                blockBtn.dataset.blocked = 'true';
-                blockBtn.innerHTML = `${blockedIcon}<span class="toggle-label" data-i18n="label-block-all">${t('label-block-all')}</span>`;
-                // If no students yet, we manually refresh to show state
-                if (students.length === 0) {
-                    setTimeout(() => renderUsersList(), 100);
-                }
-            } else {
-                // Unblock All
-                classData.chatBlockedForNewUsers = false;
-                socket.emit('unblock-all-users', { classId: currentClassId });
-                blockBtn.dataset.blocked = 'false';
-                blockBtn.innerHTML = `${unblockedIcon}<span class="toggle-label" data-i18n="label-block-all">${t('label-block-all')}</span>`;
-            }
-        });
-
-        controls.appendChild(toggleContainer);
-
-        if (usersHeader && usersHeader.parentElement) {
-            usersHeader.parentElement.style.display = 'flex';
-            usersHeader.parentElement.style.alignItems = 'center';
-            usersHeader.parentElement.appendChild(controls);
-        }
-    }
 
     users.forEach(user => {
         const userDiv = document.createElement("div");
@@ -2374,6 +2463,8 @@ function updateChatInputState() {
         messageInput.placeholder = "Type a message...";
     }
 }
+
+// Old Image Viewer Logic Removed - Replaced by Enhanced Logic below
 
 // Utility Functions
 function formatTime(timestamp) {
@@ -3222,7 +3313,7 @@ containsInappropriateContent = function (text) {
 
 // ===== WEB RTC SCREEN SHARING =====
 
-const btnShareScreen = document.getElementById("btn-share-screen");
+const btnShareScreen = document.getElementById("btn-tool-share-screen");
 const videoModal = document.getElementById("video-modal");
 const btnCloseVideo = document.getElementById("btn-close-video");
 const remoteVideo = document.getElementById("remote-video");
@@ -3561,12 +3652,16 @@ function stopScreenShare() {
 
 function updateScreenShareButton() {
     const label = btnShareScreen.querySelector('.btn-label');
+    const toolBtn = document.getElementById("btn-tool-share-screen");
+
     if (isScreenSharing) {
         btnShareScreen.classList.add("active");
+        if (toolBtn) toolBtn.classList.add("active");
         if (label) label.textContent = "Stop Sharing";
         else btnShareScreen.innerHTML = "Stop Sharing"; // Fallback
     } else {
         btnShareScreen.classList.remove("active");
+        if (toolBtn) toolBtn.classList.remove("active");
         if (label) label.textContent = "Screen Sharing";
         else btnShareScreen.innerHTML = "Screen Sharing"; // Fallback
     }
@@ -3688,9 +3783,32 @@ function createStudentPeerConnection(teacherId) {
     };
 
     myPeerConnection.ontrack = (event) => {
-        console.log("Stream received!");
-        remoteVideo.srcObject = event.streams[0];
-        videoStatus.classList.add("hidden");
+        console.log("🎥 Stream received! Tracks:", event.streams[0].getTracks());
+        const stream = event.streams[0];
+        remoteVideo.srcObject = stream;
+
+        remoteVideo.onloadedmetadata = () => {
+            console.log("🎥 Video metadata loaded. Dimensions:", remoteVideo.videoWidth, "x", remoteVideo.videoHeight);
+        };
+
+        remoteVideo.onplaying = () => {
+            console.log("🎥 Video is playing!");
+        };
+
+        remoteVideo.onerror = (e) => {
+            console.error("🎥 Video error:", e);
+        };
+
+        const playPromise = remoteVideo.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                console.log("🎥 Video playback started successfully");
+                videoStatus.classList.add("hidden");
+            }).catch(e => {
+                console.error("🎥 Error auto-playing video:", e);
+                // Auto-play failed, show a manual play button or muted hint
+            });
+        }
     };
 
     // Handle stream end
@@ -3796,13 +3914,10 @@ btnCloseVideo.addEventListener("click", () => {
 const teacherActions = document.getElementById("teacher-actions");
 
 window.updateTeacherActionsVisibility = function () {
-    const btnShareScreen = document.getElementById("btn-share-screen");
     if (currentRole === 'teacher') {
-        if (teacherActions) teacherActions.classList.remove('hidden');
-        if (btnShareScreen) btnShareScreen.classList.remove('hidden');
+        if (teacherToolsSection) teacherToolsSection.classList.remove('hidden');
     } else {
-        if (teacherActions) teacherActions.classList.add('hidden');
-        if (btnShareScreen) btnShareScreen.classList.add('hidden');
+        if (teacherToolsSection) teacherToolsSection.classList.add('hidden');
     }
 };
 
@@ -4392,9 +4507,14 @@ function updateFilterUIVisibility() {
     if (currentRole === 'teacher') {
         // Show filter section in settings
         if (settingsFilterSection) settingsFilterSection.classList.remove('hidden');
-        // Show report button in input area
+        // Show teacher tools section in sidebar
+        if (teacherToolsSection) teacherToolsSection.classList.remove('hidden');
+
+        // Show reports button in input area - TEACHER ONLY
         if (btnReportToggle) btnReportToggle.classList.remove('hidden');
-        // Request current filter mode and pending reports
+
+
+
         // Request current filter mode and pending reports
         socket.emit('get-filter-mode', { classId: currentClassId }, (mode) => {
             // Check local preference first if server has no strong opinion (default)
@@ -4425,6 +4545,26 @@ function updateFilterUIVisibility() {
         if (settingsFilterSection) settingsFilterSection.classList.add('hidden');
         if (btnReportToggle) btnReportToggle.classList.add('hidden');
         if (reportPanel) reportPanel.classList.add('hidden');
+    }
+
+    updateToolStates();
+}
+
+/**
+ * Updates the active/inactive state of buttons in the Teacher Tools menu
+ */
+function updateToolStates() {
+    const classData = joinedClasses.get(currentClassId);
+    if (!classData || currentRole !== 'teacher') return;
+
+    // Messaging Block Status
+    if (btnToolBlockMessages) {
+        btnToolBlockMessages.classList.toggle("active", classData.blockAllActive);
+    }
+
+    // Allow Hands Status
+    if (btnToolAllowHands) {
+        btnToolAllowHands.classList.toggle("active", classData.allowHandsUp);
     }
 }
 
@@ -4955,9 +5095,214 @@ if (window.Playwright) {
     window.connectToServer = connectToServer;
     window.discoveredServers = discoveredServers;
     window.renderSidebar = renderSidebar;
-} else {
-    // Also expose generally for console debugging if needed, or just always
-    window.connectToServer = connectToServer;
-    window.discoveredServers = discoveredServers;
     window.renderSidebar = renderSidebar;
 }
+
+// ===== UNIFIED FILE VIEWER LOGIC =====
+const pdfViewerModal = document.getElementById("pdf-viewer-modal");
+const btnClosePdf = document.getElementById("btn-close-pdf");
+const btnMinimizePdf = document.getElementById("btn-minimize-pdf");
+const pdfFrame = document.getElementById("pdf-frame");
+const btnPdfZoomIn = document.getElementById("btn-pdf-zoom-in");
+const btnPdfZoomOut = document.getElementById("btn-pdf-zoom-out");
+const btnPdfZoomReset = document.getElementById("btn-pdf-zoom-reset");
+
+const imageViewerModal = document.getElementById("image-viewer-modal");
+const btnCloseImage = document.getElementById("btn-close-image-modal");
+const btnMinimizeImage = document.getElementById("btn-minimize-image");
+const fullImage = document.getElementById("full-image");
+const btnImageZoomIn = document.getElementById("btn-image-zoom-in");
+const btnImageZoomOut = document.getElementById("btn-image-zoom-out");
+const btnImageZoomReset = document.getElementById("btn-image-zoom-reset");
+const imageContainer = document.querySelector(".image-container-enhanced");
+
+const btnRestoreFile = document.getElementById("btn-restore-file");
+
+let activeViewer = null; // 'pdf' or 'image'
+let pdfZoomLevel = 1;
+let imageZoomLevel = 1;
+let imageIsDragging = false;
+let imageStartX, imageStartY;
+let imageTranslateX = 0, imageTranslateY = 0;
+
+function closeAllViewers() {
+    // Hide Modals
+    if (pdfViewerModal) pdfViewerModal.classList.add("hidden");
+    if (imageViewerModal) imageViewerModal.classList.add("hidden");
+
+    // Reset Sources
+    if (pdfFrame) pdfFrame.src = "";
+    if (fullImage) fullImage.src = "";
+
+    // Hide Restore Button
+    if (btnRestoreFile) {
+        btnRestoreFile.classList.add("hidden");
+        btnRestoreFile.classList.remove("active");
+    }
+
+    // Reset State
+    activeViewer = null;
+    pdfZoomLevel = 1;
+    imageZoomLevel = 1;
+    imageTranslateX = 0;
+    imageTranslateY = 0;
+}
+
+function openPdfViewer(url) {
+    closeAllViewers(); // Auto-close others
+    if (pdfViewerModal && pdfFrame) {
+        activeViewer = 'pdf';
+        pdfFrame.src = url;
+        pdfViewerModal.classList.remove("hidden");
+        updatePdfZoom();
+    }
+}
+
+function openImageViewer(url) {
+    closeAllViewers(); // Auto-close others
+    if (imageViewerModal && fullImage) {
+        activeViewer = 'image';
+        fullImage.src = url;
+        imageViewerModal.classList.remove("hidden");
+        updateImageTransform();
+    }
+}
+
+function updatePdfZoom() {
+    if (pdfFrame) {
+        pdfFrame.style.transform = `scale(${pdfZoomLevel})`;
+    }
+    if (btnPdfZoomReset) {
+        btnPdfZoomReset.textContent = `${Math.round(pdfZoomLevel * 100)}%`;
+    }
+}
+
+function updateImageTransform() {
+    if (fullImage) {
+        fullImage.style.transform = `translate(${imageTranslateX}px, ${imageTranslateY}px) scale(${imageZoomLevel})`;
+    }
+    if (btnImageZoomReset) {
+        btnImageZoomReset.textContent = `${Math.round(imageZoomLevel * 100)}%`;
+    }
+}
+
+// --- PDF Handlers ---
+if (btnClosePdf) {
+    btnClosePdf.addEventListener("click", closeAllViewers);
+}
+
+if (btnMinimizePdf) {
+    btnMinimizePdf.addEventListener("click", () => {
+        if (pdfViewerModal) pdfViewerModal.classList.add("hidden");
+        if (btnRestoreFile) {
+            btnRestoreFile.classList.remove("hidden");
+            btnRestoreFile.classList.add("active");
+        }
+    });
+}
+
+if (btnPdfZoomIn) {
+    btnPdfZoomIn.addEventListener("click", () => {
+        if (pdfZoomLevel < 3) {
+            pdfZoomLevel = Math.min(3, pdfZoomLevel + 0.25);
+            updatePdfZoom();
+        }
+    });
+}
+
+if (btnPdfZoomOut) {
+    btnPdfZoomOut.addEventListener("click", () => {
+        if (pdfZoomLevel > 0.5) {
+            pdfZoomLevel = Math.max(0.5, pdfZoomLevel - 0.25);
+            updatePdfZoom();
+        }
+    });
+}
+
+if (btnPdfZoomReset) {
+    btnPdfZoomReset.addEventListener("click", () => {
+        pdfZoomLevel = 1;
+        updatePdfZoom();
+    });
+}
+
+// --- Image Handlers ---
+if (btnCloseImage) {
+    btnCloseImage.addEventListener("click", closeAllViewers);
+}
+
+if (btnMinimizeImage) {
+    btnMinimizeImage.addEventListener("click", () => {
+        if (imageViewerModal) imageViewerModal.classList.add("hidden");
+        if (btnRestoreFile) {
+            btnRestoreFile.classList.remove("hidden");
+            btnRestoreFile.classList.add("active");
+        }
+    });
+}
+
+if (btnImageZoomIn) {
+    btnImageZoomIn.addEventListener("click", () => {
+        if (imageZoomLevel < 5) {
+            imageZoomLevel += 0.25;
+            updateImageTransform();
+        }
+    });
+}
+
+if (btnImageZoomOut) {
+    btnImageZoomOut.addEventListener("click", () => {
+        if (imageZoomLevel > 0.25) {
+            imageZoomLevel -= 0.25;
+            updateImageTransform();
+        }
+    });
+}
+
+if (btnImageZoomReset) {
+    btnImageZoomReset.addEventListener("click", () => {
+        imageZoomLevel = 1;
+        imageTranslateX = 0;
+        imageTranslateY = 0;
+        updateImageTransform();
+    });
+}
+
+// --- Restore Handler ---
+if (btnRestoreFile) {
+    btnRestoreFile.addEventListener("click", () => {
+        if (activeViewer === 'pdf' && pdfViewerModal) {
+            pdfViewerModal.classList.remove("hidden");
+        } else if (activeViewer === 'image' && imageViewerModal) {
+            imageViewerModal.classList.remove("hidden");
+        }
+        btnRestoreFile.classList.add("hidden");
+        btnRestoreFile.classList.remove("active");
+    });
+}
+
+// --- Image Drag Logic ---
+if (imageContainer) {
+    imageContainer.addEventListener("mousedown", (e) => {
+        if (imageZoomLevel > 1) {
+            imageIsDragging = true;
+            imageStartX = e.clientX - imageTranslateX;
+            imageStartY = e.clientY - imageTranslateY;
+            imageContainer.style.cursor = "grabbing";
+        }
+    });
+
+    window.addEventListener("mouseup", () => {
+        imageIsDragging = false;
+        if (imageContainer) imageContainer.style.cursor = "grab";
+    });
+
+    window.addEventListener("mousemove", (e) => {
+        if (!imageIsDragging) return;
+        e.preventDefault();
+        imageTranslateX = e.clientX - imageStartX;
+        imageTranslateY = e.clientY - imageStartY;
+        updateImageTransform();
+    });
+}
+

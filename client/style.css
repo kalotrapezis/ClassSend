@@ -574,18 +574,19 @@ body {
 /* Video Controls Overlay */
 .video-controls {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
+  bottom: 15px;
+  right: 50%;
+  transform: translateX(50%);
   display: flex;
   gap: 10px;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  padding: 8px 12px;
-  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 10px 16px;
+  border-radius: 30px;
   opacity: 1;
-  /* Always visible */
   transition: opacity 0.3s ease;
-  z-index: 20;
+  z-index: 1000;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
 }
 
 /* Settings Input with Button */
@@ -773,7 +774,10 @@ body {
   align-items: center;
 }
 
-.popup-header h3 {
+.popup-title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -997,8 +1001,8 @@ body {
   flex-direction: column;
   overflow-y: auto;
   width: 350px;
-  /* Increased width */
   transition: transform 0.3s ease;
+  z-index: 500;
 }
 
 .sidebar-header {
@@ -1478,7 +1482,8 @@ body {
 .emoji-btn,
 .share-screen-btn,
 .report-toggle-btn,
-.raise-hand-btn {
+.raise-hand-btn,
+.btn-tools-toggle {
   background: rgba(255, 255, 255, 0.08);
   /* White Glass Effect */
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -2576,7 +2581,8 @@ body {
 }
 
 .media-download-btn,
-.media-pin-btn {
+.media-pin-btn,
+.media-view-btn {
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -2594,7 +2600,8 @@ body {
 }
 
 .media-download-btn:hover,
-.media-pin-btn:hover {
+.media-pin-btn:hover,
+.media-view-btn:hover {
   background: var(--accent-primary);
   color: #000;
   transform: scale(1.1);
@@ -3697,37 +3704,47 @@ input:checked+.slider:before {
 
 /* Report Toggle Button (next to emoji) */
 .report-toggle-btn {
-  font-size: 1.25rem;
-  padding: 0.5rem;
-  background: transparent;
-  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
+  /* Transparent/Glassy */
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s ease;
-  border-radius: 6px;
+  transition: all 0.3s ease;
   position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .report-toggle-btn:hover {
-  background: rgba(231, 72, 86, 0.1);
+  background: var(--bg-secondary);
   transform: scale(1.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .report-toggle-btn .report-badge {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: -2px;
+  right: -2px;
   background: var(--error);
   color: white;
   font-size: 0.6rem;
   font-weight: 600;
   min-width: 16px;
   height: 16px;
-  border-radius: 8px;
+  border-radius: 99px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 3px;
-  transform: translate(25%, -25%);
+}
+
+.report-toggle-btn .icon-svg {
+  /* No filter needed for white icon on dark bg */
+  opacity: 0.8;
 }
 
 /* Report Panel (like emoji picker) */
@@ -4309,4 +4326,292 @@ input:checked+.slider:before {
 .modal-manual-join .smart-ip-group {
   max-width: 100%;
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* Teacher Tools Section - Moved to Input Area */
+.teacher-tools-section {
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 100;
+}
+
+.btn-tools-toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
+  /* Match other circle buttons */
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s var(--bounce);
+  opacity: 0.8;
+}
+
+.btn-tools-toggle:hover {
+  background: var(--bg-secondary);
+  transform: rotate(90deg) scale(1.1);
+  opacity: 1;
+}
+
+.btn-tools-toggle.active {
+  background: var(--accent-primary);
+  color: #000;
+  transform: rotate(45deg);
+  opacity: 1;
+}
+
+.tools-menu {
+  position: absolute;
+  bottom: 55px;
+  /* Popping up above input area */
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 240px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s var(--smooth);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.tools-menu.active {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateX(-50%) translateY(0);
+}
+
+.tool-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.tool-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  transform: translateX(4px);
+}
+
+.tool-menu-btn.active {
+  background: var(--mention-bg);
+  color: var(--mention-text);
+}
+
+.tool-menu-btn .icon-svg {
+  width: 20px;
+  height: 20px;
+  opacity: 0.8;
+}
+
+.tool-menu-btn:hover .icon-svg {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.tool-menu-btn .report-badge {
+  margin-left: auto;
+  background: var(--error);
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* Image Viewer Modal */
+#image-viewer-modal {
+  background-color: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.image-modal-content {
+  margin: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: auto;
+  max-width: 90%;
+  max-height: 90vh;
+  position: relative;
+}
+
+.modal-image {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  animation-name: zoom;
+  animation-duration: 0.3s;
+}
+
+.close-btn-image {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  color: #f1f1f1;
+  font-size: 40px;
+  font-weight: bold;
+  transition: 0.3s;
+  cursor: pointer;
+  z-index: 10001;
+  line-height: 1;
+}
+
+.close-btn-image:hover,
+.close-btn-image:focus {
+  color: var(--accent-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+@keyframes zoom {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* PDF Viewer Modal Styles */
+.pdf-modal-content {
+  width: 90%;
+  max-width: 1200px;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-container {
+  flex: 1;
+  background: #2d2d2d;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#pdf-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: white;
+  transition: transform 0.2s ease;
+  transform-origin: center center;
+}
+
+.pdf-btn.active {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+/* ENHANCED IMAGE VIEWER STYLES (Appended Fix) */
+.image-modal-content {
+  width: 90% !important;
+  max-width: 1200px !important;
+  height: 82vh !important;
+  height: 82dvh !important;
+  display: flex;
+  flex-direction: column;
+  margin: auto !important;
+  background-color: var(--bg-secondary) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  position: relative !important;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+.image-container-enhanced {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.9);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: grab;
+  width: 100%;
+}
+
+.image-container-enhanced:active {
+  cursor: grabbing;
+}
+
+.modal-image-enhanced {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  transition: transform 0.1s ease-out;
+  transform-origin: center center;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.image-btn.active {
+  background: var(--accent-primary) !important;
+  color: white !important;
+  border-color: var(--accent-primary) !important;
+}
+
+/* Standard Footer Circular Buttons (Stream, Restore, Report) */
+.view-stream-btn,
+.file-restore-btn,
+.report-toggle-btn {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-primary) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.view-stream-btn:hover,
+.file-restore-btn:hover,
+.report-toggle-btn:hover {
+  background: var(--bg-secondary) !important;
+  transform: scale(1.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }

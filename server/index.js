@@ -176,17 +176,37 @@ app.get('/api/download/:fileId', (req, res) => {
     res.setHeader('Content-Type', file.type);
   }
 
-  // Use res.download for a robust, standard way to serve files with proper encoding
-  res.download(file.path, file.name, (err) => {
-    if (err) {
-      console.error(`[Download] Error during res.download:`, err);
-      if (!res.headersSent) {
-        res.status(404).json({ error: 'File download failed' });
+  // Check for inline display request
+  const isInline = req.query.inline === 'true';
+
+  if (isInline) {
+    // Set Content-Disposition to inline
+    // RFC 5987: filename*=UTF-8''EncodedString
+    const encodedName = encodeURIComponent(file.name);
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodedName}`);
+    res.sendFile(file.path, (err) => {
+      if (err) {
+        console.error(`[Download] Error during res.sendFile:`, err);
+        if (!res.headersSent) {
+          res.status(404).json({ error: 'File send failed' });
+        }
+      } else {
+        console.log(`[Download] File sent inline successfully: ${file.name}`);
       }
-    } else {
-      console.log(`[Download] File sent successfully: ${file.name}`);
-    }
-  });
+    });
+  } else {
+    // Use res.download for a robust, standard way to serve files as attachments
+    res.download(file.path, file.name, (err) => {
+      if (err) {
+        console.error(`[Download] Error during res.download:`, err);
+        if (!res.headersSent) {
+          res.status(404).json({ error: 'File download failed' });
+        }
+      } else {
+        console.log(`[Download] File sent successfully: ${file.name}`);
+      }
+    });
+  }
 });
 
 const activeClasses = new Map(); // classId -> { teacherId, students: [], deletionTimeout: null }
@@ -485,7 +505,9 @@ io.on('connection', (socket) => {
         blockThreshold: 90, // Low Sensitivity (10%) = High Threshold
         reportEnabled: true,
         reportThreshold: 10 // High Sensitivity (90%) = Low Threshold
-      }
+      },
+      blockAllActive: false,
+      allowHandsUp: true
     });
     socket.join(classId);
     console.log(`Class created: ${classId} by ${userName} (${socket.id})`);
@@ -530,7 +552,9 @@ io.on('connection', (socket) => {
         blockThreshold: 90,
         reportEnabled: true,
         reportThreshold: 10
-      }
+      },
+      blockAllActive: false,
+      allowHandsUp: true
     });
     socket.join(finalClassId);
     console.log(`Auto-created class: ${finalClassId} by ${userName} (${socket.id})`);
@@ -626,7 +650,9 @@ io.on('connection', (socket) => {
           blockThreshold: 90,
           reportEnabled: true,
           reportThreshold: 10
-        }
+        },
+        blockAllActive: false,
+        allowHandsUp: true
       });
       console.log(`Lobby created by student ${userName}`);
       broadcastActiveClasses();
@@ -678,7 +704,9 @@ io.on('connection', (socket) => {
           blockThreshold: 90,
           reportEnabled: true,
           reportThreshold: 10
-        }
+        },
+        blockAllActive: false,
+        allowHandsUp: true
       });
       socket.join(lobbyId);
       console.log(`Lobby created and taken over by teacher ${userName}`);
@@ -740,10 +768,8 @@ io.on('connection', (socket) => {
   socket.on('join-class', ({ classId, userName }, callback) => {
     const classData = activeClasses.get(classId);
     if (!classData) {
-      if (!classData) {
-        if (typeof callback === 'function') callback({ success: false, message: 'Class not found' });
-        return;
-      }
+      if (typeof callback === 'function') callback({ success: false, message: 'Class not found' });
+      return;
     }
 
     // If teacher is reconnecting, cancel deletion timeout
@@ -820,6 +846,7 @@ io.on('connection', (socket) => {
       success: true,
       blocked: classData.blockedUsers && classData.blockedUsers.has(socket.id),
       blockAllActive: classData.blockAllActive || false,
+      allowHandsUp: classData.allowHandsUp !== undefined ? classData.allowHandsUp : true,
       messages: classData.messages,
       users: classData.users,
       pinnedMessages: classData.pinnedMessages || []
@@ -876,6 +903,11 @@ io.on('connection', (socket) => {
       if (!user) {
         console.warn(`User ${socket.id} not found in class ${classId}`);
         return;
+      }
+
+      // Check if messaging is blocked for the class (Student only)
+      if (user.role === 'student' && classData.blockAllActive) {
+        return socket.emit('error', { message: 'Messaging is currently disabled by the teacher' });
       }
 
       // Generate message object first so we have the ID to link with reports
@@ -1370,6 +1402,11 @@ io.on('connection', (socket) => {
     const user = classData.users.find(u => u.id === socket.id);
     if (!user) return;
 
+    // Check if hand raising is allowed (Student only)
+    if (user.role === 'student' && !classData.allowHandsUp && !user.handRaised) {
+      return socket.emit('error', { message: 'Hand raising is currently disabled by the teacher' });
+    }
+
     // Toggle hand raised state
     user.handRaised = !user.handRaised;
 
@@ -1403,23 +1440,31 @@ io.on('connection', (socket) => {
   socket.on('lower-all-hands', ({ classId }) => {
     if (!activeClasses.has(classId)) return;
     const classData = activeClasses.get(classId);
-
-    // Only teacher can lower all hands
     if (classData.teacherId !== socket.id) return;
 
-    // Lower all students' hands
-    classData.users.forEach(user => {
-      if (user.role === 'student') {
-        user.handRaised = false;
-      }
-    });
+    classData.users.forEach(u => u.handRaised = false);
+    io.to(classId).emit('all-hands-lowered', { users: classData.users, classId });
+    console.log(`All hands lowered in class ${classId}`);
+  });
 
-    // Broadcast to all participants
-    io.to(classId).emit('all-hands-lowered', {
-      users: classData.users,
-      classId
-    });
-    console.log(`All hands lowered in class ${classId} by teacher`);
+  socket.on('toggle-block-all-messages', ({ classId, enabled }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+
+    classData.blockAllActive = enabled;
+    io.to(classId).emit('block-all-messages-updated', { enabled, classId });
+    console.log(`Block all messages set to ${enabled} in class ${classId}`);
+  });
+
+  socket.on('toggle-allow-hands-up', ({ classId, enabled }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+
+    classData.allowHandsUp = enabled;
+    io.to(classId).emit('allow-hands-up-updated', { enabled, classId });
+    console.log(`Allow hands up set to ${enabled} in class ${classId}`);
   });
 
   // Language sync (Teacher to students)

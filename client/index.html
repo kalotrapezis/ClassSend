@@ -189,8 +189,9 @@
                     <label data-i18n="label-role">Your Role</label>
                     <div class="role-display-section">
                       <span id="current-role-display" class="role-badge">-</span>
-                      <button id="btn-change-role" class="secondary-btn" data-i18n="btn-change-role">🔄 Change
-                        Role</button>
+                      <button id="btn-change-role" class="secondary-btn" data-i18n="btn-change-role">
+                        <img src="/assets/change-switch.svg" class="icon-svg" alt="Change Role" /> Change Role
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -367,7 +368,7 @@
                   <div class="setting-item">
                     <label data-i18n="label-clear-data">Clear All Data</label>
                     <button id="btn-clear-data" class="secondary-btn">
-                      <img src="/assets/delete-left-svgrepo-com.svg" class="icon-svg" alt="Clear" /> <span
+                      <img src="/assets/trash-bin.svg" class="icon-svg" alt="Clear" /> <span
                         data-i18n="btn-clear-data">Clear</span>
                     </button>
                   </div>
@@ -436,10 +437,10 @@
                         style="margin-top: 0; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
                         Recent Improvements:</h4>
                       <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.4;">
-                        <li>Role Switching Stability Fix</li>
-                        <li>Clean State Reload on Role Change</li>
-                        <li>Network Discovery Improvements</li>
-                        <li>Block-All Status Persistence</li>
+                        <li>SVG File Icons & Media Types</li>
+                        <li>Tablet Image Viewer Fixes</li>
+                        <li>Teacher Tools Menu</li>
+                        <li>Minimize Buttons for Viewers</li>
                       </ul>
                     </div>
 
@@ -464,13 +465,13 @@
               <h3 id="stream-title" data-i18n="stream-title">📺 Teacher's Screen</h3>
               <div class="video-header-controls">
                 <button id="btn-minimize-video" class="header-control-btn" title="Minimize"><img
-                    src="/assets/minus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
-                <button id="btn-close-video" class="close-btn" title="Close"><img src="/assets/exit-svgrepo-com.svg"
-                    class="icon-video-ctrl" /></button>
+                    src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+                <button id="btn-close-video" class="close-btn" title="Close"><img
+                    src="/assets/close-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
               </div>
             </div>
             <div class="video-container">
-              <video id="remote-video" autoplay playsinline></video>
+              <video id="remote-video" autoplay playsinline muted></video>
               <div id="video-status" class="video-status">Connecting...</div>
               <!-- Video Controls -->
               <div class="video-controls">
@@ -481,6 +482,31 @@
                     src="/assets/plus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
                 <button id="btn-fullscreen" class="video-control-btn" title="Fullscreen"><img
                     src="/assets/full-screen-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Online PDF Viewer Modal -->
+        <div id="pdf-viewer-modal" class="modal hidden">
+          <div class="modal-content pdf-modal-content">
+            <div class="popup-header">
+              <h3 id="pdf-title" data-i18n="pdf-title">📄 PDF Viewer</h3>
+              <div class="video-header-controls">
+                <button id="btn-minimize-pdf" class="header-control-btn" title="Minimize"><img
+                    src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+                <button id="btn-close-pdf" class="close-btn" title="Close"><img
+                    src="/assets/close-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+              </div>
+            </div>
+            <div class="pdf-container">
+              <iframe id="pdf-frame" src="" frameborder="0"></iframe>
+              <!-- PDF Controls (Overlay) -->
+              <div class="video-controls">
+                <button id="btn-pdf-zoom-out" class="video-control-btn" title="Zoom Out"><img
+                    src="/assets/minus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+                <button id="btn-pdf-zoom-reset" class="video-control-btn" title="Reset Zoom">100%</button>
+                <button id="btn-pdf-zoom-in" class="video-control-btn" title="Zoom In"><img
+                    src="/assets/plus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
               </div>
             </div>
           </div>
@@ -550,7 +576,10 @@
       <div id="blacklist-modal" class="modal hidden">
         <div class="modal-content blacklist-modal-content">
           <div class="popup-header">
-            <h3 data-i18n="btn-blacklist">🚫 Blacklist</h3>
+            <h3 class="popup-title-with-icon">
+              <img src="/assets/list-cross-svgrepo-com.svg" class="icon-svg" alt="Blacklist" />
+              <span data-i18n="modal-blacklist-title">Blacklist</span>
+            </h3>
             <button id="btn-close-blacklist" class="close-btn">×</button>
           </div>
           <div class="blacklist-body">
@@ -574,7 +603,10 @@
       <div id="whitelist-modal" class="modal hidden">
         <div class="modal-content blacklist-modal-content" style="border-top: 5px solid #28a745;">
           <div class="popup-header">
-            <h3 data-i18n="whitelist-title">✅ Whitelist 💖</h3>
+            <h3 class="popup-title-with-icon">
+              <img src="/assets/list-heart-minimalistic-svgrepo-com.svg" class="icon-svg" alt="Whitelist" />
+              <span data-i18n="whitelist-title">Whitelist</span>
+            </h3>
             <button id="btn-close-whitelist-modal" class="close-btn">×</button>
           </div>
           <div class="blacklist-body">
@@ -599,6 +631,11 @@
         <button id="btn-add-selection-to-blacklist">
           <span data-i18n="text-selection-popup-add">Add to forbidden words</span> <img
             src="/assets/plus-circle-svgrepo-com.svg" class="icon-svg"
+            style="width: 16px; height: 16px; margin-left: 4px;" />
+        </button>
+        <button id="btn-report-selection" class="hidden">
+          <span data-i18n="text-selection-popup-report">Report</span> <img
+            src="/assets/warning-triangle-svgrepo-com.svg" class="icon-svg"
             style="width: 16px; height: 16px; margin-left: 4px;" />
         </button>
       </div>
@@ -641,12 +678,13 @@
           <div class="sidebar-header" id="users-header-container">
             <h3 data-i18n="header-users">Users</h3>
             <span id="user-count" class="user-count">0</span>
-            <button id="btn-hands-down" class="btn-hands-down hidden" title="Lower All Hands"
-              data-i18n-title="btn-hands-down" data-i18n="btn-hands-down">🖐️ Hands Down</button>
+
           </div>
           <div id="users-list" class="users-list">
             <!-- Users will be dynamically added here -->
           </div>
+
+
         </aside>
 
         <!-- Center - Messages -->
@@ -665,7 +703,8 @@
           </div>
           <div class="message-input-area">
             <div id="filter-warning" class="filter-warning hidden">
-              ⚠️ Inappropriate content detected
+              <img src="/assets/warning-triangle-svgrepo-com.svg" class="icon-svg" alt="Warning"> <span
+                data-i18n="filter-warning">Inappropriate content detected</span>
             </div>
             <div class="input-actions-left">
               <button id="btn-attach-file" class="attach-btn" title="Attach file"
@@ -673,11 +712,33 @@
               <button id="btn-emoji" class="emoji-btn" title="Insert Emoji" data-i18n-title="btn-insert-emoji">
                 <img src="/assets/emoji-funny-square-svgrepo-com.svg" class="icon-svg" alt="Emoji" />
               </button>
-              <button id="btn-share-screen" class="share-screen-btn labeled hidden" title="Share Screen"
-                data-i18n-title="btn-share-screen">
-                <img src="/assets/screen-mirror-svgrepo-com.svg" class="icon-svg" alt="Share Screen" />
-                <span data-i18n="btn-share-screen" class="btn-label desktop-only">Screen Sharing</span>
-              </button>
+              <div id="teacher-tools-section" class="teacher-tools-section hidden">
+                <div id="tools-menu" class="tools-menu">
+                  <button id="btn-tool-share-screen" class="tool-menu-btn" title="Share Screen"
+                    data-i18n-title="btn-share-screen">
+                    <img src="/assets/screen-mirror-svgrepo-com.svg" class="icon-svg" alt="Share" />
+                    <span data-i18n="btn-share-screen" class="btn-label">Share Screen</span>
+                  </button>
+                  <button id="btn-tool-hands-down" class="tool-menu-btn" title="Lower Hands"
+                    data-i18n-title="btn-hands-down">
+                    <img src="/assets/hands-Down.svg" class="icon-svg" alt="Hands Down" />
+                    <span data-i18n="btn-hands-down">Hands Down</span>
+                  </button>
+                  <button id="btn-tool-block-messages" class="tool-menu-btn" title="Block Messages"
+                    data-i18n-title="btn-block-all">
+                    <img src="/assets/message-block.svg" class="icon-svg" alt="Block" />
+                    <span data-i18n="label-block-all">Block Messages</span>
+                  </button>
+                  <button id="btn-tool-allow-hands" class="tool-menu-btn" title="Allow Hands"
+                    data-i18n-title="btn-raise-hand">
+                    <img src="/assets/Allow-Hands-Up.svg" class="icon-svg" alt="Allow Hands" />
+                    <span data-i18n="btn-raise-hand">Allow Hands</span>
+                  </button>
+                </div>
+                <button id="btn-tools-toggle" class="btn-tools-toggle" title="Teacher Tools">
+                  <img src="/assets/menu-navigation-Grid.svg" class="icon-svg" alt="Tools" />
+                </button>
+              </div>
               <button id="btn-report-toggle" class="report-toggle-btn hidden" title="Word Reports"
                 data-i18n-title="btn-reports-title">
                 <img src="/assets/report-svgrepo-com.svg" class="icon-svg" alt="Reports" />
@@ -688,7 +749,10 @@
               </button>
               <button id="btn-view-stream" class="view-stream-btn hidden" title="View Stream"
                 data-i18n-title="btn-view-stream">
-                <img src="/assets/screen-mirror-svgrepo-com.svg" class="icon-svg" alt="View Stream" />
+                <img src="/assets/screen-svgrepo-com.svg" class="icon-svg" alt="View Stream" />
+              </button>
+              <button id="btn-restore-file" class="file-restore-btn hidden" title="Restore File">
+                <img src="/assets/files-svgrepo-com.svg" class="icon-svg" alt="Restore File" />
               </button>
               <div id="emoji-picker" class="emoji-picker hidden">
                 <!-- Emojis will be injected here -->
@@ -696,8 +760,10 @@
               <!-- Report Panel (Teacher Only, like emoji picker) -->
               <div id="report-panel" class="report-panel hidden">
                 <div class="report-panel-header">
-                  <span data-i18n="modal-reports-title"><img src="/assets/notification-13-svgrepo-com.svg"
-                      class="icon-svg" alt="Reports" /> Reported Words</span>
+                  <span class="report-panel-title-wrapper">
+                    <img src="/assets/warning-triangle-svgrepo-com.svg" class="icon-svg" alt="Reports" />
+                    <span data-i18n="modal-reports-title">Reported Words</span>
+                  </span>
                 </div>
                 <!-- Training Notification -->
                 <div id="training-notification" class="training-notification hidden">
@@ -718,7 +784,36 @@
           </div>
         </main>
       </div>
+
+      <!-- Image Viewer Modal -->
+      <!-- Image Viewer Modal (Enhanced) -->
+      <div id="image-viewer-modal" class="modal hidden">
+        <div class="modal-content image-modal-content">
+          <div class="popup-header">
+            <h3 id="image-title" data-i18n="image-title">🖼️ Image Viewer</h3>
+            <div class="video-header-controls">
+              <button id="btn-minimize-image" class="header-control-btn" title="Minimize"><img
+                  src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+              <button id="btn-close-image-modal" class="close-btn" title="Close"><img
+                  src="/assets/close-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+            </div>
+          </div>
+          <div class="image-container-enhanced">
+            <img class="modal-image-enhanced" id="full-image">
+            <!-- Image Controls (Overlay) -->
+            <div class="video-controls">
+              <button id="btn-image-zoom-out" class="video-control-btn" title="Zoom Out"><img
+                  src="/assets/minus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+              <button id="btn-image-zoom-reset" class="video-control-btn" title="Reset Zoom">100%</button>
+              <button id="btn-image-zoom-in" class="video-control-btn" title="Zoom In"><img
+                  src="/assets/plus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
+  </div>
   </div>
   <script type="module" src="/main.js?v=8.2.5"></script>
 </body>
