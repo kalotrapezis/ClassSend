@@ -148,6 +148,64 @@ class NetworkDiscovery {
         }
     }
 
+    // Helper to safely encode classes to Base64
+    encodeClasses(classes) {
+        try {
+            const jsonString = JSON.stringify(classes);
+            return Buffer.from(jsonString).toString('base64');
+        } catch (e) {
+            console.error('Failed to encode classes:', e);
+            return '[]';
+        }
+    }
+
+    // Helper to safely decode classes from Base64 or JSON
+    decodeClasses(txtClasses) {
+        if (!txtClasses) return [];
+
+        try {
+            // Try standard JSON first (backward compatibility)
+            if (txtClasses.trim().startsWith('[') || txtClasses.trim().startsWith('{')) {
+                return JSON.parse(txtClasses);
+            }
+
+            // Try Base64 decode
+            const decoded = Buffer.from(txtClasses, 'base64').toString('utf-8');
+            // Validate if it looks like JSON
+            if (decoded.trim().startsWith('[') || decoded.trim().startsWith('{')) {
+                return JSON.parse(decoded);
+            }
+
+            // If not JSON after decode, maybe it wasn't valid?
+            return [];
+        } catch (e) {
+            console.error('Failed to decode classes from TXT:', e);
+            return [];
+        }
+    }
+
+    publishMainService() {
+        if (this.mainService) {
+            this.mainService.stop();
+        }
+
+        const classes = this.getClassesCallback ? this.getClassesCallback() : [];
+        const classesEncoded = this.encodeClasses(classes);
+
+        this.mainService = this.bonjour.publish({
+            name: 'ClassSend Server',
+            type: 'classsend',
+            port: this.port,
+            txt: {
+                version: '4.0.0',
+                classes: classesEncoded, // Sent as Base64 to support all characters
+                ip: this.localIP
+            }
+        });
+
+        console.log(`Broadcasting main ClassSend service on ${this.localIP}:${this.port}`);
+    }
+
     // Find other ClassSend servers on the network
     findServers(onServerFound, onServerLost) {
         const browser = this.bonjour.find({ type: 'classsend' });
@@ -169,7 +227,7 @@ class NetworkDiscovery {
             // Parse classes from TXT record
             try {
                 if (service.txt?.classes) {
-                    serverInfo.classes = JSON.parse(service.txt.classes);
+                    serverInfo.classes = this.decodeClasses(service.txt.classes);
                 }
             } catch (e) {
                 console.error('Failed to parse classes:', e);

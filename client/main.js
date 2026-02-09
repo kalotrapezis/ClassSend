@@ -10,6 +10,27 @@ const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;
 const originalConsoleError = console.error;
 
+// ONE-TIME: Parse URL params for cross-origin identity transfer
+const urlParams = new URLSearchParams(window.location.search);
+const paramRole = urlParams.get('role');
+const paramName = urlParams.get('name');
+const autoConnectIp = urlParams.get('ip'); // Auto-connect IP logic if needed
+
+if (paramRole) {
+    localStorage.setItem('classsend-role', paramRole);
+    console.log(`[Identity] Imported role from URL: ${paramRole}`);
+}
+if (paramName) {
+    localStorage.setItem('classsend-userName', paramName);
+    console.log(`[Identity] Imported name from URL: ${paramName}`);
+}
+
+// Clean URL params if they were present to avoid sharing them
+if (paramRole || paramName) {
+    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+    window.history.replaceState({ path: newUrl }, '', newUrl);
+}
+
 function formatLog(type, args) {
     const timestamp = new Date().toLocaleTimeString();
     const message = args.map(arg =>
@@ -54,6 +75,7 @@ console.error = (...args) => {
 // Connect to server dynamically - works for both localhost and LAN
 let currentServerUrl = window.location.origin;
 let socket = io(currentServerUrl);
+let debugModeActive = false;
 
 console.log(`Connecting to ClassSend server at: ${currentServerUrl}`);
 
@@ -82,7 +104,15 @@ function connectToServer(serverUrl) {
     // Re-attach all socket event handlers
     attachSocketHandlers();
 
+    // Persist IP to history
+    saveKnownServer(serverUrl);
+
     console.log(`Connected to new server: ${serverUrl}`);
+
+    // If we have a saved role, ensure role selection is hidden
+    if (savedRole) {
+        roleSelection.classList.add('hidden');
+    }
 }
 
 
@@ -118,12 +148,21 @@ function stopClassRefreshInterval() {
 // Network Discovery - Find other ClassSend servers on the network
 let discoveredServers = new Map(); // ip:port -> { name, ip, port, classes, version }
 let networkDiscoveryStarted = false;
+let isAutoDiscoveryEnabled = localStorage.getItem('classsend-auto-discovery') === 'true'; // Default is FALSE now
 
 function startNetworkDiscovery() {
     if (networkDiscoveryStarted) return;
-    networkDiscoveryStarted = true;
-    socket.emit("start-discovery");
-    console.log("Started network discovery for other ClassSend servers");
+
+    // Always probe history first
+    probeKnownServers();
+
+    if (isAutoDiscoveryEnabled) {
+        networkDiscoveryStarted = true;
+        socket.emit("start-discovery");
+        console.log("Started network discovery for other ClassSend servers");
+    } else {
+        console.log("Auto-discovery disabled. Only probing known servers.");
+    }
 }
 
 function stopNetworkDiscovery() {
@@ -163,6 +202,89 @@ socket.on("server-lost", (serverInfo) => {
     }
 });
 
+// ===== IP HISTORY & PROBING =====
+function saveKnownServer(url) {
+    try {
+        let knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
+        // Add if unique
+        if (!knownServers.includes(url)) {
+            // Add to FRONT
+            knownServers.unshift(url);
+            // Limit to last 10
+            if (knownServers.length > 10) knownServers.pop();
+            localStorage.setItem('classsend-known-servers', JSON.stringify(knownServers));
+
+            // Refresh UI
+            renderGlobalHistoryLists();
+        }
+    } catch (e) {
+        console.error("Failed to save known server:", e);
+    }
+}
+
+async function probeKnownServers() {
+    try {
+        const knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
+        console.log(`Probing ${knownServers.length} known servers...`);
+
+        for (const serverUrl of knownServers) {
+            // Skip current origin/localhost if we are scanning
+            if (serverUrl === window.location.origin) continue;
+
+            const probeUrl = `${serverUrl}/api/discovery-info`;
+            try {
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), 1000); // 1s timeout
+
+                const response = await fetch(probeUrl, { signal: controller.signal });
+                clearTimeout(id);
+
+                if (response.ok) {
+                    const info = await response.json();
+
+                    // Construct a "discovered" object to reuse existing logic
+                    // We need to parse IP and Port from URL
+                    let ip, port;
+                    try {
+                        const urlObj = new URL(serverUrl);
+                        ip = urlObj.hostname;
+                        port = urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80);
+                    } catch (e) {
+                        console.warn("Invalid known log URL", serverUrl);
+                        continue;
+                    }
+
+                    const serverInfo = {
+                        name: info.name || "Known Server",
+                        ip: ip,
+                        port: port,
+                        classes: info.classes || [],
+                        version: info.version || "unknown"
+                    };
+
+                    // Manually trigger discovery logic
+                    const key = `${serverInfo.ip}:${serverInfo.port}`;
+                    if (!discoveredServers.has(key)) {
+                        discoveredServers.set(key, serverInfo);
+                        console.log(`[Probing] Found known server: ${serverInfo.name} at ${key}`);
+
+                        // Update UI immediately
+                        if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
+                            renderAvailableClasses();
+                        }
+                    }
+                }
+            } catch (err) {
+                // Ignore errors (offline, etc)
+                // console.debug(`Probe failed for ${serverUrl}`, err);
+            }
+        }
+    } catch (e) {
+        console.error("Failed to probe known servers:", e);
+    }
+}
+
+
 // Auto-generate name if none exists
 if (!userName) {
     userName = generateRandomName();
@@ -179,15 +301,26 @@ const chatInterface = document.getElementById("chat-interface");
 // Startup Logic
 // Check if we have a saved role
 // savedRole is already declared at top of file
+
+// DEFAULT ROLE LOGIC: If no role is saved, default to 'student'
+if (!savedRole) {
+    console.log("No saved role found. Defaulting to 'student'.");
+    savedRole = 'student';
+    localStorage.setItem('classsend-role', 'student');
+    currentRole = 'student';
+}
+
 if (savedRole) {
     // We have a role, so we can proceed (logic handled lower down)
     roleSelection.classList.add('hidden');
 } else {
-    // No role, show selection screen immediately
+    // Should not happen with default logic above, but keep as fallback
     roleSelection.classList.remove('hidden');
     // Ensure chat is hidden
     chatInterface.classList.add('hidden');
 }
+
+
 
 // DOM Elements - Setup
 const setupTitle = document.getElementById("setup-title");
@@ -196,6 +329,15 @@ const userNameInput = document.getElementById("user-name-input");
 const btnSubmitSetup = document.getElementById("btn-submit-setup");
 const btnBack = document.getElementById("btn-back");
 const btnBackFromClasses = document.getElementById("btn-back-from-classes");
+
+// Trigger probing when entering "Available Classes" screen (Student) or starting discovery
+function onStartDiscovery() {
+    startNetworkDiscovery();
+    probeKnownServers();
+}
+
+// In startNetworkDiscovery function modify call
+
 
 // DOM Elements - Available Classes
 const availableClassesList = document.getElementById("available-classes-list");
@@ -257,6 +399,12 @@ const btnCloseConnection = document.getElementById("btn-close-connection");
 const connectionUrl = document.getElementById("connection-url");
 const btnCopyUrl = document.getElementById("btn-copy-url");
 const hostnameToggle = document.getElementById("hostname-toggle");
+const btnOpenHistoryModal = document.getElementById("btn-open-history-modal");
+const historyModal = document.getElementById("history-modal");
+const btnCloseHistoryModal = document.getElementById("btn-close-history-modal");
+const settingsKnownServersList = document.getElementById("settings-known-servers-list");
+const modalManualHistoryList = document.getElementById("modal-manual-history-list");
+const smartIpHistoryList = document.getElementById("smart-ip-history-list");
 
 // Teacher Tools Menu Elements
 const teacherToolsSection = document.getElementById("teacher-tools-section");
@@ -682,7 +830,14 @@ function handleAutoFlow() {
 
             if (targetClass.isRemote) {
                 // Redirect to remote server
-                const serverUrl = `http://${targetClass.serverIp}:${targetClass.serverPort}`;
+                let serverUrl = `http://${targetClass.serverIp}:${targetClass.serverPort}`;
+                // Append identity
+                if (savedRole && userName) {
+                    serverUrl += `?role=${encodeURIComponent(savedRole)}&name=${encodeURIComponent(userName)}`;
+                }
+
+                saveKnownServer(serverUrl); // Save history
+
                 window.location.href = serverUrl;
             } else {
                 joinClass(targetClass.id, userName);
@@ -793,9 +948,31 @@ function updateChatDisabledState() {
     // Check if we need to show the Searching Overlay
     const searchingOverlay = document.getElementById("searching-overlay");
 
+    // REFINEMENT: If Auto-Discovery is OFF and History is EMPTY, skip overlay and open Connection Modal
+    const knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
+    const isDiscoveryOff = !isAutoDiscoveryEnabled;
+    const isHistoryEmpty = knownServers.length === 0;
+
     // Show overlay if (Student AND in Lobby)
     if (currentRole === 'student' && currentClassId === 'Lobby') {
-        if (searchingOverlay) searchingOverlay.classList.remove("hidden");
+        if (isDiscoveryOff && isHistoryEmpty) {
+            // Skip overlay, hide it
+            if (searchingOverlay) searchingOverlay.classList.add("hidden");
+
+            // Automatically open Connection Modal if not already open
+            if (connectionModal && connectionModal.classList.contains("hidden")) {
+                console.log("Auto-flow: Discovery off & History empty. Opening manual connection modal.");
+                btnShowUrl.click(); // Reuse existing trigger to fetch server info and open modal
+
+                // Optional: Focus the manual input after a short delay to allow DOM/modal update
+                setTimeout(() => {
+                    const suffixInput = document.getElementById("smart-ip-suffix-modal");
+                    if (suffixInput) suffixInput.focus();
+                }, 500);
+            }
+        } else {
+            if (searchingOverlay) searchingOverlay.classList.remove("hidden");
+        }
 
         // Also disable input to be safe, though overlay covers it
         messageInput.disabled = true;
@@ -1483,6 +1660,33 @@ if (btnRegenerateName) {
 // Change Role
 const btnChangeRole = document.getElementById("btn-change-role");
 const currentRoleDisplay = document.getElementById("current-role-display");
+
+if (btnChangeRole) {
+    btnChangeRole.addEventListener("click", () => {
+        // Hide Settings
+        if (settingsModal) settingsModal.classList.add("hidden");
+
+        // Show Role Selection Screen mechanisms
+        // We do NOT reload, as that would trigger the default-to-student logic again.
+        // Instead, we manually reset the state and show the screen.
+
+        // 1. Clear saved role
+        localStorage.removeItem('classsend-role');
+        savedRole = null;
+        currentRole = null;
+        autoFlowTriggered = false;
+
+        // 2. Hide all other screens
+        if (chatInterface) chatInterface.classList.add("hidden");
+        if (classSetup) classSetup.classList.add("hidden");
+        if (availableClassesScreen) availableClassesScreen.classList.add("hidden");
+
+        // 3. Show Role Selection
+        if (roleSelection) roleSelection.classList.remove("hidden");
+
+        console.log("User requested role change. Showing selection screen.");
+    });
+}
 
 // Update role display
 function updateRoleDisplay() {
@@ -3852,8 +4056,16 @@ socket.on('network-info', (data) => {
 const handleManualIpConnect = (suffix) => {
     if (!suffix) return alert('Please enter the last number of the IP address');
     const fullIp = `${currentIpPrefix}${suffix}`;
-    const targetUrl = `http://${fullIp}:${currentServerPort}`;
+    let targetUrl = `http://${fullIp}:${currentServerPort}`;
+
     console.log(`Manual connection to: ${targetUrl}`);
+    saveKnownServer(targetUrl); // Save history on CURRENT origin
+
+    // Append identity
+    if (currentRole && userName) {
+        targetUrl += `?role=${encodeURIComponent(currentRole)}&name=${encodeURIComponent(userName)}`;
+    }
+
     window.location.href = targetUrl;
 };
 
@@ -3866,6 +4078,8 @@ if (btnManualConnect) {
     });
 }
 
+
+
 if (btnManualConnectModal) {
     btnManualConnectModal.addEventListener('click', () => {
         handleManualIpConnect(smartIpSuffixModal.value.trim());
@@ -3874,6 +4088,134 @@ if (btnManualConnectModal) {
         if (e.key === 'Enter') btnManualConnectModal.click();
     });
 }
+
+// ===== IP HISTORY UI LOGIC =====
+
+function renderHistoryList(container, isMini = false) {
+    if (!container) return;
+    container.innerHTML = "";
+
+    try {
+        const knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
+
+        if (knownServers.length === 0) {
+            container.innerHTML = `<div class="empty-state-small" data-i18n="history-empty">No history yet</div>`;
+            return;
+        }
+
+        // For mini lists (dialogs), show max 3
+        const listToShow = isMini ? knownServers.slice(0, 3) : knownServers;
+
+        listToShow.forEach(serverUrl => {
+            const item = document.createElement("div");
+            item.className = "blacklist-word-item history-item"; // Reusing styles
+            item.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255, 255, 255, 0.05); margin-bottom: 5px; border-radius: 5px;";
+
+            // Parse IP/Port for display
+            let displayUrl = serverUrl.replace(/^http:\/\//, '').replace(/\/$/, '');
+
+            item.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <img src="/assets/history-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px; opacity: 0.7;" alt="History" />
+                    <span style="font-weight: bold; color: #fff;">${escapeHtml(displayUrl)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button class="history-btn connect" title="Connect" style="background: none; border: none; color: #4db8ff; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; padding: 5px;">
+                        <img src="/assets/connection-pattern-1104-svgrepo-com.svg" class="icon-svg" style="width: 18px; height: 18px;" />
+                    </button>
+                    <button class="history-btn delete" title="Delete" style="background: none; border: none; color: #ff4444; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; padding: 5px;">
+                        ✖
+                    </button>
+                </div>
+            `;
+
+            // Actions
+            item.querySelector(".connect").addEventListener("click", () => {
+                connectToServer(serverUrl);
+            });
+
+            item.querySelector(".delete").addEventListener("click", (e) => {
+                e.stopPropagation();
+                deleteKnownServer(serverUrl);
+            });
+
+            container.appendChild(item);
+        });
+    } catch (e) {
+        console.error("Failed to render history", e);
+    }
+}
+
+function deleteKnownServer(urlToDelete) {
+    try {
+        let knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
+        knownServers = knownServers.filter(url => url !== urlToDelete);
+        localStorage.setItem('classsend-known-servers', JSON.stringify(knownServers));
+
+        // Refresh all lists
+        renderGlobalHistoryLists();
+    } catch (e) { console.error(e); }
+}
+
+function renderGlobalHistoryLists() {
+    if (settingsKnownServersList) renderHistoryList(settingsKnownServersList, false);
+    if (modalManualHistoryList) renderHistoryList(modalManualHistoryList, true);
+    if (smartIpHistoryList) renderHistoryList(smartIpHistoryList, true);
+
+    // Update visibility of containers
+    const knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
+    if (knownServers.length > 0) {
+        if (modalManualHistoryList) modalManualHistoryList.classList.remove("hidden");
+        if (smartIpHistoryList) smartIpHistoryList.classList.remove("hidden");
+    } else {
+        if (modalManualHistoryList) modalManualHistoryList.classList.add("hidden");
+        if (smartIpHistoryList) smartIpHistoryList.classList.add("hidden");
+    }
+}
+
+// History Modal Events
+if (btnOpenHistoryModal) {
+    btnOpenHistoryModal.addEventListener("click", () => {
+        if (historyModal) {
+            historyModal.classList.remove("hidden");
+            renderGlobalHistoryLists();
+        }
+    });
+}
+
+if (btnCloseHistoryModal) {
+    btnCloseHistoryModal.addEventListener("click", () => {
+        if (historyModal) historyModal.classList.add("hidden");
+    });
+}
+
+if (historyModal) {
+    historyModal.addEventListener("click", (e) => {
+        if (e.target === historyModal) historyModal.classList.add("hidden");
+    });
+}
+
+// Initial Render
+renderGlobalHistoryLists();
+
+// Auto-Discovery Toggle Logic
+const autoDiscoveryToggle = document.getElementById("auto-discovery-toggle");
+if (autoDiscoveryToggle) {
+    autoDiscoveryToggle.checked = isAutoDiscoveryEnabled;
+    autoDiscoveryToggle.addEventListener("change", (e) => {
+        isAutoDiscoveryEnabled = e.target.checked;
+        localStorage.setItem('classsend-auto-discovery', isAutoDiscoveryEnabled);
+
+        if (isAutoDiscoveryEnabled) {
+            startNetworkDiscovery();
+            console.log("Auto-discovery enabled");
+        } else {
+            stopNetworkDiscovery();
+            console.log("Auto-discovery disabled");
+        }
+    });
+}
+
 
 // Global Event: Screen Share Status Update
 socket.on("screen-share-status-update", ({ isSharing, classId }) => {
@@ -4128,9 +4470,9 @@ if (btnSettingsToggle) {
             // Teachers: All tabs
 
             if (currentRole === 'student') {
-                // Hide all tabs except Personalization & About
+                // Students: ONLY Personalization, Connection & About
                 settingsTabs.forEach(btn => {
-                    if (btn.dataset.tab === 'personalization' || btn.dataset.tab === 'about') {
+                    if (btn.dataset.tab === 'personalization' || btn.dataset.tab === 'connection' || btn.dataset.tab === 'about') {
                         btn.classList.remove('hidden');
                     } else {
                         btn.classList.add('hidden');
@@ -4734,13 +5076,16 @@ const settingsStreamingSection = document.getElementById('settings-streaming-sec
 const settingsDataSection = document.getElementById('settings-data-section');
 
 function updateSettingsVisibility() {
-    if (currentRole === 'teacher') {
-        // Show everything for teacher
+    if (currentRole === 'teacher' || debugModeActive) {
+        // Show everything for teacher or debug mode
         if (settingsStreamingSection) settingsStreamingSection.classList.remove('hidden');
         if (settingsDataSection) settingsDataSection.classList.remove('hidden');
         if (settingsFilterSection) settingsFilterSection.classList.remove('hidden');
-        if (advancedModelPreferences && filterMode === 'deep-learning') advancedModelPreferences.classList.remove('hidden');
+        if (advancedModelPreferences && (filterMode === 'deep-learning' || debugModeActive)) advancedModelPreferences.classList.remove('hidden');
         if (settingsAdvancedSection) settingsAdvancedSection.classList.remove('hidden');
+
+        // Also show all sidebar tabs
+        document.querySelectorAll('.settings-tab-btn').forEach(btn => btn.classList.remove('hidden'));
     } else {
         // Hide everything except Language for student
         if (settingsStreamingSection) settingsStreamingSection.classList.add('hidden');
@@ -4748,6 +5093,12 @@ function updateSettingsVisibility() {
         if (settingsFilterSection) settingsFilterSection.classList.add('hidden');
         if (advancedModelPreferences) advancedModelPreferences.classList.add('hidden');
         if (settingsAdvancedSection) settingsAdvancedSection.classList.add('hidden');
+
+        // Hide specific tabs for student
+        const tabModeration = document.getElementById('tab-moderation');
+        const tabSystem = document.getElementById('tab-system');
+        if (tabModeration) tabModeration.classList.add('hidden');
+        if (tabSystem) tabSystem.classList.add('hidden');
     }
 }
 
@@ -5306,3 +5657,43 @@ if (imageContainer) {
     });
 }
 
+// Debug Unlock Feature (5x Clicks on About Icon)
+const aboutAppIcon = document.getElementById("about-app-icon");
+let debugClickCount = 0;
+let debugClickTimer = null;
+
+if (aboutAppIcon) {
+    aboutAppIcon.addEventListener("click", () => {
+        debugClickCount++;
+
+        // Visual feedback (optional - small shake or scale)
+        aboutAppIcon.style.transform = `scale(${1 + (debugClickCount * 0.05)})`;
+        setTimeout(() => aboutAppIcon.style.transform = 'scale(1)', 150);
+
+        if (debugClickTimer) clearTimeout(debugClickTimer);
+        debugClickTimer = setTimeout(() => {
+            debugClickCount = 0;
+            aboutAppIcon.style.transform = 'scale(1)';
+        }, 2000); // 2 seconds reset window
+
+        if (debugClickCount >= 5) {
+            debugClickCount = 0;
+            if (debugClickTimer) clearTimeout(debugClickTimer);
+
+            // Unlock hidden settings via global flag
+            debugModeActive = true;
+            if (typeof updateSettingsVisibility === 'function') {
+                updateSettingsVisibility();
+                console.log("Debug mode: Sidebar tabs should now be visible.");
+            }
+
+            // Show logs button explicitly just in case
+            const btnViewLogs = document.getElementById("btn-view-logs");
+            if (btnViewLogs) btnViewLogs.classList.remove("hidden");
+
+            // Show toast
+            showToast("🛠️ Debug Mode Unlocked: All settings visible", "success");
+            console.log("Debug mode unlocked by user (global flag set).");
+        }
+    });
+}

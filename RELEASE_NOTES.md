@@ -1,3 +1,39 @@
+# Release Notes - v8.7.0
+
+## 🚀 Student-First Experience & Debug Tools
+
+### 🎓 Smart Default Role
+- **Student-First**: The application now defaults to the **Student** role on launch, bypassing the role selection screen to get students into class faster.
+- **Teacher Switch**: Easily switch to Teacher mode via the **Settings > Personalization** menu.
+- **Saved Roles**: Your last used role is remembered for future sessions.
+
+### 🖼️ UI Refinements & Fixes
+- **Modern Branding**: Replaced the generic rocket emoji with the official application logo (`icon.ico`) on the About page.
+- **Enhanced Icons**: Replaced the "Block Messages" tool icon with a cleaner, more intuitive SVG asset.
+
+### 🛠️ Hidden Debug Unlock
+- **Troubleshooting Power**: Introducing a hidden debug mechanism for advanced users and support.
+- **5-Click Activation**: Rapidly click the application icon on the **About** page 5 times to instantly unlock all hidden settings (System, Data, Streaming) and enable session logs, regardless of your current role.
+
+---
+
+# Release Notes - v8.6.0
+
+## 🌐 Smart Network Improvements
+
+### 🧠 Intelligent IP History
+- **Smart Learning**: ClassSend now keeps track of servers you've successfully connected to in the past.
+- **Auto-Retry**: If the automatic network discovery fails (common on some restricted Wi-Fi networks), the app automatically checks your history and reconnects you to known classes.
+
+### 🛡️ Cross-Network Identity
+- **Seamless Role Switching**: Fixed a bug where switching between different server IPs (e.g., WiFi to Hotspot) would make the app forget your Role (Student/Teacher). Your identity now travels with you!
+- **Identity Transfer**: Securely passes your role and name when redirecting to a remote class, ensuring you land in the chat immediately without needing to re-select your role.
+
+### 🛠️ Developer
+- **Discovery API**: Added a new lightweight API endpoint for faster server probing and diagnostics.
+
+---
+
 # Release Notes - v8.5.0
 
 ## 🎨 Visual Overhaul & Media Support
@@ -14,6 +50,11 @@
 ### 🛠️ Usability Improvements
 - **Teacher Tools Menu**: Consolidated all teacher actions (Share Screen, Block Messages, etc.) into a convenient popup menu for cleaner UI.
 - **Minimize Wrappers**: Added "Minimize" buttons to both Image and PDF viewers, allowing you to keep files open in the background while chatting.
+
+### Fixed
+- **Network Discovery**: Fixed an issue where classes with Greek/Latin characters were not discoverable by students.
+- **Background**: Fixed `bonjour` hostname generation for non-Latin names and implemented Base64 encoding for class lists.
+- **Minimize Buttons**: Fixed Minimize buttons for Video and PDF viewers.
 
 ---
 

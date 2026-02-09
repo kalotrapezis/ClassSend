@@ -209,6 +209,20 @@ app.get('/api/download/:fileId', (req, res) => {
   }
 });
 
+// New Endpoint for IP History Discovery (Lightweight Ping)
+app.get('/api/discovery-info', (req, res) => {
+  const classes = Array.from(activeClasses.entries()).map(([id, data]) => ({
+    id,
+    teacherName: data.teacherName
+  }));
+
+  res.json({
+    name: 'ClassSend Server',
+    version: '8.6.0', // Should match package.json
+    classes: classes
+  });
+});
+
 const activeClasses = new Map(); // classId -> { teacherId, students: [], deletionTimeout: null }
 const networkDiscovery = new NetworkDiscovery();
 
@@ -516,7 +530,28 @@ io.on('connection', (socket) => {
     if (networkDiscovery) {
       try {
         // Sanitize classId to be hostname-safe (alphanumeric + hyphens)
-        const safeClassId = classId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+        // 1. Try to keep Latin chars
+        let safeClassId = classId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+
+        // 2. If result is empty or just dashes (e.g. Greek only name), use hash
+        const isInvalid = /^[-]*$/.test(safeClassId);
+
+        if (isInvalid) {
+          // Simple hash function for consistent hostname
+          let hash = 0;
+          for (let i = 0; i < classId.length; i++) {
+            hash = ((hash << 5) - hash) + classId.charCodeAt(i);
+            hash |= 0; // Convert to 32bit integer
+          }
+          // Use "class-" + positive hash
+          safeClassId = `class-${Math.abs(hash)}`;
+          console.log(`Hostname sanitization: "${classId}" -> "${safeClassId}" (via hash)`);
+        }
+
+        // 3. Remove leading/trailing dashes and limit length
+        safeClassId = safeClassId.replace(/^-+|-+$/g, '').substring(0, 60);
+        if (!safeClassId) safeClassId = `class-${Date.now()}`; // Fallback if still empty
+
         const hostname = `${safeClassId}.local`;
         networkDiscovery.publishClassHostname(classId, hostname);
       } catch (e) {
@@ -562,7 +597,19 @@ io.on('connection', (socket) => {
     // Publish mDNS hostname
     if (networkDiscovery) {
       try {
-        const safeClassId = finalClassId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+        let safeClassId = finalClassId.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+        // Auto-generated names are usually safe, but good to be consistent
+        const isInvalid = /^[-]*$/.test(safeClassId);
+        if (isInvalid) {
+          let hash = 0;
+          for (let i = 0; i < finalClassId.length; i++) {
+            hash = ((hash << 5) - hash) + finalClassId.charCodeAt(i);
+            hash |= 0;
+          }
+          safeClassId = `class-${Math.abs(hash)}`;
+        }
+        safeClassId = safeClassId.replace(/^-+|-+$/g, '').substring(0, 60);
+
         const hostname = `${safeClassId}.local`;
         networkDiscovery.publishClassHostname(finalClassId, hostname);
       } catch (e) {
@@ -603,7 +650,27 @@ io.on('connection', (socket) => {
     if (networkDiscovery) {
       try {
         networkDiscovery.unpublishClassHostname(classId);
-        const safeNewName = newName.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+
+        // Sanitize classId to be hostname-safe (alphanumeric + hyphens)
+        // 1. Try to keep Latin chars
+        let safeNewName = newName.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+
+        // 2. If result is empty or just dashes (e.g. Greek only name), use hash
+        const isInvalid = /^[-]*$/.test(safeNewName);
+
+        if (isInvalid) {
+          // Simple hash function for consistent hostname
+          let hash = 0;
+          for (let i = 0; i < newName.length; i++) {
+            hash = ((hash << 5) - hash) + newName.charCodeAt(i);
+            hash |= 0;
+          }
+          safeNewName = `class-${Math.abs(hash)}`;
+        }
+
+        safeNewName = safeNewName.replace(/^-+|-+$/g, '').substring(0, 60);
+        if (!safeNewName) safeNewName = `class-${Date.now()}`;
+
         networkDiscovery.publishClassHostname(newName, `${safeNewName}.local`);
       } catch (e) {
         console.error('Failed to update hostname (non-fatal):', e);

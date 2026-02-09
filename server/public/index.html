@@ -13,7 +13,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Raleway:wght@100;200;300;400;500;600&display=swap"
     rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index-1XxeLC9B.js"></script>
+  <script type="module" crossorigin src="/assets/index-DlbiCMU2.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index-CcCa2mNf.css">
 </head>
 
@@ -72,13 +72,19 @@
 
         <!-- Manual Connection (Smart IP) -->
         <div class="manual-connection-section">
-          <h3 data-i18n="manual-connect-title">Connect Manually</h3>
+          <h3 data-i18n="manual-connect-title"><img src="/assets/history-svgrepo-com.svg" class="icon-svg"
+              alt="History" /> Connect Manually</h3>
           <p class="manual-connect-hint" data-i18n="manual-connect-hint">Don't see your class? Enter the server IP.</p>
           <div class="smart-ip-group">
             <span id="smart-ip-prefix" class="smart-ip-prefix">...</span>
             <input type="number" id="smart-ip-suffix" class="smart-ip-suffix" placeholder="XX" min="0" max="255">
             <span class="smart-ip-port-display">:<span id="smart-ip-port">...</span></span>
             <button id="btn-manual-connect" class="small-primary-btn" data-i18n="btn-connect">Connect</button>
+          </div>
+
+          <!-- History List (Smart IP Dialog) -->
+          <div id="smart-ip-history-list" class="known-servers-list dialog-list hidden">
+            <!-- Dynamically populated -->
           </div>
         </div>
         <button id="btn-back-from-classes" class="secondary-btn" data-i18n="btn-back">Back</button>
@@ -302,6 +308,31 @@
                       </label>
                     </div>
                   </div>
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <div>
+                        <label for="auto-discovery-toggle" class="setting-label-tight"
+                          data-i18n="label-auto-discovery">Automatic Search</label>
+                        <p class="setting-description" data-i18n="auto-discovery-description">Search for classes on the
+                          local network.</p>
+                      </div>
+                      <label class="switch">
+                        <input type="checkbox" id="auto-discovery-toggle">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Known servers history in settings -->
+                  <div class="setting-item">
+                    <label data-i18n="label-known-servers"><img src="/assets/history-svgrepo-com.svg" class="icon-svg"
+                        alt="History" /> Known Servers History</label>
+                    <button id="btn-open-history-modal" class="secondary-btn"
+                      style="width: 100%; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                      <img src="/assets/history-svgrepo-com.svg" class="icon-svg" style="width: 18px; height: 18px;" />
+                      <span data-i18n="btn-manage-history">Manage History</span>
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Streaming Page -->
@@ -427,10 +458,12 @@
                 <div id="settings-page-about" class="settings-page hidden">
                   <h4 class="settings-page-header" data-i18n="about-header">About</h4>
                   <div class="about-content" style="text-align: center; padding: 1.5rem 1rem;">
-                    <div class="about-logo" style="font-size: 2.5rem; margin-bottom: 0.5rem;">🚀</div>
+                    <div class="about-logo" style="margin-bottom: 0.5rem;"><img id="about-app-icon"
+                        src="/assets/icon.ico" alt="ClassSend" style="width: 64px; height: 64px; cursor: pointer;" />
+                    </div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
                     <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
-                        id="app-version-display">8.3.1</span></p>
+                        id="app-version-display">8.6.0</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
@@ -550,7 +583,9 @@
 
             <!-- Manual Join (Smart IP) Extension -->
             <div id="modal-manual-join" class="modal-manual-join">
-              <p class="manual-connect-hint" data-i18n="manual-connect-hint-modal">Or connect to another server:</p>
+              <p class="manual-connect-hint" data-i18n="manual-connect-hint-modal"><img
+                  src="/assets/history-svgrepo-com.svg" class="icon-svg" alt="History"
+                  style="width: 14px; height: 14px;" /> Or connect to another server:</p>
               <div class="smart-ip-group">
                 <span id="smart-ip-prefix-modal" class="smart-ip-prefix">...</span>
                 <input type="number" id="smart-ip-suffix-modal" class="smart-ip-suffix" placeholder="XX" min="0"
@@ -558,6 +593,11 @@
                 <span class="smart-ip-port-display">:<span id="smart-ip-port-modal">...</span></span>
                 <button id="btn-manual-connect-modal" class="small-primary-btn" data-i18n="btn-connect">Connect</button>
               </div>
+            </div>
+
+            <!-- History List (Connection Modal) -->
+            <div id="modal-manual-history-list" class="known-servers-list dialog-list hidden">
+              <!-- Dynamically populated -->
             </div>
 
             <div class="toggle-container">
@@ -622,6 +662,25 @@
             <div id="whitelist-words-list-modal" class="blacklist-word-list">
               <!-- Words will be dynamically added here -->
               <div class="empty-blacklist-state" data-i18n="whitelist-empty">No safe words added yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Modal (IP History) -->
+      <div id="history-modal" class="modal hidden">
+        <div class="modal-content blacklist-modal-content" style="border-top: 5px solid #4db8ff;">
+          <div class="popup-header">
+            <h3 class="popup-title-with-icon">
+              <img src="/assets/history-svgrepo-com.svg" class="icon-svg" alt="History" />
+              <span data-i18n="modal-history-title">Connection History</span>
+            </h3>
+            <button id="btn-close-history-modal" class="close-btn">×</button>
+          </div>
+          <div class="blacklist-body">
+            <div id="settings-known-servers-list" class="blacklist-word-list">
+              <!-- History items will be dynamically added here -->
+              <div class="empty-blacklist-state" data-i18n="history-empty">No connection history yet</div>
             </div>
           </div>
         </div>
@@ -727,7 +786,7 @@
                   </button>
                   <button id="btn-tool-block-messages" class="tool-menu-btn" title="Block Messages"
                     data-i18n-title="btn-block-all">
-                    <img src="/assets/message-block.svg" class="icon-svg" alt="Block" />
+                    <img src="/assets/block-1-svgrepo-com.svg" class="icon-svg" alt="Block" />
                     <span data-i18n="label-block-all">Block Messages</span>
                   </button>
                   <button id="btn-tool-allow-hands" class="tool-menu-btn" title="Allow Hands"

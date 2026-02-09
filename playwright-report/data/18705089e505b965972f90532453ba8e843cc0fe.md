@@ -1,0 +1,266 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "☰" [ref=e6] [cursor=pointer]
+      - generic "Connected" [ref=e8]:
+        - generic [ref=e10]: Disconnected
+      - heading "ClassSend" [level=1] [ref=e11]
+      - button "Connection Connection Info" [ref=e12] [cursor=pointer]:
+        - img "Connection" [ref=e13]
+        - generic [ref=e14]: Connection Info
+      - button "Media Media Library" [ref=e15] [cursor=pointer]:
+        - img "Media" [ref=e16]
+        - generic [ref=e17]: Media Library
+      - button "Settings Settings" [ref=e18] [cursor=pointer]:
+        - img "Settings" [ref=e19]
+        - generic [ref=e20]: Settings
+  - generic [ref=e21]:
+    - complementary [ref=e22]:
+      - heading "Classes" [level=3] [ref=e24]
+      - generic [ref=e26] [cursor=pointer]:
+        - img [ref=e28]
+        - generic [ref=e29]: Class-01
+        - generic "Leave Class" [ref=e30]:
+          - img [ref=e31]
+          - text: Leave
+      - generic [ref=e32]:
+        - heading "Users" [level=3] [ref=e33]
+        - generic [ref=e34]: "2"
+      - generic [ref=e35]:
+        - generic [ref=e38]: Swift Fig
+        - generic [ref=e41]: Witty Mango
+    - main [ref=e42]:
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - generic [ref=e45]:
+            - generic [ref=e46]: System
+            - generic [ref=e47]: 05:22 PM
+          - generic [ref=e48]:
+            - text: Joyful Apple joined the class
+            - generic [ref=e49]:
+              - button "Copy" [ref=e50] [cursor=pointer]:
+                - img "Copy" [ref=e51]
+              - button "Report" [ref=e52] [cursor=pointer]:
+                - img "Report" [ref=e53]
+        - generic [ref=e54]:
+          - generic [ref=e55]:
+            - generic [ref=e56]: System
+            - generic [ref=e57]: 05:22 PM
+          - generic [ref=e58]:
+            - text: Hopeful Guava joined the class
+            - generic [ref=e59]:
+              - button "Copy" [ref=e60] [cursor=pointer]:
+                - img "Copy" [ref=e61]
+              - button "Report" [ref=e62] [cursor=pointer]:
+                - img "Report" [ref=e63]
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - generic [ref=e66]: System
+            - generic [ref=e67]: 05:22 PM
+          - generic [ref=e68]:
+            - text: Joyful Apple left the class
+            - generic [ref=e69]:
+              - button "Copy" [ref=e70] [cursor=pointer]:
+                - img "Copy" [ref=e71]
+              - button "Report" [ref=e72] [cursor=pointer]:
+                - img "Report" [ref=e73]
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - generic [ref=e76]: System
+            - generic [ref=e77]: 05:22 PM
+          - generic [ref=e78]:
+            - text: Hopeful Melon joined the class
+            - generic [ref=e79]:
+              - button "Copy" [ref=e80] [cursor=pointer]:
+                - img "Copy" [ref=e81]
+              - button "Report" [ref=e82] [cursor=pointer]:
+                - img "Report" [ref=e83]
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - generic [ref=e86]: System
+            - generic [ref=e87]: 05:22 PM
+          - generic [ref=e88]:
+            - text: Witty Plum joined the class
+            - generic [ref=e89]:
+              - button "Copy" [ref=e90] [cursor=pointer]:
+                - img "Copy" [ref=e91]
+              - button "Report" [ref=e92] [cursor=pointer]:
+                - img "Report" [ref=e93]
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - generic [ref=e96]: System
+            - generic [ref=e97]: 05:22 PM
+          - generic [ref=e98]:
+            - text: Kind Melon joined the class
+            - generic [ref=e99]:
+              - button "Copy" [ref=e100] [cursor=pointer]:
+                - img "Copy" [ref=e101]
+              - button "Report" [ref=e102] [cursor=pointer]:
+                - img "Report" [ref=e103]
+        - generic [ref=e104]:
+          - generic [ref=e105]:
+            - generic [ref=e106]: System
+            - generic [ref=e107]: 05:22 PM
+          - generic [ref=e108]:
+            - text: Swift Pear joined the class
+            - generic [ref=e109]:
+              - button "Copy" [ref=e110] [cursor=pointer]:
+                - img "Copy" [ref=e111]
+              - button "Report" [ref=e112] [cursor=pointer]:
+                - img "Report" [ref=e113]
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - generic [ref=e116]: System
+            - generic [ref=e117]: 05:22 PM
+          - generic [ref=e118]:
+            - text: Hopeful Melon left the class
+            - generic [ref=e119]:
+              - button "Copy" [ref=e120] [cursor=pointer]:
+                - img "Copy" [ref=e121]
+              - button "Report" [ref=e122] [cursor=pointer]:
+                - img "Report" [ref=e123]
+        - generic [ref=e124]:
+          - generic [ref=e125]:
+            - generic [ref=e126]: System
+            - generic [ref=e127]: 05:22 PM
+          - generic [ref=e128]:
+            - text: Hopeful Guava left the class
+            - generic [ref=e129]:
+              - button "Copy" [ref=e130] [cursor=pointer]:
+                - img "Copy" [ref=e131]
+              - button "Report" [ref=e132] [cursor=pointer]:
+                - img "Report" [ref=e133]
+        - generic [ref=e134]:
+          - generic [ref=e135]:
+            - generic [ref=e136]: System
+            - generic [ref=e137]: 05:22 PM
+          - generic [ref=e138]:
+            - text: Witty Plum left the class
+            - generic [ref=e139]:
+              - button "Copy" [ref=e140] [cursor=pointer]:
+                - img "Copy" [ref=e141]
+              - button "Report" [ref=e142] [cursor=pointer]:
+                - img "Report" [ref=e143]
+        - generic [ref=e144]:
+          - generic [ref=e145]:
+            - generic [ref=e146]: System
+            - generic [ref=e147]: 05:22 PM
+          - generic [ref=e148]:
+            - text: Brave Guava left the class
+            - generic [ref=e149]:
+              - button "Copy" [ref=e150] [cursor=pointer]:
+                - img "Copy" [ref=e151]
+              - button "Report" [ref=e152] [cursor=pointer]:
+                - img "Report" [ref=e153]
+        - generic [ref=e154]:
+          - generic [ref=e155]:
+            - generic [ref=e156]: System
+            - generic [ref=e157]: 05:22 PM
+          - generic [ref=e158]:
+            - text: Eager Kiwi joined the class
+            - generic [ref=e159]:
+              - button "Copy" [ref=e160] [cursor=pointer]:
+                - img "Copy" [ref=e161]
+              - button "Report" [ref=e162] [cursor=pointer]:
+                - img "Report" [ref=e163]
+        - generic [ref=e164]:
+          - generic [ref=e165]:
+            - generic [ref=e166]: System
+            - generic [ref=e167]: 05:22 PM
+          - generic [ref=e168]:
+            - text: Merry Pear joined the class
+            - generic [ref=e169]:
+              - button "Copy" [ref=e170] [cursor=pointer]:
+                - img "Copy" [ref=e171]
+              - button "Report" [ref=e172] [cursor=pointer]:
+                - img "Report" [ref=e173]
+        - generic [ref=e174]:
+          - generic [ref=e175]:
+            - generic [ref=e176]: System
+            - generic [ref=e177]: 05:22 PM
+          - generic [ref=e178]:
+            - text: Curious Apple joined the class
+            - generic [ref=e179]:
+              - button "Copy" [ref=e180] [cursor=pointer]:
+                - img "Copy" [ref=e181]
+              - button "Report" [ref=e182] [cursor=pointer]:
+                - img "Report" [ref=e183]
+        - generic [ref=e184]:
+          - generic [ref=e185]:
+            - generic [ref=e186]: System
+            - generic [ref=e187]: 05:22 PM
+          - generic [ref=e188]:
+            - text: Swift Pear left the class
+            - generic [ref=e189]:
+              - button "Copy" [ref=e190] [cursor=pointer]:
+                - img "Copy" [ref=e191]
+              - button "Report" [ref=e192] [cursor=pointer]:
+                - img "Report" [ref=e193]
+        - generic [ref=e194]:
+          - generic [ref=e195]:
+            - generic [ref=e196]: System
+            - generic [ref=e197]: 05:23 PM
+          - generic [ref=e198]:
+            - text: Zesty Pear left the class
+            - generic [ref=e199]:
+              - button "Copy" [ref=e200] [cursor=pointer]:
+                - img "Copy" [ref=e201]
+              - button "Report" [ref=e202] [cursor=pointer]:
+                - img "Report" [ref=e203]
+        - generic [ref=e204]:
+          - generic [ref=e205]:
+            - generic [ref=e206]: System
+            - generic [ref=e207]: 05:23 PM
+          - generic [ref=e208]:
+            - text: Curious Apple left the class
+            - generic [ref=e209]:
+              - button "Copy" [ref=e210] [cursor=pointer]:
+                - img "Copy" [ref=e211]
+              - button "Report" [ref=e212] [cursor=pointer]:
+                - img "Report" [ref=e213]
+        - generic [ref=e214]:
+          - generic [ref=e215]:
+            - generic [ref=e216]: System
+            - generic [ref=e217]: 05:23 PM
+          - generic [ref=e218]:
+            - text: Merry Pear left the class
+            - generic [ref=e219]:
+              - button "Copy" [ref=e220] [cursor=pointer]:
+                - img "Copy" [ref=e221]
+              - button "Report" [ref=e222] [cursor=pointer]:
+                - img "Report" [ref=e223]
+        - generic [ref=e224]:
+          - generic [ref=e225]:
+            - generic [ref=e226]: System
+            - generic [ref=e227]: 05:23 PM
+          - generic [ref=e228]:
+            - text: Eager Kiwi left the class
+            - generic [ref=e229]:
+              - button "Copy" [ref=e230] [cursor=pointer]:
+                - img "Copy" [ref=e231]
+              - button "Report" [ref=e232] [cursor=pointer]:
+                - img "Report" [ref=e233]
+        - generic [ref=e234]:
+          - generic [ref=e235]:
+            - generic [ref=e236]: System
+            - generic [ref=e237]: 05:23 PM
+          - generic [ref=e238]:
+            - text: Kind Melon left the class
+            - generic [ref=e239]:
+              - button "Copy" [ref=e240] [cursor=pointer]:
+                - img "Copy" [ref=e241]
+              - button "Report" [ref=e242] [cursor=pointer]:
+                - img "Report" [ref=e243]
+      - generic [ref=e244]:
+        - generic [ref=e245]:
+          - button "Attach file" [ref=e246] [cursor=pointer]
+          - button "Emoji" [ref=e247] [cursor=pointer]:
+            - img "Emoji" [ref=e248]
+          - button "Raise Hand" [ref=e249] [cursor=pointer]:
+            - img "Raise Hand" [ref=e250]
+        - textbox "Type a message..." [active] [ref=e251]
+        - button "Send Message" [ref=e252] [cursor=pointer]
+```
