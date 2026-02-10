@@ -6,8 +6,7 @@ test('messages are sent and received', async ({ browser }) => {
     const teacherContext = await browser.newContext();
     const page1 = await teacherContext.newPage();
     page1.on('console', msg => console.log(`[Teacher Page]: ${msg.text()}`));
-    await page1.goto('/');
-    await page1.click('#btn-teacher');
+    await page1.goto('/?role=teacher');
     await expect(page1.locator('#chat-interface')).toBeVisible();
 
     // Get the class ID of the class the teacher just made
@@ -19,8 +18,7 @@ test('messages are sent and received', async ({ browser }) => {
     const studentContext = await browser.newContext();
     const page2 = await studentContext.newPage();
     page2.on('console', msg => console.log(`[Student Page]: ${msg.text()}`));
-    await page2.goto('/');
-    await page2.click('#btn-student');
+    await page2.goto('/?role=student');
     await expect(page2.locator('#chat-interface')).toBeVisible();
 
     // Student is likely in 'Lobby'. Need to switch to the Teacher's class.
@@ -43,8 +41,7 @@ test('profanity filter blocks bad words', async ({ browser }) => {
     // Setup Teacher
     const context = await browser.newContext();
     const page = await context.newPage();
-    await page.goto('/');
-    await page.click('#btn-teacher');
+    await page.goto('/?role=teacher');
     await expect(page.locator('#chat-interface')).toBeVisible();
 
     // Get Class ID
@@ -53,8 +50,7 @@ test('profanity filter blocks bad words', async ({ browser }) => {
     // Setup Student to join this class
     const studentContext = await browser.newContext();
     const page2 = await studentContext.newPage();
-    await page2.goto('/');
-    await page2.click('#btn-student');
+    await page2.goto('/?role=student');
     await page2.locator(`.class-item .class-name`).filter({ hasText: classId }).click();
     await expect(page2.locator('#message-input')).toBeEnabled({ timeout: 15000 });
 
@@ -62,11 +58,11 @@ test('profanity filter blocks bad words', async ({ browser }) => {
     // Wait for input to be ready
     await expect(page.locator('#message-input')).toBeEnabled();
 
-    // Using 'stupid' which is in the default mild bad words list
-    await page.fill('#message-input', 'stupid');
+    // Using 'shit' which is definitely in the default bad words list
+    await page.fill('#message-input', 'shit');
     await page.click('#btn-send-message');
 
     // Verify it is NOT displayed on Student side
-    await expect(page2.locator('.message-content', { hasText: 'stupid' })).not.toBeVisible();
-    await expect(page.locator('.message-content', { hasText: 'stupid' })).not.toBeVisible();
+    await expect(page2.locator('.message-content', { hasText: 'shit' })).not.toBeVisible();
+    await expect(page.locator('.message-content', { hasText: 'shit' })).not.toBeVisible();
 });

@@ -12,6 +12,14 @@ const EMOTIONS = [
     'Proud', 'Quiet', 'Swift', 'Witty', 'Zesty'
 ];
 
+// 20 Emotions (Greek)
+const EMOTIONS_EL = [
+    'Χαρούμενο', 'Χαρμόσυνο', 'Ήρεμο', 'Γενναίο', 'Έξυπνο',
+    'Περίεργο', 'Πρόθυμο', 'Φιλικό', 'Ευγενικό', 'Ελπιδοφόρο',
+    'Καλόκαρδο', 'Ζωντανό', 'Πρόσκοπο', 'Ευγενές', 'Παιχνιδιάρικο',
+    'Περήφανο', 'Ήσυχο', 'Γρήγορο', 'Ετοιμόλογο', 'Δραστήριο'
+];
+
 // 20 Fruits - common, easy to spell
 const FRUITS = [
     'Apple', 'Banana', 'Cherry', 'Grape', 'Kiwi',
@@ -20,13 +28,25 @@ const FRUITS = [
     'Papaya', 'Guava', 'Apricot', 'Coconut', 'Olive'
 ];
 
+// 20 Fruits (Greek)
+const FRUITS_EL = [
+    'Μήλο', 'Μπανανάκι', 'Κεράσι', 'Σταφύλι', 'Ακτινίδιο',
+    'Λεμόνι', 'Μάνγκο', 'Πορτοκάλι', 'Ροδάκινο', 'Αχλάδι',
+    'Δαμάσκηνο', 'Μούρο', 'Πεπόνι', 'Λάιμ', 'Σύκο',
+    'Παπάγια', 'Γκουάβα', 'Βερίκοκο', 'Καρύδα', 'Ελιά'
+];
+
 /**
  * Generate a random name combining an emotion and a fruit
- * @returns {string} A name like "Happy Lemon"
+ * @param {string} lang - 'en' or 'el'
+ * @returns {string} A name like "Happy Lemon" or "Χαρούμενο Μήλο"
  */
-export function generateRandomName() {
-    const emotion = EMOTIONS[Math.floor(Math.random() * EMOTIONS.length)];
-    const fruit = FRUITS[Math.floor(Math.random() * FRUITS.length)];
+export function generateRandomName(lang = 'en') {
+    const emotionsList = lang === 'el' ? EMOTIONS_EL : EMOTIONS;
+    const fruitsList = lang === 'el' ? FRUITS_EL : FRUITS;
+
+    const emotion = emotionsList[Math.floor(Math.random() * emotionsList.length)];
+    const fruit = fruitsList[Math.floor(Math.random() * fruitsList.length)];
     return `${emotion} ${fruit}`;
 }
 

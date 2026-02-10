@@ -1,3 +1,19 @@
+# Release Notes - v8.7.2
+
+## 🛠️ Randomizer & Nickname Localization
+- **Greek Nicknames Fixed**: Fixed an issue where the nickname randomizer defaulted to English even when the interface was set to Greek.
+- **Improved Randomization**: The "Regenerate Name" button now correctly respects the current application language.
+
+---
+
+# Release Notes - v8.7.1
+
+## ⚡ Reliability & Path Handling
+- **Path Improvements**: Enhanced cross-platform path handling for configuration and data files.
+- **Model Loading**: Improved robust model discovery for offline AI filtering.
+
+---
+
 # Release Notes - v8.7.0
 
 ## 🚀 Student-First Experience & Debug Tools

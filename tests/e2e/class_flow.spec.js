@@ -8,7 +8,7 @@ test('teacher can create a class and student can join', async ({ browser }) => {
     await teacherPage.goto('/');
 
     // Teacher defaults to student, needs to switch via settings
-    await teacherPage.click('#btn-open-settings');
+    await teacherPage.click('#btn-settings-toggle');
     await teacherPage.click('#btn-change-role');
     await teacherPage.click('#btn-teacher');
 
@@ -18,7 +18,7 @@ test('teacher can create a class and student can join', async ({ browser }) => {
     // context 2: Student
     const studentContext = await browser.newContext();
     const studentPage = await studentContext.newPage();
-    await studentPage.goto('/');
+    await studentPage.goto('/?role=student');
 
     // Student is already 'Student' by default
     // They should land on available classes or chat

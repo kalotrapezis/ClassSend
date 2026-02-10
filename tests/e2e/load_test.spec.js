@@ -11,8 +11,7 @@ test.describe('Load Testing', () => {
         // 1. Teacher creates class
         const teacherContext = await browser.newContext();
         const teacherPage = await teacherContext.newPage();
-        await teacherPage.goto('/');
-        await teacherPage.click('#btn-teacher');
+        await teacherPage.goto('/?role=teacher');
         const classId = await teacherPage.locator('.class-item.active .class-name').textContent();
         expect(classId).toBeTruthy();
         console.log(`[LoadTest] Teacher started class: ${classId}`);
@@ -24,8 +23,7 @@ test.describe('Load Testing', () => {
             contexts.push(context);
             pages.push(page);
 
-            await page.goto('/');
-            await page.click('#btn-student');
+            await page.goto('/?role=student');
 
             // Join class
             await page.locator(`.class-item .class-name`).filter({ hasText: classId }).click();

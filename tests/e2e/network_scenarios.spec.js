@@ -7,16 +7,14 @@ test.describe('Network Scenarios', () => {
         // Standard flow: Teacher creates, Student joins locally
         const teacherContext = await browser.newContext();
         const page1 = await teacherContext.newPage();
-        await page1.goto('/');
-        await page1.click('#btn-teacher');
+        await page1.goto('/?role=teacher');
 
         const classId = await page1.locator('.class-item.active .class-name').textContent();
         expect(classId).toBeTruthy();
 
         const studentContext = await browser.newContext();
         const page2 = await studentContext.newPage();
-        await page2.goto('/');
-        await page2.click('#btn-student');
+        await page2.goto('/?role=student');
 
         // Student sees class in local list and joins
         await page2.locator(`.class-item .class-name`).filter({ hasText: classId }).click();
@@ -25,8 +23,7 @@ test.describe('Network Scenarios', () => {
 
     test('IP Connection (Simulated)', async ({ page }) => {
         // Verify client can handle explicit connection to an IP (simulated by localhost IP)
-        await page.goto('/');
-        await page.click('#btn-student');
+        await page.goto('/?role=student');
 
         // Simulate switching server via console/code since manual input might be hidden or auto-detected
         // We connect to 127.0.0.1 explicitly to differentiate from 'localhost' string if possible,

@@ -1,0 +1,95 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "☰" [ref=e6] [cursor=pointer]
+      - generic "Connected" [ref=e8]:
+        - generic [ref=e10]: Disconnected
+      - heading "ClassSend" [level=1] [ref=e11]
+      - button "Connection Connection Info" [ref=e12] [cursor=pointer]:
+        - img "Connection" [ref=e13]
+        - generic [ref=e14]: Connection Info
+      - button "Media Media Library" [ref=e15] [cursor=pointer]:
+        - img "Media" [ref=e16]
+        - generic [ref=e17]: Media Library
+      - button "Settings Settings" [ref=e18] [cursor=pointer]:
+        - img "Settings" [ref=e19]
+        - generic [ref=e20]: Settings
+  - generic [ref=e21]:
+    - complementary [ref=e22]:
+      - heading "Classes" [level=3] [ref=e24]
+      - generic [ref=e25]:
+        - generic [ref=e26] [cursor=pointer]:
+          - img [ref=e28]
+          - generic [ref=e29]: Class-17
+          - generic "Delete Class" [ref=e30]:
+            - img [ref=e31]
+            - text: Delete
+        - generic [ref=e32] [cursor=pointer]:
+          - img [ref=e34]
+          - generic [ref=e35]: Class-18
+      - generic [ref=e36]:
+        - heading "Users" [level=3] [ref=e37]
+        - generic [ref=e38]: "2"
+      - generic [ref=e39]:
+        - generic [ref=e42]: Playful Kiwi
+        - generic [ref=e43]:
+          - generic [ref=e45]: Lively Fig
+          - button "Block user" [ref=e46] [cursor=pointer]:
+            - img [ref=e47]
+    - main [ref=e48]:
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - generic [ref=e51]:
+            - generic [ref=e52]: System
+            - generic [ref=e53]: 02:02 PM
+          - generic [ref=e54]:
+            - text: Lively Fig joined the class
+            - generic [ref=e55]:
+              - button "Copy" [ref=e56] [cursor=pointer]:
+                - img "Copy" [ref=e57]
+              - button "Pin" [ref=e58] [cursor=pointer]:
+                - img "Pin" [ref=e59]
+              - button "Block" [ref=e60] [cursor=pointer]:
+                - img "Block" [ref=e61]
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - generic [ref=e64]: Playful Kiwi
+            - generic [ref=e65]: 02:02 PM
+          - generic [ref=e66]:
+            - text: Hello Student
+            - generic [ref=e67]:
+              - button "Copy" [ref=e68] [cursor=pointer]:
+                - img "Copy" [ref=e69]
+              - button "Pin" [ref=e70] [cursor=pointer]:
+                - img "Pin" [ref=e71]
+              - button "Block" [ref=e72] [cursor=pointer]:
+                - img "Block" [ref=e73]
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - button "Attach file" [ref=e76] [cursor=pointer]
+          - button "Emoji" [ref=e77] [cursor=pointer]:
+            - img "Emoji" [ref=e78]
+          - generic [ref=e79]:
+            - generic:
+              - button "Share Screen Sharing":
+                - img "Share"
+                - generic: Screen Sharing
+              - button "Hands Down Hands Down":
+                - img "Hands Down"
+                - generic: Hands Down
+              - button "Block Block all communications":
+                - img "Block"
+                - generic: Block all communications
+              - button "Allow Hands Raise Hand":
+                - img "Allow Hands"
+                - generic: Raise Hand
+            - button "Tools" [ref=e80] [cursor=pointer]:
+              - img "Tools" [ref=e81]
+          - button "Reports" [ref=e82] [cursor=pointer]:
+            - img "Reports" [ref=e83]
+        - textbox "Type a message..." [active] [ref=e84]
+        - button "Send Message" [ref=e85] [cursor=pointer]
+```

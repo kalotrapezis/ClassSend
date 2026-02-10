@@ -1,0 +1,47 @@
+
+Running 2 tests using 2 workers
+
+Terminate batch job (Y/N)?   ✘  2 [chromium] › tests\e2e\messaging.spec.js:4:1 › messages are sent and received (179ms)
+  ✘  1 [chromium] › tests\e2e\messaging.spec.js:40:1 › profanity filter blocks bad words (179ms)
+
+
+  1) [chromium] › tests\e2e\messaging.spec.js:4:1 › messages are sent and received ─────────────────
+
+    Test was interrupted.
+
+    Error: page.goto: Target page, context or browser has been closed
+    Call log:
+    [2m  - navigating to "http://localhost:5173/?role=teacher", waiting until "load"[22m
+
+
+       7 |     const page1 = await teacherContext.newPage();
+       8 |     page1.on('console', msg => console.log(`[Teacher Page]: ${msg.text()}`));
+    >  9 |     await page1.goto('/?role=teacher');
+         |                 ^
+      10 |     await expect(page1.locator('#chat-interface')).toBeVisible();
+      11 |
+      12 |     // Get the class ID of the class the teacher just made
+        at C:\Users\Teo\.gemini\antigravity\scratch\ClassSend\tests\e2e\messaging.spec.js:9:17
+
+  2) [chromium] › tests\e2e\messaging.spec.js:40:1 › profanity filter blocks bad words ─────────────
+
+    Test was interrupted.
+
+    Error: page.goto: Target page, context or browser has been closed
+    Call log:
+    [2m  - navigating to "http://localhost:5173/?role=teacher", waiting until "load"[22m
+
+
+      42 |     const context = await browser.newContext();
+      43 |     const page = await context.newPage();
+    > 44 |     await page.goto('/?role=teacher');
+         |                ^
+      45 |     await expect(page.locator('#chat-interface')).toBeVisible();
+      46 |
+      47 |     // Get Class ID
+        at C:\Users\Teo\.gemini\antigravity\scratch\ClassSend\tests\e2e\messaging.spec.js:44:16
+
+  2 interrupted
+    [chromium] › tests\e2e\messaging.spec.js:4:1 › messages are sent and received ──────────────────
+    [chromium] › tests\e2e\messaging.spec.js:40:1 › profanity filter blocks bad words ──────────────
+Terminate batch job (Y/N)? 

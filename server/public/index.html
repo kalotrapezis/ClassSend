@@ -13,7 +13,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Raleway:wght@100;200;300;400;500;600&display=swap"
     rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index-DlbiCMU2.js"></script>
+  <script type="module" crossorigin src="/assets/index-Cmm7zOiz.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index-CcCa2mNf.css">
 </head>
 
@@ -77,7 +77,8 @@
           <p class="manual-connect-hint" data-i18n="manual-connect-hint">Don't see your class? Enter the server IP.</p>
           <div class="smart-ip-group">
             <span id="smart-ip-prefix" class="smart-ip-prefix">...</span>
-            <input type="number" id="smart-ip-suffix" class="smart-ip-suffix" placeholder="XX" min="0" max="255">
+            <input type="number" id="smart-ip-suffix" class="smart-ip-suffix" placeholder="XX" min="0" max="255"
+              data-i18n-placeholder="placeholder-ip-suffix">
             <span class="smart-ip-port-display">:<span id="smart-ip-port">...</span></span>
             <button id="btn-manual-connect" class="small-primary-btn" data-i18n="btn-connect">Connect</button>
           </div>
@@ -184,11 +185,13 @@
                   <div class="setting-item">
                     <label for="settings-name-input" data-i18n="label-name">Your Name</label>
                     <div class="input-with-button">
-                      <input type="text" id="settings-name-input" class="setting-input" maxlength="20">
+                      <input type="text" id="settings-name-input" class="setting-input" maxlength="20"
+                        data-i18n-placeholder="placeholder-name">
                       <button id="btn-settings-change-name" class="small-primary-btn"
                         data-i18n="btn-change-name">Change</button>
-                      <button id="btn-regenerate-name" class="small-secondary-btn" title="Generate random name"><img
-                          src="/assets/random-1dice-svgrepo-com.svg" class="icon-svg" alt="Random" /></button>
+                      <button id="btn-regenerate-name" class="small-secondary-btn" title="Generate random name"
+                        data-i18n-title="btn-regenerate-name-title"><img src="/assets/random-1dice-svgrepo-com.svg"
+                          class="icon-svg" alt="Random" /></button>
                     </div>
                   </div>
 
@@ -358,7 +361,8 @@
                   <div id="class-management-section" class="setting-item hidden">
                     <label for="rename-class-input" data-i18n="label-class-name">Class Name</label>
                     <div class="input-with-button">
-                      <input type="text" id="rename-class-input" class="setting-input" maxlength="30">
+                      <input type="text" id="rename-class-input" class="setting-input" maxlength="30"
+                        data-i18n-placeholder="placeholder-class-id">
                       <button id="btn-rename-class" class="small-primary-btn" data-i18n="btn-rename">Rename</button>
                     </div>
                     <p class="setting-hint" data-i18n="rename-class-hint">Change the name of your current class.</p>
@@ -385,11 +389,13 @@
                     <p class="setting-description" data-i18n="data-management-hint">Import/Export both Blacklist and
                       Whitelist data.</p>
                     <div class="logs-actions">
-                      <button id="btn-import-data" class="secondary-btn" title="Import Data">
+                      <button id="btn-import-data" class="secondary-btn" title="Import Data"
+                        data-i18n-title="btn-import-data-title">
                         <img src="/assets/import-svgrepo-com.svg" class="icon-svg" alt="Import" /> <span
                           data-i18n="btn-import">Import</span>
                       </button>
-                      <button id="btn-export-data" class="secondary-btn" title="Export Data">
+                      <button id="btn-export-data" class="secondary-btn" title="Export Data"
+                        data-i18n-title="btn-export-data-title">
                         <img src="/assets/export-svgrepo-com.svg" class="icon-svg" alt="Export" /> <span
                           data-i18n="btn-export">Export</span>
                       </button>
@@ -463,18 +469,18 @@
                     </div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
                     <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
-                        id="app-version-display">8.6.0</span></p>
+                        id="app-version-display">8.7.1</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
-                      <h4
-                        style="margin-top: 0; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                      <h4 style="margin-top: 0; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;"
+                        data-i18n="recent-improvements">
                         Recent Improvements:</h4>
                       <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.4;">
-                        <li>SVG File Icons & Media Types</li>
-                        <li>Tablet Image Viewer Fixes</li>
-                        <li>Teacher Tools Menu</li>
-                        <li>Minimize Buttons for Viewers</li>
+                        <li data-i18n="imp-svg-icons">SVG File Icons & Media Types</li>
+                        <li data-i18n="imp-tablet-fix">Tablet Image Viewer Fixes</li>
+                        <li data-i18n="imp-teacher-menu">Teacher Tools Menu</li>
+                        <li data-i18n="imp-minimize-btn">Minimize Buttons for Viewers</li>
                       </ul>
                     </div>
 
@@ -498,9 +504,10 @@
             <div class="popup-header">
               <h3 id="stream-title" data-i18n="stream-title">📺 Teacher's Screen</h3>
               <div class="video-header-controls">
-                <button id="btn-minimize-video" class="header-control-btn" title="Minimize"><img
-                    src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
-                <button id="btn-close-video" class="close-btn" title="Close"><img
+                <button id="btn-minimize-video" class="header-control-btn" title="Minimize"
+                  data-i18n-title="Minimize"><img src="/assets/minimize-square-3-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+                <button id="btn-close-video" class="close-btn" title="Close" data-i18n-title="btn-close"><img
                     src="/assets/close-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
               </div>
             </div>
@@ -509,13 +516,17 @@
               <div id="video-status" class="video-status">Connecting...</div>
               <!-- Video Controls -->
               <div class="video-controls">
-                <button id="btn-zoom-out" class="video-control-btn" title="Zoom Out"><img
-                    src="/assets/minus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
-                <button id="btn-zoom-reset" class="video-control-btn" title="Reset Zoom">100%</button>
-                <button id="btn-zoom-in" class="video-control-btn" title="Zoom In"><img
-                    src="/assets/plus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
-                <button id="btn-fullscreen" class="video-control-btn" title="Fullscreen"><img
-                    src="/assets/full-screen-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+                <button id="btn-zoom-out" class="video-control-btn" title="Zoom Out"
+                  data-i18n-title="btn-zoom-out-title"><img src="/assets/minus-circle-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+                <button id="btn-zoom-reset" class="video-control-btn" title="Reset Zoom"
+                  data-i18n-title="btn-zoom-reset-title">100%</button>
+                <button id="btn-zoom-in" class="video-control-btn" title="Zoom In"
+                  data-i18n-title="btn-zoom-in-title"><img src="/assets/plus-circle-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+                <button id="btn-fullscreen" class="video-control-btn" title="Fullscreen"
+                  data-i18n-title="btn-fullscreen-title"><img src="/assets/full-screen-square-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
               </div>
             </div>
           </div>
@@ -536,11 +547,14 @@
               <iframe id="pdf-frame" src="" frameborder="0"></iframe>
               <!-- PDF Controls (Overlay) -->
               <div class="video-controls">
-                <button id="btn-pdf-zoom-out" class="video-control-btn" title="Zoom Out"><img
-                    src="/assets/minus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
-                <button id="btn-pdf-zoom-reset" class="video-control-btn" title="Reset Zoom">100%</button>
-                <button id="btn-pdf-zoom-in" class="video-control-btn" title="Zoom In"><img
-                    src="/assets/plus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+                <button id="btn-pdf-zoom-out" class="video-control-btn" title="Zoom Out"
+                  data-i18n-title="btn-zoom-out-title"><img src="/assets/minus-circle-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+                <button id="btn-pdf-zoom-reset" class="video-control-btn" title="Reset Zoom"
+                  data-i18n-title="btn-zoom-reset-title">100%</button>
+                <button id="btn-pdf-zoom-in" class="video-control-btn" title="Zoom In"
+                  data-i18n-title="btn-zoom-in-title"><img src="/assets/plus-circle-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
               </div>
             </div>
           </div>
@@ -577,8 +591,9 @@
             <p data-i18n="connection-hint">Students can connect at:</p>
             <div class="url-display-container">
               <code id="connection-url">http://...</code>
-              <button id="btn-copy-url" class="copy-btn" title="Copy URL"><img src="/assets/copy-svgrepo-com.svg"
-                  class="icon-svg" alt="Copy" style="width: 16px; height: 16px;" /></button>
+              <button id="btn-copy-url" class="copy-btn" title="Copy URL" data-i18n-title="btn-copy-url-title"><img
+                  src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy"
+                  style="width: 16px; height: 16px;" /></button>
             </div>
 
             <!-- Manual Join (Smart IP) Extension -->
@@ -589,7 +604,7 @@
               <div class="smart-ip-group">
                 <span id="smart-ip-prefix-modal" class="smart-ip-prefix">...</span>
                 <input type="number" id="smart-ip-suffix-modal" class="smart-ip-suffix" placeholder="XX" min="0"
-                  max="255">
+                  max="255" data-i18n-placeholder="placeholder-ip-suffix">
                 <span class="smart-ip-port-display">:<span id="smart-ip-port-modal">...</span></span>
                 <button id="btn-manual-connect-modal" class="small-primary-btn" data-i18n="btn-connect">Connect</button>
               </div>
@@ -795,7 +810,8 @@
                     <span data-i18n="btn-raise-hand">Allow Hands</span>
                   </button>
                 </div>
-                <button id="btn-tools-toggle" class="btn-tools-toggle" title="Teacher Tools">
+                <button id="btn-tools-toggle" class="btn-tools-toggle" title="Teacher Tools"
+                  data-i18n-title="btn-teacher-tools-title">
                   <img src="/assets/menu-navigation-Grid.svg" class="icon-svg" alt="Tools" />
                 </button>
               </div>
@@ -840,7 +856,8 @@
             <input type="file" id="file-input" class="hidden">
             <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off"
               data-i18n-placeholder="placeholder-message">
-            <button id="btn-send-message" class="send-btn" title="Send Message"></button>
+            <button id="btn-send-message" class="send-btn" title="Send Message"
+              data-i18n-title="btn-send-message-title"></button>
           </div>
         </main>
       </div>
@@ -862,11 +879,14 @@
             <img class="modal-image-enhanced" id="full-image">
             <!-- Image Controls (Overlay) -->
             <div class="video-controls">
-              <button id="btn-image-zoom-out" class="video-control-btn" title="Zoom Out"><img
-                  src="/assets/minus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
-              <button id="btn-image-zoom-reset" class="video-control-btn" title="Reset Zoom">100%</button>
-              <button id="btn-image-zoom-in" class="video-control-btn" title="Zoom In"><img
-                  src="/assets/plus-circle-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+              <button id="btn-image-zoom-out" class="video-control-btn" title="Zoom Out"
+                data-i18n-title="btn-zoom-out-title"><img src="/assets/minus-circle-svgrepo-com.svg"
+                  class="icon-video-ctrl" /></button>
+              <button id="btn-image-zoom-reset" class="video-control-btn" title="Reset Zoom"
+                data-i18n-title="btn-zoom-reset-title">100%</button>
+              <button id="btn-image-zoom-in" class="video-control-btn" title="Zoom In"
+                data-i18n-title="btn-zoom-in-title"><img src="/assets/plus-circle-svgrepo-com.svg"
+                  class="icon-video-ctrl" /></button>
             </div>
           </div>
         </div>

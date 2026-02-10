@@ -1,7 +1,11 @@
-# ClassSend (v8.7.0 Latest)
+# ClassSend (v8.7.2 Latest)
 **ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
 
-## 🚀 Latest Features (v8.7.0)
+## 🚀 Latest Features (v8.7.2)
+- **🎲 Randomizer Fix**: Nickname randomizer now correctly supports Greek and localized word lists.
+- **⚡ reliability**: Improved cross-platform data path handling and model discovery.
+
+## 🚀 Previous Features (v8.7.0)
 - **🎓 Student-First Flow**: App defaults to Student role for zero-friction entry.
 - **🖼️ Logo Branding**: Official logo integration on the About page.
 - **🛠️ Debug Unlock**: Hidden 5-click unlock for advanced settings and logs.
@@ -81,10 +85,10 @@
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Linux AppImage**: `ClassSend-7.0.1-x64.AppImage`
-- **Linux Zip**: `ClassSend-linux-x64-7.0.1.zip`
-- **Windows Installer (64-bit)**: `ClassSend-7.0.1 Setup.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-7.0.1.zip`
+- **Linux AppImage**: `ClassSend-8.7.2-x64.AppImage`
+- **Linux Zip**: `ClassSend-linux-x64-8.7.2.zip`
+- **Windows Installer (64-bit)**: `ClassSend-8.7.2 Setup.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-8.7.2.zip`
 
 ## 🧠 Offline AI Setup (Required for Deep Learning)
 The "Deep Learning" filter requires the `toxic-bert` model, which is excluded from this repository due to size limits.

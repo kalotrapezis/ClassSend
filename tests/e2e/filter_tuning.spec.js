@@ -7,8 +7,7 @@ test.describe('Filter Tuning & Sensitivity', () => {
         // Teacher setup
         const teacherContext = await browser.newContext();
         const page1 = await teacherContext.newPage();
-        await page1.goto('/');
-        await page1.click('#btn-teacher');
+        await page1.goto('/?role=teacher');
         await expect(page1.locator('#chat-interface')).toBeVisible();
 
         const classId = await page1.locator('.class-item.active .class-name').textContent();
@@ -29,8 +28,7 @@ test.describe('Filter Tuning & Sensitivity', () => {
         // Student setup
         const studentContext = await browser.newContext();
         const page2 = await studentContext.newPage();
-        await page2.goto('/');
-        await page2.click('#btn-student');
+        await page2.goto('/?role=student');
         await page2.locator(`.class-item .class-name`).filter({ hasText: classId }).click();
         await expect(page2.locator('#message-input')).toBeEnabled({ timeout: 15000 });
 
@@ -55,8 +53,7 @@ test.describe('Filter Tuning & Sensitivity', () => {
     test('Strict Mode blocks borderline words', async ({ browser }) => {
         const teacherContext = await browser.newContext();
         const page1 = await teacherContext.newPage();
-        await page1.goto('/');
-        await page1.click('#btn-teacher');
+        await page1.goto('/?role=teacher');
         const classId = await page1.locator('.class-item.active .class-name').textContent();
 
         // Settings -> Strict
@@ -74,8 +71,7 @@ test.describe('Filter Tuning & Sensitivity', () => {
         // Student joins
         const studentContext = await browser.newContext();
         const page2 = await studentContext.newPage();
-        await page2.goto('/');
-        await page2.click('#btn-student');
+        await page2.goto('/?role=student');
         await page2.locator(`.class-item .class-name`).filter({ hasText: classId }).click();
         await expect(page2.locator('#message-input')).toBeEnabled({ timeout: 15000 });
 
@@ -91,8 +87,7 @@ test.describe('Filter Tuning & Sensitivity', () => {
     test('Lenient Mode allows borderline words', async ({ browser }) => {
         const teacherContext = await browser.newContext();
         const page1 = await teacherContext.newPage();
-        await page1.goto('/');
-        await page1.click('#btn-teacher');
+        await page1.goto('/?role=teacher');
         const classId = await page1.locator('.class-item.active .class-name').textContent();
 
         // Settings -> Lenient
@@ -108,8 +103,7 @@ test.describe('Filter Tuning & Sensitivity', () => {
         // Student joins
         const studentContext = await browser.newContext();
         const page2 = await studentContext.newPage();
-        await page2.goto('/');
-        await page2.click('#btn-student');
+        await page2.goto('/?role=student');
         await page2.locator(`.class-item .class-name`).filter({ hasText: classId }).click();
         await expect(page2.locator('#message-input')).toBeEnabled({ timeout: 15000 });
 

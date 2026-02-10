@@ -287,9 +287,9 @@ async function probeKnownServers() {
 
 // Auto-generate name if none exists
 if (!userName) {
-    userName = generateRandomName();
+    userName = generateRandomName(currentLanguage);
     localStorage.setItem('classsend-userName', userName);
-    console.log(`Generated random name: ${userName}`);
+    console.log(`Generated random name (${currentLanguage}): ${userName}`);
 }
 
 // DOM Elements - Screens
@@ -1069,10 +1069,10 @@ socket.on("block-all-messages-updated", (data) => {
         classData.blockAllActive = data.enabled;
         if (data.classId === currentClassId) {
             updateToolStates();
-            const lang = translations[currentLanguage] ? currentLanguage : 'en';
+            const lang = currentLanguage;
             const msg = data.enabled ?
-                translations[lang]['Block Messages'] + " " + translations[lang]['active'] :
-                translations[lang]['Block Messages'] + " " + translations[lang]['inactive'];
+                translations[lang]['toast-block-enabled'] :
+                translations[lang]['toast-block-disabled'];
             showToast(msg, data.enabled ? "warning" : "success");
         }
     }
@@ -1614,7 +1614,7 @@ if (btnSettingsChangeName) {
             // Just update local state if not in a class
             userName = newName;
             localStorage.setItem('classsend-userName', newName);
-            showToast("Name updated locally", "success");
+            showToast(translations[currentLanguage]["toast-name-updated-local"], "success");
             return;
         }
 
@@ -1627,7 +1627,7 @@ if (btnSettingsChangeName) {
                     const me = classData.users.find(u => u.id === socket.id);
                     if (me) me.name = newName;
                 }
-                showToast("Name updated successfully", "success");
+                showToast(translations[currentLanguage]["toast-name-updated-success"], "success");
             } else {
                 alert(response.message);
                 settingsNameInput.value = userName; // Revert
@@ -1640,11 +1640,11 @@ if (btnSettingsChangeName) {
 const btnRegenerateName = document.getElementById("btn-regenerate-name");
 if (btnRegenerateName) {
     btnRegenerateName.addEventListener("click", () => {
-        const newName = generateRandomName();
+        const newName = generateRandomName(currentLanguage);
         settingsNameInput.value = newName;
         userName = newName;
         localStorage.setItem('classsend-userName', newName);
-        showToast(`New name: ${newName}`, "success");
+        showToast(`${translations[currentLanguage]["label-name"]}: ${newName}`, "success");
 
         // Update on server if in a class
         if (currentClassId) {
@@ -1816,7 +1816,7 @@ if (btnRenameClass) {
                 currentClassId = newName;
 
                 renderSidebar();
-                showToast(`Class renamed to ${newName}`, "success");
+                showToast(`${translations[currentLanguage]["toast-class-renamed"]} ${newName}`, "success");
             } else {
                 alert(response.message);
             }
@@ -5188,7 +5188,7 @@ async function loadDeepLearningModel() {
             // Show loading modal
             if (aiLoadingModal) aiLoadingModal.classList.remove('hidden');
             if (aiLoadingProgress) aiLoadingProgress.style.width = '0%';
-            if (aiLoadingStatus) aiLoadingStatus.textContent = 'Initializing AI model...';
+            if (aiLoadingStatus) aiLoadingStatus.textContent = translations[currentLanguage]['status-connecting'];
 
             // Request model load
             socket.emit('load-deep-learning-model', (result) => {
@@ -5224,7 +5224,7 @@ socket.on('deep-learning-progress', (progress) => {
         if (aiLoadingStatus) aiLoadingStatus.textContent = `Downloading model (${progress.progress}%)`;
         if (aiLoadingProgress) aiLoadingProgress.style.width = `${progress.progress}%`;
     } else if (progress.status === 'ready') {
-        if (aiLoadingStatus) aiLoadingStatus.textContent = 'Model ready!';
+        if (aiLoadingStatus) aiLoadingStatus.textContent = translations[currentLanguage]['status-connected'];
         if (aiLoadingProgress) aiLoadingProgress.style.width = '100%';
     }
 });
@@ -5284,7 +5284,7 @@ function showToast(message, type = 'info', duration = 4000) {
 socket.on('auto-blocked-message', (data) => {
     if (currentRole === 'teacher') {
         console.log(`🚫 Auto-blocked: "${data.message}" (${data.confidence}% ${data.category})`);
-        showToast(`Auto-blocked: "${data.message.substring(0, 20)}..."`, 'error');
+        showToast(`${translations[currentLanguage]["toast-auto-blocked"]}: "${data.message.substring(0, 20)}..."`, 'error');
         if (data.addedWords && data.addedWords.length > 0) {
             console.log(`🧠 Auto-added words: ${data.addedWords.join(', ')}`);
         }
@@ -5361,7 +5361,7 @@ socket.on('new-report', (report) => {
         console.log(`📝 New word report: "${report.word}" from ${report.reporterName}`);
 
         // Show visual notification
-        showToast(`AI flagged "${report.word}" for review`, 'warning');
+        showToast(`${translations[currentLanguage]["toast-ai-flagged"]} "${report.word}"`, 'warning');
     }
 });
 
@@ -5396,6 +5396,9 @@ socket.on('training-started', () => {
         if (badge.classList.contains('hidden')) badge.classList.remove('hidden');
         badge.dataset.originalCount = badge.textContent;
         badge.innerHTML = '↻';
+        const consolidatingText = translations[currentLanguage]['ai-consolidating'] || 'Consolidating AI Model...';
+        const infoMsg = document.querySelector('.training-notification span:last-child');
+        if (infoMsg) infoMsg.textContent = consolidatingText;
         badge.style.background = '#eab308';
     }
 });
@@ -5692,7 +5695,7 @@ if (aboutAppIcon) {
             if (btnViewLogs) btnViewLogs.classList.remove("hidden");
 
             // Show toast
-            showToast("🛠️ Debug Mode Unlocked: All settings visible", "success");
+            showToast(translations[currentLanguage]["toast-debug-unlocked"], "success");
             console.log("Debug mode unlocked by user (global flag set).");
         }
     });

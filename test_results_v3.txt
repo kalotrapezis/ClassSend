@@ -1,0 +1,4 @@
+
+Running 2 tests using 1 worker
+
+[1A[2K[1/2] [chromium] ??? tests\e2e\messaging.spec.js:4:1 ??? messages are sent and received
