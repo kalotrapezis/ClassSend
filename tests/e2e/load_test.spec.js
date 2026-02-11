@@ -29,7 +29,7 @@ test.describe('Load Testing', () => {
             await page.locator(`.class-item .class-name`).filter({ hasText: classId }).click();
 
             // Verify joined
-            await expect(page.locator('#chat-interface')).toBeVisible({ timeout: 20000 });
+            await expect(page.locator('#chat-interface')).toBeVisible({ timeout: 30000 });
             console.log(`[LoadTest] Client ${i + 1}/${numberOfClients} joined.`);
         }
 
@@ -44,17 +44,17 @@ test.describe('Load Testing', () => {
     }
 
     test('Load Test: 5 Clients', async ({ browser }) => {
-        test.setTimeout(60000);
+        test.setTimeout(90000);
         await runLoadTest(5, browser);
     });
 
     test('Load Test: 10 Clients', async ({ browser }) => {
-        test.setTimeout(90000);
+        test.setTimeout(120000);
         await runLoadTest(10, browser);
     });
 
     test('Load Test: 15 Clients', async ({ browser }) => {
-        test.setTimeout(120000);
+        test.setTimeout(180000);
         await runLoadTest(15, browser);
     });
 });

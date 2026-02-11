@@ -1,0 +1,50 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "☰" [ref=e6] [cursor=pointer]
+      - generic "Connected" [ref=e8]:
+        - generic [ref=e10]: Disconnected
+      - heading "ClassSend" [level=1] [ref=e11]
+      - button "Connection Connection Info" [ref=e12] [cursor=pointer]:
+        - img "Connection" [ref=e13]
+        - generic [ref=e14]: Connection Info
+      - button "Media Media Library" [ref=e15] [cursor=pointer]:
+        - img "Media" [ref=e16]
+        - generic [ref=e17]: Media Library
+      - button "Settings Settings" [ref=e18] [cursor=pointer]:
+        - img "Settings" [ref=e19]
+        - generic [ref=e20]: Settings
+  - generic [ref=e21]:
+    - complementary [ref=e22]:
+      - heading "Classes" [level=3] [ref=e24]
+      - generic [ref=e25]:
+        - generic [ref=e26] [cursor=pointer]:
+          - img [ref=e28]
+          - generic [ref=e29]: Class-23
+          - generic "Leave Class" [ref=e30]:
+            - img [ref=e31]
+            - text: Leave
+        - generic [ref=e32] [cursor=pointer]:
+          - img [ref=e34]
+          - generic [ref=e35]: Lobby
+      - generic [ref=e36]:
+        - heading "Users" [level=3] [ref=e37]
+        - generic [ref=e38]: "3"
+      - generic [ref=e39]:
+        - generic [ref=e42]: Merry Lime
+        - generic [ref=e45]: Swift Grape
+        - generic [ref=e48]: TestUser
+    - main [ref=e49]:
+      - generic [ref=e51]:
+        - generic [ref=e52]:
+          - button "Attach file" [ref=e53] [cursor=pointer]
+          - button "Emoji" [ref=e54] [cursor=pointer]:
+            - img "Emoji" [ref=e55]
+          - button "Raise Hand" [ref=e56] [cursor=pointer]:
+            - img "Raise Hand" [ref=e57]
+        - textbox "Type a message..." [active] [ref=e58]
+        - button "Send Message" [ref=e59] [cursor=pointer]
+```

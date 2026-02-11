@@ -22,7 +22,7 @@
       - heading "Classes" [level=3] [ref=e24]
       - generic [ref=e26] [cursor=pointer]:
         - img [ref=e28]
-        - generic [ref=e29]: Class-22
+        - generic [ref=e29]: Class-21
         - generic "Delete Class" [ref=e30]:
           - img [ref=e31]
           - text: Delete
@@ -30,18 +30,18 @@
         - heading "Users" [level=3] [ref=e33]
         - generic [ref=e34]: "2"
       - generic [ref=e35]:
-        - generic [ref=e38]: Quiet Coconut
+        - generic [ref=e38]: Calm Pear
         - generic [ref=e39]:
-          - generic [ref=e41]: Noble Plum
+          - generic [ref=e41]: Curious Berry
           - button "Block user" [ref=e42] [cursor=pointer]:
             - img [ref=e43]
     - main [ref=e44]:
       - generic [ref=e46]:
         - generic [ref=e47]:
           - generic [ref=e48]: System
-          - generic [ref=e49]: 04:21 PM
+          - generic [ref=e49]: 04:20 PM
         - generic [ref=e50]:
-          - text: Noble Plum joined the class
+          - text: Curious Berry joined the class
           - generic [ref=e51]:
             - button "Copy" [ref=e52] [cursor=pointer]:
               - img "Copy" [ref=e53]
@@ -72,6 +72,6 @@
               - img "Tools" [ref=e65]
           - button "Reports" [ref=e66] [cursor=pointer]:
             - img "Reports" [ref=e67]
-        - textbox "Type a message..." [active] [ref=e68]: shit
+        - textbox "Type a message..." [active] [ref=e68]: Hello Student
         - button "Send Message" [disabled] [ref=e69]
 ```

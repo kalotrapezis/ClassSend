@@ -1,0 +1,66 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "☰" [ref=e6] [cursor=pointer]
+      - generic "Connected" [ref=e8]:
+        - generic [ref=e10]: Disconnected
+      - heading "ClassSend" [level=1] [ref=e11]
+      - button "Connection Connection Info" [ref=e12] [cursor=pointer]:
+        - img "Connection" [ref=e13]
+        - generic [ref=e14]: Connection Info
+      - button "Media Media Library" [ref=e15] [cursor=pointer]:
+        - img "Media" [ref=e16]
+        - generic [ref=e17]: Media Library
+      - button "Settings Settings" [ref=e18] [cursor=pointer]:
+        - img "Settings" [ref=e19]
+        - generic [ref=e20]: Settings
+  - generic [ref=e22]:
+    - generic [ref=e23]:
+      - heading "Connection Info" [level=3] [ref=e24]
+      - button "×" [ref=e25] [cursor=pointer]
+    - generic [ref=e26]:
+      - paragraph [ref=e27]: "Students can connect at:"
+      - generic [ref=e28]:
+        - code [ref=e29]: http://10.151.58.1:3000
+        - button "Copy" [ref=e30] [cursor=pointer]:
+          - img "Copy" [ref=e31]
+      - generic [ref=e32]:
+        - paragraph [ref=e33]: "Or connect to another server:"
+        - generic [ref=e34]:
+          - generic [ref=e35]: 10.151.58.
+          - spinbutton [active] [ref=e36]
+          - generic [ref=e37]: :3000
+          - button "Connect" [ref=e38] [cursor=pointer]
+      - generic [ref=e39]:
+        - generic [ref=e40]: Standard IP
+        - generic [ref=e41]:
+          - checkbox
+        - generic [ref=e43]: Short Name
+      - paragraph [ref=e44]: Use "Short Name" for easier typing.
+  - generic [ref=e45]:
+    - complementary [ref=e46]:
+      - heading "Classes" [level=3] [ref=e48]
+      - generic [ref=e50] [cursor=pointer]:
+        - img [ref=e52]
+        - generic [ref=e53]: Lobby
+        - generic "Leave Class" [ref=e54]:
+          - img [ref=e55]
+          - text: Leave
+      - generic [ref=e56]:
+        - heading "Users" [level=3] [ref=e57]
+        - generic [ref=e58]: "1"
+      - generic [ref=e62]: Merry Apricot
+    - main [ref=e63]:
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - button "Attach file" [ref=e67] [cursor=pointer]
+          - button "Emoji" [ref=e68] [cursor=pointer]:
+            - img "Emoji" [ref=e69]
+          - button "Raise Hand" [ref=e70] [cursor=pointer]:
+            - img "Raise Hand" [ref=e71]
+        - textbox "Type a message..." [disabled] [ref=e72]
+        - button "Send Message" [disabled] [ref=e73] [cursor=pointer]
+```

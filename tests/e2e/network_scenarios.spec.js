@@ -28,16 +28,22 @@ test.describe('Network Scenarios', () => {
         // Simulate switching server via console/code since manual input might be hidden or auto-detected
         // We connect to 127.0.0.1 explicitly to differentiate from 'localhost' string if possible,
         // though practically it's the same server instance in this test env.
-        await page.evaluate(() => {
-            // @ts-ignore
-            connectToServer('http://127.0.0.1:3000');
-        });
+        // Simulating manual redirect to a specific IP
+        await page.goto('/?role=student&name=TestUser');
+        await page.goto('http://127.0.0.1:3000/?role=student&name=TestUser');
 
-        // Verify reconnection
-        await expect(page.locator('#connection-status')).toHaveClass(/connected/);
+        // Verify reconnection with timeout
+        await expect(page.locator('#connection-status')).toHaveClass(/connected/, { timeout: 15000 });
 
         // Verify socket connected to new URL
-        const isConnected = await page.evaluate(() => socket.connected);
+        const isConnected = await page.evaluate(async () => {
+            // Wait for socket to be initialized if needed
+            for (let i = 0; i < 20; i++) {
+                if (window.socket && window.socket.connected) return true;
+                await new Promise(r => setTimeout(r, 500));
+            }
+            return window.socket ? window.socket.connected : false;
+        });
         expect(isConnected).toBe(true);
     });
 

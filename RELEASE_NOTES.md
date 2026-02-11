@@ -1,3 +1,14 @@
+# Release Notes - v8.7.3
+
+## 🛠️ Connection Stability & UX Polish
+- **Role Selection Polish**: Clicking "Change Role" in settings now shows the selection card in-place without a page reload, preventing race conditions where the app auto-selected student on slow machines.
+- **SmartIP Connection Retries**: Increased connection timeout to 2s with 3 automatic retries per server for greater reliability in busy school networks.
+- **History Link Fix**: The "Connect" button in the connection history list now correctly performs a full page redirect with identity parameters (`role`, `name`).
+- **Debugging Tools**: Added `server/debug.bat` (visible console) and `server/debug_log.bat` (outputs logs + system info to `%USERPROFILE%\ClassSend_debug_log.txt`) for easier troubleshooting on deployed PCs.
+- **Network Compatibility**: Relaxed CSP headers to ensure reliable connections when the app is accessed via different IP addresses or hostnames.
+
+---
+
 # Release Notes - v8.7.2
 
 ## 🛠️ Randomizer & Nickname Localization

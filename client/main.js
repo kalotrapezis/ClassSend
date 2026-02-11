@@ -225,60 +225,73 @@ function saveKnownServer(url) {
 async function probeKnownServers() {
     try {
         const knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
-        console.log(`Probing ${knownServers.length} known servers...`);
+        console.log(`Probing ${knownServers.length} known servers (2s timeout × 3 attempts)...`);
 
         for (const serverUrl of knownServers) {
             // Skip current origin/localhost if we are scanning
             if (serverUrl === window.location.origin) continue;
 
             const probeUrl = `${serverUrl}/api/discovery-info`;
-            try {
-                const controller = new AbortController();
-                const id = setTimeout(() => controller.abort(), 1000); // 1s timeout
+            let probeSuccess = false;
 
-                const response = await fetch(probeUrl, { signal: controller.signal });
-                clearTimeout(id);
+            // Retry up to 3 times with 2s timeout each
+            for (let attempt = 1; attempt <= 3 && !probeSuccess; attempt++) {
+                try {
+                    const controller = new AbortController();
+                    const id = setTimeout(() => controller.abort(), 2000); // 2s timeout
 
-                if (response.ok) {
-                    const info = await response.json();
+                    const response = await fetch(probeUrl, { signal: controller.signal });
+                    clearTimeout(id);
 
-                    // Construct a "discovered" object to reuse existing logic
-                    // We need to parse IP and Port from URL
-                    let ip, port;
-                    try {
-                        const urlObj = new URL(serverUrl);
-                        ip = urlObj.hostname;
-                        port = urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80);
-                    } catch (e) {
-                        console.warn("Invalid known log URL", serverUrl);
-                        continue;
-                    }
+                    if (response.ok) {
+                        const info = await response.json();
 
-                    const serverInfo = {
-                        name: info.name || "Known Server",
-                        ip: ip,
-                        port: port,
-                        classes: info.classes || [],
-                        version: info.version || "unknown"
-                    };
-
-                    // Manually trigger discovery logic
-                    const key = `${serverInfo.ip}:${serverInfo.port}`;
-                    if (!discoveredServers.has(key)) {
-                        discoveredServers.set(key, serverInfo);
-                        console.log(`[Probing] Found known server: ${serverInfo.name} at ${key}`);
-
-                        // Update UI immediately
-                        if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
-                            renderAvailableClasses();
+                        // Construct a "discovered" object to reuse existing logic
+                        // We need to parse IP and Port from URL
+                        let ip, port;
+                        try {
+                            const urlObj = new URL(serverUrl);
+                            ip = urlObj.hostname;
+                            port = urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80);
+                        } catch (e) {
+                            console.warn("Invalid known log URL", serverUrl);
+                            break; // Don't retry if URL is invalid
                         }
+
+                        const serverInfo = {
+                            name: info.name || "Known Server",
+                            ip: ip,
+                            port: port,
+                            classes: info.classes || [],
+                            version: info.version || "unknown"
+                        };
+
+                        // Manually trigger discovery logic
+                        const key = `${serverInfo.ip}:${serverInfo.port}`;
+                        if (!discoveredServers.has(key)) {
+                            discoveredServers.set(key, serverInfo);
+                            console.log(`[Probing] Found known server: ${serverInfo.name} at ${key} (attempt ${attempt})`);
+
+                            // Update UI immediately
+                            if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
+                                renderAvailableClasses();
+                            }
+                        }
+                        probeSuccess = true;
+                    }
+                } catch (err) {
+                    // Log retry info on failure
+                    if (attempt < 3) {
+                        console.log(`[Probing] Attempt ${attempt}/3 failed for ${serverUrl}, retrying...`);
+                    } else {
+                        console.log(`[Probing] All 3 attempts failed for ${serverUrl}`);
                     }
                 }
-            } catch (err) {
-                // Ignore errors (offline, etc)
-                // console.debug(`Probe failed for ${serverUrl}`, err);
             }
         }
+
+        // Trigger auto-flow re-check after probing completes
+        handleAutoFlow();
     } catch (e) {
         console.error("Failed to probe known servers:", e);
     }
@@ -311,12 +324,11 @@ if (!savedRole) {
 }
 
 if (savedRole) {
-    // We have a role, so we can proceed (logic handled lower down)
+    // We have a role (from localStorage, URL params, or default), proceed automatically
     roleSelection.classList.add('hidden');
 } else {
-    // Should not happen with default logic above, but keep as fallback
+    // Fallback (should not happen with default logic above)
     roleSelection.classList.remove('hidden');
-    // Ensure chat is hidden
     chatInterface.classList.add('hidden');
 }
 
@@ -1755,25 +1767,40 @@ if (btnChangeRole) {
             return;
         }
 
-        const performRoleSwitch = () => {
-            // Clear saved role and state
+        const showRoleSelection = () => {
+            // Clean up in-memory state without reloading
             localStorage.removeItem('classsend-role');
-            localStorage.removeItem('classsend-classId'); // CRITICAL: Reset class ID
-            // Reload application to reset neutral state
-            window.location.reload();
+            localStorage.removeItem('classsend-classId');
+            savedRole = null;
+            currentRole = null;
+            currentClassId = null;
+            autoFlowTriggered = false;
+            window.joiningInProgress = false;
+            joinedClasses.clear();
+            availableClasses = [];
+            stopClassRefreshInterval();
+            stopNetworkDiscovery();
+            discoveredServers.clear();
+
+            // Hide all screens, show role selection
+            chatInterface.classList.add('hidden');
+            classSetup.classList.add('hidden');
+            availableClassesScreen.classList.add('hidden');
+            roleSelection.classList.remove('hidden');
+
+            console.log("Role switch: showing role selection screen.");
         };
 
         const handleSwitchSequence = () => {
             // 1. Try to backup words (if Teacher)
             if (currentRole === 'teacher') {
                 backupWordsToServer((success) => {
-                    // 2. Switch regardless of success, maybe small delay to ensure log
-                    performRoleSwitch();
+                    showRoleSelection();
                 });
                 return;
             }
             // 2. Immediate switch if not teacher
-            performRoleSwitch();
+            showRoleSelection();
         };
 
         // If Teacher, DELETE the class
@@ -4131,7 +4158,13 @@ function renderHistoryList(container, isMini = false) {
 
             // Actions
             item.querySelector(".connect").addEventListener("click", () => {
-                connectToServer(serverUrl);
+                // Redirect to server (same as manual IP connect behavior)
+                let targetUrl = serverUrl;
+                if (currentRole && userName) {
+                    targetUrl += `?role=${encodeURIComponent(currentRole)}&name=${encodeURIComponent(userName)}`;
+                }
+                saveKnownServer(serverUrl); // Ensure it stays at top of history
+                window.location.href = targetUrl;
             });
 
             item.querySelector(".delete").addEventListener("click", (e) => {

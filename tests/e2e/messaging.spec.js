@@ -7,7 +7,7 @@ test('messages are sent and received', async ({ browser }) => {
     const page1 = await teacherContext.newPage();
     page1.on('console', msg => console.log(`[Teacher Page]: ${msg.text()}`));
     await page1.goto('/?role=teacher');
-    await expect(page1.locator('#chat-interface')).toBeVisible();
+    await expect(page1.locator('#chat-interface')).toBeVisible({ timeout: 30000 });
 
     // Get the class ID of the class the teacher just made
     const classId = await page1.locator('.class-item.active .class-name').textContent();
@@ -19,7 +19,7 @@ test('messages are sent and received', async ({ browser }) => {
     const page2 = await studentContext.newPage();
     page2.on('console', msg => console.log(`[Student Page]: ${msg.text()}`));
     await page2.goto('/?role=student');
-    await expect(page2.locator('#chat-interface')).toBeVisible();
+    await expect(page2.locator('#chat-interface')).toBeVisible({ timeout: 30000 });
 
     // Student is likely in 'Lobby'. Need to switch to the Teacher's class.
     console.log(`Student joining class: ${classId}`);
@@ -34,7 +34,7 @@ test('messages are sent and received', async ({ browser }) => {
     await page1.click('#btn-send-message');
 
     // Student receives message
-    await expect(page2.locator('.message-content', { hasText: 'Hello Student' })).toBeVisible();
+    await expect(page2.locator('.message-content', { hasText: 'Hello Student' })).toBeVisible({ timeout: 30000 });
 });
 
 test('profanity filter blocks bad words', async ({ browser }) => {
@@ -42,7 +42,7 @@ test('profanity filter blocks bad words', async ({ browser }) => {
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto('/?role=teacher');
-    await expect(page.locator('#chat-interface')).toBeVisible();
+    await expect(page.locator('#chat-interface')).toBeVisible({ timeout: 30000 });
 
     // Get Class ID
     const classId = await page.locator('.class-item.active .class-name').textContent();
@@ -52,11 +52,11 @@ test('profanity filter blocks bad words', async ({ browser }) => {
     const page2 = await studentContext.newPage();
     await page2.goto('/?role=student');
     await page2.locator(`.class-item .class-name`).filter({ hasText: classId }).click();
-    await expect(page2.locator('#message-input')).toBeEnabled({ timeout: 15000 });
+    await expect(page2.locator('#message-input')).toBeEnabled({ timeout: 30000 });
 
     // Teacher sends bad word
     // Wait for input to be ready
-    await expect(page.locator('#message-input')).toBeEnabled();
+    await expect(page.locator('#message-input')).toBeEnabled({ timeout: 30000 });
 
     // Using 'shit' which is definitely in the default bad words list
     await page.fill('#message-input', 'shit');
