@@ -4,6 +4,7 @@
    Usage: Attributes on <html> or <body>, e.g., <body data-theme="onyx">
 */
 
+/* --- BLUE - CYAN THEME (Default) --- */
 :root {
   /* --- TYPOGRAPHY --- */
   --font-display: 'Raleway', sans-serif;
@@ -14,13 +15,13 @@
   --bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   --smooth: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* --- DEEP SPACE THEME (Default) --- */
-  /* Backgrounds */
+  /* Backgrounds (Dark for white SVG contrast) */
   --bg-primary: #0f172a;
-  /* Deep slate blue */
+  /* Slate 900 */
   --bg-secondary: rgba(30, 41, 59, 0.7);
-  /* Translucent slate */
+  /* Slate 800 layout */
   --bg-tertiary: rgba(51, 65, 85, 0.6);
+  /* Slate 700 inputs */
   --bg-gradient: linear-gradient(135deg, #020617 0%, #172554 100%);
 
   /* Glassmorphism */
@@ -31,8 +32,9 @@
 
   /* Accents */
   --accent-primary: #06b6d4;
-  /* Cyan/Neon */
+  /* Cyan 500 */
   --accent-hover: #22d3ee;
+  /* Cyan 400 */
   --accent-glow: rgba(6, 182, 212, 0.4);
 
   /* Text */
@@ -48,53 +50,266 @@
   --mention-text: #67e8f9;
 }
 
-/* --- ONYX GLASS THEME --- */
-html[data-theme="onyx"] {
-  --bg-primary: #000000;
-  --bg-secondary: rgba(20, 20, 20, 0.8);
-  --bg-tertiary: rgba(40, 40, 40, 0.7);
-  --bg-gradient: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-
-  --glass-bg: rgba(0, 0, 0, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.15);
-  --glass-shadow: 0 8px 32px 0 rgba(255, 255, 255, 0.05);
-
-  --accent-primary: #e2e8f0;
-  /* Silver/White */
-  --accent-hover: #ffffff;
-  --accent-glow: rgba(255, 255, 255, 0.3);
-
-  /* Monochrome purity */
-  --text-primary: #ffffff;
-  --text-secondary: #a3a3a3;
-  --text-tertiary: #525252;
-  --border-color: rgba(255, 255, 255, 0.2);
-}
-
-/* --- NEBULA THEME --- */
-html[data-theme="nebula"] {
+/* --- MAGENTA - LIGHT PINK THEME (Neon Tokyo) --- */
+html[data-theme="magenta"] {
   --bg-primary: #2e1065;
-  /* Deep purple */
-  --bg-secondary: rgba(76, 29, 149, 0.6);
+  /* Violet 950 */
+  --bg-secondary: rgba(88, 28, 135, 0.6);
+  /* Purple 900 */
   --bg-tertiary: rgba(109, 40, 217, 0.5);
-  --bg-gradient: linear-gradient(135deg, #1e1b4b 0%, #701a75 100%);
-  /* Indigo to Fuschia */
+  /* Violet 700 */
+  --bg-gradient: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%);
 
   --glass-bg: rgba(46, 16, 101, 0.6);
   --glass-border: rgba(244, 114, 182, 0.2);
   --glass-shadow: 0 8px 32px 0 rgba(88, 28, 135, 0.4);
 
-  --accent-primary: #f472b6;
-  /* Pink/Gold vibe */
-  --accent-hover: #fb7185;
-  --accent-glow: rgba(244, 114, 182, 0.5);
+  --accent-primary: #e879f9;
+  /* Fuschia 400 */
+  --accent-hover: #f0abfc;
+  /* Fuschia 300 */
+  --accent-glow: rgba(232, 121, 249, 0.5);
 
   --text-primary: #fdf2f8;
-  --text-secondary: #fbcfe8;
-  --text-tertiary: #db2777;
-  --border-color: rgba(244, 114, 182, 0.25);
-  --mention-bg: rgba(244, 114, 182, 0.25);
-  --mention-text: #fbcfe8;
+  --text-secondary: #f5d0fe;
+  --text-tertiary: #c026d3;
+  --border-color: rgba(232, 121, 249, 0.25);
+  --mention-bg: rgba(232, 121, 249, 0.15);
+  --mention-text: #f5d0fe;
+}
+
+/* --- SPACE BLACK - COMMIT GRAY THEME (Carbon) --- */
+html[data-theme="black"] {
+  --bg-primary: #000000;
+  --bg-secondary: rgba(20, 20, 20, 0.85);
+  /* Neutral 900 */
+  --bg-tertiary: rgba(40, 40, 40, 0.8);
+  /* Neutral 800 */
+  --bg-gradient: linear-gradient(135deg, #000000 0%, #111111 100%);
+
+  --glass-bg: rgba(10, 10, 10, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-shadow: 0 8px 32px 0 rgba(255, 255, 255, 0.05);
+
+  --accent-primary: #525252;
+  /* Neutral 600 - Darker for contrast */
+  --accent-hover: #737373;
+  /* Neutral 500 */
+  --accent-glow: rgba(255, 255, 255, 0.1);
+
+  --text-primary: #ffffff;
+  --text-secondary: #d4d4d4;
+  /* Lighter text for contrast on dark bg */
+  --text-tertiary: #525252;
+  --border-color: rgba(255, 255, 255, 0.15);
+  --mention-bg: rgba(255, 255, 255, 0.15);
+  --mention-text: #e5e5e5;
+}
+
+/* --- LIVE ORANGE - BRIGHT YELLOW THEME (Solar) --- */
+html[data-theme="orange"] {
+  --bg-primary: #240d04;
+  /* Very Dark Orange */
+  --bg-secondary: rgba(67, 20, 7, 0.7);
+  /* Orange 950 */
+  --bg-tertiary: rgba(124, 45, 18, 0.6);
+  /* Orange 900 */
+  --bg-gradient: linear-gradient(135deg, #1f0a02 0%, #451a03 100%);
+
+  --glass-bg: rgba(30, 10, 5, 0.75);
+  --glass-border: rgba(251, 146, 60, 0.2);
+  --glass-shadow: 0 8px 32px 0 rgba(234, 88, 12, 0.3);
+
+  --accent-primary: #fb923c;
+  /* Orange 400 */
+  --accent-hover: #fdba74;
+  /* Orange 300 */
+  --accent-glow: rgba(251, 146, 60, 0.4);
+
+  --text-primary: #fff7ed;
+  --text-secondary: #fed7aa;
+  --text-tertiary: #c2410c;
+  --border-color: rgba(251, 146, 60, 0.25);
+  --mention-bg: rgba(249, 115, 22, 0.2);
+  --mention-text: #ffedd5;
+}
+
+/* --- HIGH CONTRAST THEME (Accessibility) --- */
+html[data-theme="contrast"] {
+  --bg-primary: #000000;
+  --bg-secondary: #000000;
+  --bg-tertiary: #000000;
+  --bg-gradient: none;
+
+  /* No transparency/blur for readability */
+  --glass-bg: #000000;
+  --glass-border: #ffffff;
+  --glass-blur: none;
+  --glass-shadow: none;
+
+  --accent-primary: #ffff00;
+  /* Pure Yellow */
+  --accent-hover: #ffcc00;
+  --accent-glow: none;
+
+  --text-primary: #ffffff;
+  --text-secondary: #ffffff;
+  --text-tertiary: #ffff00;
+  --border-color: #ffffff;
+  --mention-bg: #333300;
+  --mention-text: #ffff00;
+}
+
+/* High Contrast Specific Overrides */
+html[data-theme="contrast"] .settings-tab-btn.active,
+html[data-theme="contrast"] .primary-btn,
+html[data-theme="contrast"] .small-primary-btn,
+html[data-theme="contrast"] .role-badge.teacher,
+html[data-theme="contrast"] .role-badge.student,
+html[data-theme="contrast"] .theme-card.active .theme-check {
+  color: #000000 !important;
+  font-weight: 700;
+}
+
+/* --- THEME SELECTION CARDS --- */
+.theme-selector-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.theme-card {
+  position: relative;
+  aspect-ratio: 16/9;
+  border-radius: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: all 0.2s var(--smooth);
+}
+
+.theme-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.theme-card.active {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-primary);
+}
+
+/* Theme Previews */
+.theme-preview {
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+/* Deep Space Preview */
+.theme-preview.blue-cyan {
+  background: linear-gradient(135deg, #020617 0%, #172554 100%);
+}
+
+.theme-preview.blue-cyan::after {
+  content: '';
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at top right, rgba(6, 182, 212, 0.4), transparent 60%);
+}
+
+/* Magenta Preview */
+.theme-preview.magenta {
+  background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%);
+}
+
+.theme-preview.magenta::after {
+  content: '';
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at top right, rgba(232, 121, 249, 0.5), transparent 60%);
+}
+
+/* Black Preview */
+.theme-preview.black {
+  background: linear-gradient(135deg, #000000 0%, #111111 100%);
+}
+
+.theme-preview.black::after {
+  content: '';
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.2), transparent 60%);
+}
+
+/* Orange Preview */
+.theme-preview.orange {
+  background: linear-gradient(135deg, #1f0a02 0%, #451a03 100%);
+}
+
+.theme-preview.orange::after {
+  content: '';
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at top right, rgba(251, 146, 60, 0.4), transparent 60%);
+}
+
+/* Contrast Preview */
+.theme-preview.contrast {
+  background: #000000;
+  border: 2px solid #ffffff;
+  /* Show border in preview to indicate high contrast */
+  box-sizing: border-box;
+}
+
+.theme-preview.contrast::after {
+  content: '';
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, transparent 49%, #ffff00 49%, #ffff00 51%, transparent 51%);
+  /* Yellow slash */
+  background-size: 20px 20px;
+  opacity: 0.2;
+}
+
+/* Theme Name Overlay */
+.theme-name {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Checkmark for active theme */
+.theme-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.2s var(--bounce);
+}
+
+.theme-card.active .theme-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.theme-check svg {
+  width: 12px;
+  height: 12px;
+  fill: var(--bg-primary);
+  /* Contrast against accent */
 }
 
 * {
@@ -4614,4 +4829,145 @@ input:checked+.slider:before {
   background: var(--bg-secondary) !important;
   transform: scale(1.1);
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* =========================================
+   DOCUMENT & MEDIA VIEWER PRO MAX
+   ========================================= */
+
+/* Document Viewer Modal */
+.doc-modal-content {
+  width: 90%;
+  height: 90%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  background: #f8f9fa;
+  /* Light background for documents */
+  color: #333;
+  overflow: hidden;
+}
+
+.doc-modal-content .popup-header {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.doc-container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: #e9ecef;
+  /* Canvas background */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+}
+
+.doc-content {
+  width: 100%;
+  max-width: 900px;
+  min-height: 100%;
+  background: white;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  padding: 3rem;
+  color: black;
+  border-radius: 4px;
+}
+
+/* TXT Files */
+.text-content {
+  white-space: pre-wrap;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* PPTX Mode - Full Canvas */
+.doc-content.pptx-mode {
+  max-width: 100%;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+/* Media Player Modal */
+.media-modal-content {
+  width: auto;
+  min-width: 400px;
+  max-width: 95vw;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.media-modal-content .popup-header {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  /* Darker for media focus */
+  backdrop-filter: blur(12px);
+  border-radius: 12px 12px 0 0;
+  color: white;
+  margin-bottom: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: none;
+}
+
+.media-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: black;
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: none;
+  position: relative;
+  min-height: 250px;
+}
+
+.media-container video {
+  max-width: 100%;
+  max-height: 80vh;
+  width: auto;
+  height: auto;
+  outline: none;
+}
+
+/* Fix for long words overflowing message box */
+.message-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+  max-width: 100%;
+}
+
+/* Fix for word selection overlay if applicable */
+.word-selection-overlay,
+.selection-popup,
+.text-selection-popup {
+  max-width: 90vw;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.media-container audio {
+  width: 100%;
+  min-width: 300px;
+  margin: 1.5rem;
+  outline: none;
 }

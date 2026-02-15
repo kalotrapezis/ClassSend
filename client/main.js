@@ -1,4 +1,6 @@
 ﻿import { io } from "socket.io-client";
+import * as mammoth from "mammoth";
+import * as XLSX from "xlsx";
 import { translations } from "./translations.js";
 import { generateRandomName } from "./name-generator.js";
 
@@ -353,6 +355,51 @@ function onStartDiscovery() {
 
 // DOM Elements - Available Classes
 const availableClassesList = document.getElementById("available-classes-list");
+
+// --- THEME LOGIC RESTORATION ---
+function initThemeSelector() {
+    const themeCards = document.querySelectorAll('.theme-card');
+    const storedTheme = localStorage.getItem('classsend-theme') || 'default';
+
+    // Apply stored theme on startup
+    applyTheme(storedTheme);
+
+    themeCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const theme = card.dataset.theme;
+            applyTheme(theme);
+        });
+    });
+}
+
+function applyTheme(themeName) {
+    // 1. Update HTML attribute
+    if (themeName === 'default') {
+        document.documentElement.removeAttribute('data-theme');
+    } else {
+        document.documentElement.setAttribute('data-theme', themeName);
+    }
+
+    // 2. Update Active Card UI
+    document.querySelectorAll('.theme-card').forEach(card => {
+        if (card.dataset.theme === themeName) {
+            card.classList.add('active');
+        } else {
+            card.classList.remove('active');
+        }
+    });
+
+    // 3. Persist
+    localStorage.setItem('classsend-theme', themeName);
+    console.log(`🎨 Theme applied: ${themeName}`);
+}
+
+// Initialize themes immediately
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initThemeSelector);
+} else {
+    initThemeSelector();
+}
 
 
 
@@ -2092,17 +2139,24 @@ function renderMessage(message) {
         const isImage = message.fileData.type && message.fileData.type.startsWith('image/');
         const isPDF = message.fileData.type === 'application/pdf';
 
+        // New Supported Types
+        const lowerName = message.fileData.name.toLowerCase();
+        const isDoc = lowerName.endsWith('.docx');
+        const isXls = lowerName.endsWith('.xlsx');
+        const isTxt = lowerName.endsWith('.txt');
+        const isVideo = message.fileData.type && message.fileData.type.startsWith('video/');
+        const isAudio = message.fileData.type && message.fileData.type.startsWith('audio/');
+
         // Determine file icon based on type/extension
         let fileIconSrc = '/assets/files-svgrepo-com.svg'; // Default format
-        const lowerName = message.fileData.name.toLowerCase();
 
         if (isImage) {
             fileIconSrc = '/assets/image-square-svgrepo-com.svg';
         } else if (isPDF) {
             fileIconSrc = '/assets/pdf-svgrepo-com.svg';
-        } else if (lowerName.endsWith('.doc') || lowerName.endsWith('.docx')) {
+        } else if (lowerName.endsWith('.doc') || isDoc) {
             fileIconSrc = '/assets/word-file-svgrepo-com.svg';
-        } else if (lowerName.endsWith('.xls') || lowerName.endsWith('.xlsx') || lowerName.endsWith('.csv')) {
+        } else if (lowerName.endsWith('.xls') || isXls || lowerName.endsWith('.csv')) {
             fileIconSrc = '/assets/excel-file-svgrepo-com.svg';
         } else if (lowerName.endsWith('.ppt') || lowerName.endsWith('.pptx')) {
             fileIconSrc = '/assets/powerpoint-file-svgrepo-com.svg';
@@ -2127,6 +2181,11 @@ function renderMessage(message) {
           <div class="message-actions">
             ${isImage ? '<button class="action-btn open-btn" title="View Image"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /></button>' : ''}
             ${isPDF ? '<button class="action-btn open-pdf-btn" title="Open PDF"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Open" /></button>' : ''}
+            ${isDoc ? '<button class="action-btn open-doc-btn" title="View Document"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /></button>' : ''}
+            ${isXls ? '<button class="action-btn open-xls-btn" title="View Spreadsheet"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /></button>' : ''}
+            ${isTxt ? '<button class="action-btn open-txt-btn" title="View Text"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /></button>' : ''}
+            ${isVideo ? '<button class="action-btn open-video-btn" title="Play Video"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Play" /></button>' : ''}
+            ${isAudio ? '<button class="action-btn open-audio-btn" title="Play Audio"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Play" /></button>' : ''}
             <button class="action-btn download-btn" title="Download"><img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" /></button>
           </div>
         </div>
@@ -2158,6 +2217,25 @@ function renderMessage(message) {
                 });
             }
         }
+
+        // Helper to attach viewer listener
+        const attachViewerListener = (cls, viewerFn, typeArg) => {
+            const btn = messageDiv.querySelector(cls);
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    const url = `/api/download/${message.fileData.id}?inline=true`;
+                    viewerFn(url, message.fileData.name, typeArg);
+                });
+            }
+        };
+
+        if (isDoc) attachViewerListener('.open-doc-btn', openDocumentViewer, 'docx');
+        if (isXls) attachViewerListener('.open-xls-btn', openDocumentViewer, 'xlsx');
+        if (isTxt) attachViewerListener('.open-txt-btn', openDocumentViewer, 'txt');
+        if (isVideo) attachViewerListener('.open-video-btn', openMediaPlayer, message.fileData.type);
+        if (isAudio) attachViewerListener('.open-audio-btn', openMediaPlayer, message.fileData.type);
+
+
     } else {
         const contentWithMentions = highlightMentions(message.content);
 
@@ -2324,8 +2402,17 @@ function renderMediaHistory() {
         const fileId = msg.fileData.id || msg.id;
         const isPinned = pinnedFiles.has(fileId);
         const fileName = msg.fileData.name.toLowerCase();
-        const isImage = fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.png') || fileName.endsWith('.gif') || fileName.endsWith('.webp');
-        const isPdf = fileName.endsWith('.pdf');
+        const fileType = msg.fileData.type || '';
+
+        const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
+        const isPdf = fileType === 'application/pdf' || fileName.endsWith('.pdf');
+        const isDoc = fileName.endsWith('.docx');
+        const isXls = fileName.endsWith('.xlsx');
+        const isTxt = fileName.endsWith('.txt');
+        const isVideo = fileType.startsWith('video/') || /\.(mp4|avi|mov|mkv|webm)$/i.test(fileName);
+        const isAudio = fileType.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|flac)$/i.test(fileName);
+
+        const isViewable = isImage || isPdf || isDoc || isXls || isTxt || isVideo || isAudio;
 
         const item = document.createElement("div");
         item.classList.add("media-item");
@@ -2337,7 +2424,7 @@ function renderMediaHistory() {
             </button>
         ` : '';
 
-        const viewBtn = (isImage || isPdf) ? `
+        const viewBtn = isViewable ? `
             <button class="media-view-btn" title="View" data-file-id="${fileId}">
                 <img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" />
             </button>
@@ -2368,11 +2455,23 @@ function renderMediaHistory() {
                 e.stopPropagation();
                 const fId = msg.fileData.id || msg.id;
                 const url = `/api/download/${fId}?inline=true`;
+
                 if (isPdf) {
                     openPdfViewer(url);
                 } else if (isImage) {
                     openImageViewer(url);
+                } else if (isDoc) {
+                    openDocumentViewer(url, msg.fileData.name, 'docx');
+                } else if (isXls) {
+                    openDocumentViewer(url, msg.fileData.name, 'xlsx');
+                } else if (isTxt) {
+                    openDocumentViewer(url, msg.fileData.name, 'txt');
+                } else if (isVideo) {
+                    openMediaPlayer(url, msg.fileData.name, 'video');
+                } else if (isAudio) {
+                    openMediaPlayer(url, msg.fileData.name, 'audio');
                 }
+
                 // Close Media Library if viewing
                 if (mediaPopup) mediaPopup.classList.add("hidden");
             });
@@ -2924,18 +3023,30 @@ if (screenShareQualitySelect) {
     });
 }
 
-// Clear Data Button
-const btnClearData = document.getElementById("btn-clear-data");
+// Clear Data Button (Admin)
+const btnClearData = document.getElementById('btn-clear-data');
 if (btnClearData) {
     btnClearData.addEventListener('click', () => {
-        localStorage.removeItem('classsend-classId');
-        localStorage.removeItem('classsend-userName');
-        btnClearData.textContent = '✅ Cleared';
-        setTimeout(() => {
-            btnClearData.textContent = '🗑️ Clear';
-        }, 1500);
+        if (confirm("⚠️ WARNING: This will delete ALL files in the MediaLibrary and reset all class data.\n\nAre you sure you want to proceed?")) {
+            // 1. Clear Local State immediately
+            localStorage.removeItem('classsend-classId');
+            localStorage.removeItem('classsend-userName');
+
+            // 2. Visual Feedback
+            const originalText = btnClearData.textContent;
+            btnClearData.textContent = '⏳ Deleting...';
+
+            // 3. Request Server Clear
+            socket.emit('clear-data');
+        }
     });
 }
+
+// Handle Data Cleared Event
+socket.on('data-cleared', () => {
+    alert("✅ All data has been cleared. The application will now reload.");
+    window.location.reload();
+});
 
 // Settings Toggle
 if (btnSettingsToggle) {
@@ -5503,6 +5614,16 @@ const btnImageZoomOut = document.getElementById("btn-image-zoom-out");
 const btnImageZoomReset = document.getElementById("btn-image-zoom-reset");
 const imageContainer = document.querySelector(".image-container-enhanced");
 
+const documentViewerModal = document.getElementById("document-viewer-modal");
+const btnCloseDoc = document.getElementById("btn-close-doc");
+const btnMinimizeDoc = document.getElementById("btn-minimize-doc");
+const docContent = document.getElementById("doc-content");
+
+const mediaPlayerModal = document.getElementById("media-player-modal");
+const btnCloseMediaPlayer = document.getElementById("btn-close-media-player");
+const btnMinimizeMediaPlayer = document.getElementById("btn-minimize-media-player");
+const mediaPlayerContainer = document.getElementById("media-player-container");
+
 const btnRestoreFile = document.getElementById("btn-restore-file");
 
 let activeViewer = null; // 'pdf' or 'image'
@@ -5516,6 +5637,9 @@ function closeAllViewers() {
     // Hide Modals
     if (pdfViewerModal) pdfViewerModal.classList.add("hidden");
     if (imageViewerModal) imageViewerModal.classList.add("hidden");
+    if (documentViewerModal) documentViewerModal.classList.add("hidden");
+    if (mediaPlayerModal) mediaPlayerModal.classList.add("hidden");
+    if (mediaPlayerContainer) mediaPlayerContainer.innerHTML = '';
 
     // Reset Sources
     if (pdfFrame) pdfFrame.src = "";
@@ -5662,6 +5786,10 @@ if (btnRestoreFile) {
             pdfViewerModal.classList.remove("hidden");
         } else if (activeViewer === 'image' && imageViewerModal) {
             imageViewerModal.classList.remove("hidden");
+        } else if (activeViewer === 'document' && documentViewerModal) {
+            documentViewerModal.classList.remove("hidden");
+        } else if (activeViewer === 'media' && mediaPlayerModal) {
+            mediaPlayerModal.classList.remove("hidden");
         }
         btnRestoreFile.classList.add("hidden");
         btnRestoreFile.classList.remove("active");
@@ -5692,6 +5820,130 @@ if (imageContainer) {
         updateImageTransform();
     });
 }
+
+// --- Document Viewer Functions ---
+async function openDocumentViewer(url, filename, type) {
+    closeAllViewers();
+    if (documentViewerModal) {
+        activeViewer = 'document';
+        documentViewerModal.classList.remove("hidden");
+
+        if (docContent) {
+            docContent.innerHTML = '<div class="spinner"></div><p style="text-align:center; color:white;">Loading preview...</p>';
+
+            try {
+                // Fetch file data
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Failed to load file");
+                const arrayBuffer = await response.arrayBuffer();
+
+                docContent.innerHTML = ''; // Clear loader
+
+                if (type === 'docx' || filename.toLowerCase().endsWith('.docx')) {
+                    // Render DOCX with Mammoth
+                    const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'document-content-wrapper';
+                    // Styling to make it look like a document (white page)
+                    wrapper.style.cssText = "background: white; color: black; padding: 2rem; overflow-y: auto; height: 100%; border-radius: 4px; box-shadow: 0 0 10px rgba(0,0,0,0.5); max-width: 800px; margin: 0 auto;";
+                    wrapper.innerHTML = result.value;
+                    docContent.appendChild(wrapper);
+
+                } else if (type === 'xlsx' || filename.toLowerCase().endsWith('.xlsx')) {
+                    // Render Excel with XLSX
+                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const html = XLSX.utils.sheet_to_html(firstSheet);
+
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'document-content-wrapper excel-wrapper';
+                    wrapper.style.cssText = "background: white; color: black; padding: 1rem; overflow: auto; height: 100%; border-radius: 4px;";
+                    wrapper.innerHTML = html;
+                    docContent.appendChild(wrapper);
+
+                } else if (type === 'txt' || filename.toLowerCase().endsWith('.txt')) {
+                    // Render Text
+                    const decoder = new TextDecoder('utf-8');
+                    const text = decoder.decode(arrayBuffer);
+                    const wrapper = document.createElement('pre');
+                    wrapper.style.cssText = "background: white; color: black; padding: 1rem; overflow: auto; height: 100%; white-space: pre-wrap; border-radius: 4px; font-family: monospace;";
+                    wrapper.textContent = text;
+                    docContent.appendChild(wrapper);
+                } else {
+                    throw new Error("Unsupported format for preview");
+                }
+
+            } catch (error) {
+                console.error("Preview error:", error);
+                docContent.innerHTML = '';
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = "text-align: center; padding: 2rem; color: white;";
+                wrapper.innerHTML = `<div style="font-size: 4rem; margin-bottom: 1rem;">📄</div><h3 style="margin-bottom: 0.5rem;">${filename}</h3><p style="margin-bottom: 2rem; color: #ccc;">Preview not available: ${error.message}</p>`;
+
+                const btn = document.createElement('button');
+                btn.className = 'primary-btn';
+                btn.style.padding = '10px 20px';
+                btn.textContent = 'Download File';
+                // Extract ID from URL: /api/download/FILE_ID?inline=true
+                const fileId = url.split('?')[0].split('/').pop();
+                btn.onclick = () => downloadFile(fileId, filename);
+
+                wrapper.appendChild(btn);
+                docContent.appendChild(wrapper);
+            }
+        }
+    }
+}
+
+if (btnCloseDoc) btnCloseDoc.addEventListener("click", closeAllViewers);
+if (btnMinimizeDoc) btnMinimizeDoc.addEventListener("click", () => {
+    if (documentViewerModal) documentViewerModal.classList.add("hidden");
+    if (btnRestoreFile) {
+        btnRestoreFile.classList.remove("hidden");
+        btnRestoreFile.classList.add("active");
+    }
+});
+
+// --- Media Player Functions ---
+function openMediaPlayer(url, filename, type) {
+    closeAllViewers();
+    if (mediaPlayerModal && mediaPlayerContainer) {
+        activeViewer = 'media';
+        mediaPlayerModal.classList.remove("hidden");
+        mediaPlayerContainer.innerHTML = '';
+
+        let element;
+        if (type && type.startsWith('audio/')) {
+            element = document.createElement('audio');
+            element.style.width = '100%';
+            element.style.marginTop = '2rem';
+        } else {
+            element = document.createElement('video');
+            element.style.maxWidth = '100%';
+            element.style.maxHeight = '100%';
+        }
+        element.src = url;
+        element.controls = true;
+        element.autoplay = true;
+        element.name = 'media';
+
+        mediaPlayerContainer.appendChild(element);
+    }
+}
+
+if (btnCloseMediaPlayer) btnCloseMediaPlayer.addEventListener("click", () => {
+    closeAllViewers();
+    // Stop playback
+    if (mediaPlayerContainer) mediaPlayerContainer.innerHTML = '';
+});
+
+if (btnMinimizeMediaPlayer) btnMinimizeMediaPlayer.addEventListener("click", () => {
+    if (mediaPlayerModal) mediaPlayerModal.classList.add("hidden");
+    if (btnRestoreFile) {
+        btnRestoreFile.classList.remove("hidden");
+        btnRestoreFile.classList.add("active");
+    }
+});
 
 // Debug Unlock Feature (5x Clicks on About Icon)
 const aboutAppIcon = document.getElementById("about-app-icon");

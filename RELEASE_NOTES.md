@@ -1,11 +1,20 @@
-# Release Notes - v8.8.0
+# Release Notes
+
+## [9.0.0] - 2026-02-15
+### Added
+- **Persistent Media Library**: Uploaded files now persist in a `MediaLibrary` folder in the installation root.
+- **Clear Data Feature**: Admin tool to delete all media files and reset server state.
+- **Theme Selection Fix**: Resolved regression where themes were not clickable.
+- **Native Document Rendering**: Restored in-browser rendering for DOCX and XLSX files.
+
+ - v8.8.0
 ## 🔧 Maintenance
 - **Version Correction**: Fixed a versioning mistake in the previous release.
 - **Maintenance**: General stability improvements and cleanup.
 
 ---
 
-# Release Notes - v8.4
+# Release Notes - v8.8
 
 ## 🧠 N-gram Classifier & Persistence
 - **Greek Morphology Support**: The "Advanced" (Naive Bayes) filter now uses N-gram (trigram) tokenization. This allows it to detect variations of words (suffixes, prefixes) without needing every single form in the blacklist.

@@ -1,13 +1,15 @@
-# Cla![Version](https://img.shields.io/badge/version-v8.4.0-blue)
+# Cla![Version](https://img.shields.io/badge/version-v9.0.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
 **ClassSend** is a lightweight, local network file sharing and chat application designed for classrooms. It now features a high-performance **N-gram AI Classifier** for intelligent content filtering without the bloat.
 
-## 🚀 Latest Features (v8.4)
-- **🧠 Enhanced AI (N-gram)**: Upgraded Naive Bayes classifier with N-gram tokenization to better handle Greek morphology.
-- **💾 Model Persistence**: The AI now saves its training state to disk, allowing it to remember learned words across restarts.
-- **📚 User Data Training**: Custom user-provided datasets are now used for initial training.
+## 🚀 Latest Features (v9.0)
+- **Persistent Media Library**: Uploaded files now persist in a `MediaLibrary` folder in the installation root.
+- **Clear Data Feature**: Admin tool to delete all media files and reset server state.
+- **Theme Selection Fix**: Resolved regression where themes were not clickable.
+- **Native Document Rendering**: Restored in-browser rendering for DOCX and XLSX files.
+- **🧠 Enhanced AI (N-gram)**: Upgraded Naive Bayes classifier with N-gram tokenization.
 
 ## 🚀 Previous Features (v8.3.7)
 - **� Maintenance Release**: Stability improvements and minor bug fixes.

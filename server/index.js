@@ -218,7 +218,7 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '8.8.0', // Should match package.json
+    version: '9.0.0', // Should match package.json
     classes: classes
   });
 });
@@ -598,6 +598,40 @@ io.on('connection', (socket) => {
   socket.emit('network-info', { ip, prefix, port });
 
   // Broadcast active classes to all clients
+  socket.emit('active-classes', Array.from(activeClasses.values()));
+
+  // HANDLE CLEAR DATA REQUEST
+  socket.on('clear-data', () => {
+    console.log(`⚠️ User ${socket.id} requested Clear All Data`);
+
+    // 1. Clear Files
+    fileStorage.clearAllFiles();
+
+    // 2. Clear Active Classes and Messages (In-Memory)
+    activeClasses.clear();
+
+    // 3. Clear Network Discovery (if needed)
+    // discoveredServers.clear(); // This is client-side map mostly, but server has state? 
+    // networkDiscovery is stateless mostly.
+
+    // 4. Clear Custom Words (In-Memory + File)
+    customForbiddenWords = [];
+    customWhitelistedWords = [];
+    pendingReports = [];
+
+    // Persist empty lists
+    saveCustomForbiddenWords();
+    saveCustomWhitelistedWords();
+    savePendingReports();
+
+    // Delete custom words files if they exist (clean slate) - Optional, but saves function handles writing empty array
+    // fs.unlinkSync(CUSTOM_BLACKLIST_FILE); 
+
+    console.log("✅ All server data cleared.");
+
+    // 5. Notify all clients to reset
+    io.emit('data-cleared');
+  });
   function broadcastActiveClasses() {
     const classesList = Array.from(activeClasses.entries()).map(([id, data]) => ({
       id,

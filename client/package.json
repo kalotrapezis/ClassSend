@@ -1,7 +1,7 @@
 {
     "name": "client",
     "private": true,
-    "version": "8.8.0",
+    "version": "9.0.0",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -13,6 +13,8 @@
         "vite": "^7.2.4"
     },
     "dependencies": {
-        "socket.io-client": "^4.8.1"
+        "mammoth": "^1.11.0",
+        "socket.io-client": "^4.8.1",
+        "xlsx": "^0.18.5"
     }
 }

@@ -4,9 +4,9 @@ const crypto = require('crypto');
 
 class FileStorage {
     constructor() {
-        // Use USER_DATA_PATH if set (Electron), otherwise fallback to __dirname (Node/Dev)
-        const baseDir = process.env.USER_DATA_PATH || __dirname;
-        this.uploadDir = path.join(baseDir, 'uploads');
+        // Use USER_DATA_PATH if set (Electron), otherwise fallback to process.cwd() (Installation Root)
+        const baseDir = process.env.USER_DATA_PATH || process.cwd();
+        this.uploadDir = path.join(baseDir, 'MediaLibrary');
         this.files = new Map(); // fileId → { name, size, type, path, classId, uploadedBy, timestamp }
 
         // Create uploads directory
@@ -30,7 +30,11 @@ class FileStorage {
     deleteFile(fileId) {
         const file = this.files.get(fileId);
         if (file && fs.existsSync(file.path)) {
-            fs.unlinkSync(file.path);
+            try {
+                fs.unlinkSync(file.path);
+            } catch (err) {
+                console.error(`Failed to delete file ${file.path}:`, err);
+            }
         }
         this.files.delete(fileId);
     }
@@ -65,6 +69,23 @@ class FileStorage {
             }
         }
         fileIds.forEach(id => this.deleteFile(id));
+    }
+
+    // Clear all data (Admin feature)
+    clearAllFiles() {
+        console.log("⚠️ Deleting all files from MediaLibrary...");
+        // Delete all physical files
+        for (const [fileId, file] of this.files.entries()) {
+            if (file && fs.existsSync(file.path)) {
+                try {
+                    fs.unlinkSync(file.path);
+                } catch (err) {
+                    console.error(`Failed to delete file ${file.path}:`, err);
+                }
+            }
+        }
+        this.files.clear();
+        console.log("✅ MediaLibrary cleared.");
     }
 }
 
