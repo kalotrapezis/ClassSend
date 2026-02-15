@@ -1,0 +1,81 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "☰" [ref=e6] [cursor=pointer]
+      - generic "Connected" [ref=e8]:
+        - generic [ref=e10]: Disconnected
+      - heading "ClassSend" [level=1] [ref=e11]
+      - button "Connection Connection Info" [ref=e12] [cursor=pointer]:
+        - img "Connection" [ref=e13]
+        - generic [ref=e14]: Connection Info
+      - button "Media Media Library" [ref=e15] [cursor=pointer]:
+        - img "Media" [ref=e16]
+        - generic [ref=e17]: Media Library
+      - button "Settings Settings" [ref=e18] [cursor=pointer]:
+        - img "Settings" [ref=e19]
+        - generic [ref=e20]: Settings
+  - generic [ref=e21]:
+    - complementary [ref=e22]:
+      - heading "Classes" [level=3] [ref=e24]
+      - generic [ref=e25]:
+        - generic [ref=e26] [cursor=pointer]:
+          - img [ref=e28]
+          - generic [ref=e29]: Class-12
+          - generic "Delete Class" [ref=e30]:
+            - img [ref=e31]
+            - text: Delete
+        - generic [ref=e32] [cursor=pointer]:
+          - img [ref=e34]
+          - generic [ref=e35]: Class-15
+        - generic [ref=e36] [cursor=pointer]:
+          - img [ref=e38]
+          - generic [ref=e39]: Class-16
+        - generic [ref=e40] [cursor=pointer]:
+          - img [ref=e42]
+          - generic [ref=e43]: Class-17
+        - generic [ref=e44] [cursor=pointer]:
+          - img [ref=e46]
+          - generic [ref=e47]: Class-18
+        - generic [ref=e48] [cursor=pointer]:
+          - img [ref=e50]
+          - generic [ref=e51]: Class-19
+        - generic [ref=e52] [cursor=pointer]:
+          - img [ref=e54]
+          - generic [ref=e55]: Class-20
+        - generic [ref=e56] [cursor=pointer]:
+          - img [ref=e58]
+          - generic [ref=e59]: Class-21
+      - generic [ref=e60]:
+        - heading "Users" [level=3] [ref=e61]
+        - generic [ref=e62]: "1"
+      - generic [ref=e66]: Hopeful Apple
+    - main [ref=e67]:
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - button "Attach file" [ref=e71] [cursor=pointer]
+          - button "Emoji" [ref=e72] [cursor=pointer]:
+            - img "Emoji" [ref=e73]
+          - generic [ref=e74]:
+            - generic:
+              - button "Share Screen Sharing":
+                - img "Share"
+                - generic: Screen Sharing
+              - button "Hands Down Hands Down":
+                - img "Hands Down"
+                - generic: Hands Down
+              - button "Block Block all communications":
+                - img "Block"
+                - generic: Block all communications
+              - button "Allow Hands Raise Hand":
+                - img "Allow Hands"
+                - generic: Raise Hand
+            - button "Tools" [ref=e75] [cursor=pointer]:
+              - img "Tools" [ref=e76]
+          - button "Reports" [ref=e77] [cursor=pointer]:
+            - img "Reports" [ref=e78]
+        - textbox "Type a message..." [active] [ref=e79]
+        - button "Send Message" [ref=e80] [cursor=pointer]
+```

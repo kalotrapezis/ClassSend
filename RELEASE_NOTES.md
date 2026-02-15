@@ -1,3 +1,10 @@
+# Release Notes - v8.8.0
+## 🔧 Maintenance
+- **Version Correction**: Fixed a versioning mistake in the previous release.
+- **Maintenance**: General stability improvements and cleanup.
+
+---
+
 # Release Notes - v8.4
 
 ## 🧠 N-gram Classifier & Persistence

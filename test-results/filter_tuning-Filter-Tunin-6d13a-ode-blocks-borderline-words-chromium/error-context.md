@@ -1,0 +1,125 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "☰" [ref=e6] [cursor=pointer]
+      - generic "Connected" [ref=e8]:
+        - generic [ref=e10]: Disconnected
+      - heading "ClassSend" [level=1] [ref=e11]
+      - button "Connection Connection Info" [ref=e12] [cursor=pointer]:
+        - img "Connection" [ref=e13]
+        - generic [ref=e14]: Connection Info
+      - button "Media Media Library" [ref=e15] [cursor=pointer]:
+        - img "Media" [ref=e16]
+        - generic [ref=e17]: Media Library
+      - button "Settings Settings" [ref=e18] [cursor=pointer]:
+        - img "Settings" [ref=e19]
+        - generic [ref=e20]: Settings
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Settings" [level=3] [ref=e24]
+        - button "×" [ref=e25] [cursor=pointer]
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - button "Personalization Personalization" [ref=e28] [cursor=pointer]:
+            - img "Personalization" [ref=e29]
+            - generic [ref=e30]: Personalization
+          - button "AI Content Filtering" [active] [ref=e31] [cursor=pointer]:
+            - img "AI" [ref=e32]
+            - generic [ref=e33]: Content Filtering
+          - button "Connection Connection Information" [ref=e34] [cursor=pointer]:
+            - img "Connection" [ref=e35]
+            - generic [ref=e36]: Connection Information
+          - button "Screen Sharing Streaming" [ref=e37] [cursor=pointer]:
+            - img "Screen Sharing" [ref=e38]
+            - generic [ref=e39]: Streaming
+          - button "Admin Administration" [ref=e40] [cursor=pointer]:
+            - img "Admin" [ref=e41]
+            - generic [ref=e42]: Administration
+          - button "System Advanced" [ref=e43] [cursor=pointer]:
+            - img "System" [ref=e44]
+            - generic [ref=e45]: Advanced
+          - button "About About" [ref=e46] [cursor=pointer]:
+            - img "About" [ref=e47]
+            - generic [ref=e48]: About
+        - generic [ref=e50]:
+          - heading "Content Filtering" [level=4] [ref=e51]
+          - generic [ref=e52]:
+            - generic [ref=e53]: Filter Mode
+            - combobox "Filter Mode" [ref=e54] [cursor=pointer]:
+              - option "Legacy (Low RAM)" [selected]
+              - option "Advanced (AI)"
+          - paragraph [ref=e55]: Legacy mode uses client-side word matching. Advanced mode uses server-side AI classification.
+          - generic [ref=e56]:
+            - generic [ref=e57]: Manage Lists
+            - generic [ref=e58]:
+              - button "Blacklist Blacklist" [ref=e59] [cursor=pointer]:
+                - img "Blacklist" [ref=e60]
+                - text: Blacklist
+              - button "Whitelist Manage Whitelist" [ref=e61] [cursor=pointer]:
+                - img "Whitelist" [ref=e62]
+                - text: Manage Whitelist
+  - generic [ref=e63]:
+    - complementary [ref=e64]:
+      - heading "Classes" [level=3] [ref=e66]
+      - generic [ref=e67]:
+        - generic [ref=e68] [cursor=pointer]:
+          - img [ref=e70]
+          - generic [ref=e71]: Class-17
+          - generic "Delete Class" [ref=e72]:
+            - img [ref=e73]
+            - text: Delete
+        - generic [ref=e74] [cursor=pointer]:
+          - img [ref=e76]
+          - generic [ref=e77]: Class-15
+        - generic [ref=e78] [cursor=pointer]:
+          - img [ref=e80]
+          - generic [ref=e81]: Class-16
+        - generic [ref=e82] [cursor=pointer]:
+          - img [ref=e84]
+          - generic [ref=e85]: Class-18
+        - generic [ref=e86] [cursor=pointer]:
+          - img [ref=e88]
+          - generic [ref=e89]: Class-19
+        - generic [ref=e90] [cursor=pointer]:
+          - img [ref=e92]
+          - generic [ref=e93]: Class-20
+        - generic [ref=e94] [cursor=pointer]:
+          - img [ref=e96]
+          - generic [ref=e97]: Class-22
+        - generic [ref=e98] [cursor=pointer]:
+          - img [ref=e100]
+          - generic [ref=e101]: Class-23
+      - generic [ref=e102]:
+        - heading "Users" [level=3] [ref=e103]
+        - generic [ref=e104]: "1"
+      - generic [ref=e108]: Quiet Grape
+    - main [ref=e109]:
+      - generic [ref=e111]:
+        - generic [ref=e112]:
+          - button "Attach file" [ref=e113] [cursor=pointer]
+          - button "Emoji" [ref=e114] [cursor=pointer]:
+            - img "Emoji" [ref=e115]
+          - generic [ref=e116]:
+            - generic:
+              - button "Share Screen Sharing":
+                - img "Share"
+                - generic: Screen Sharing
+              - button "Hands Down Hands Down":
+                - img "Hands Down"
+                - generic: Hands Down
+              - button "Block Block all communications":
+                - img "Block"
+                - generic: Block all communications
+              - button "Allow Hands Raise Hand":
+                - img "Allow Hands"
+                - generic: Raise Hand
+            - button "Tools" [ref=e117] [cursor=pointer]:
+              - img "Tools" [ref=e118]
+          - button "Reports" [ref=e119] [cursor=pointer]:
+            - img "Reports" [ref=e120]
+        - textbox "Type a message..." [ref=e121]
+        - button "Send Message" [ref=e122] [cursor=pointer]
+```
