@@ -5,22 +5,29 @@
 - **Email Display**: Fixed visual glitch where email addresses were broken by mention highlighting.
 - **Email Action**: The "Email" button now correctly opens the default OS mail client.
 - **Auto-Connect**: Improved reliability of auto-connection and retry logic.
+- **Translations**: Added missing translations for action buttons (Copy, Pin, Block, Report, Email, Open).
 
 ## [9.0.1] - 2026-02-15
-4: ### Added
-5: - **Build Update**: Bug fixes and performance improvements.
-6: 
-7: ## [9.0.0] - 2026-02-15
 ### Added
+- **In-App Browser**: Replaced external link opening with a secure, modal web viewer to keep students focused within the app.
+- **In-App Browser Controls**: Added navigation (Back, Forward, Refresh) to the internal web viewer.
+- **Build Update**: Bug fixes and performance improvements.
+
+## [9.0.0] - 2026-02-15
+### Added
+- **Dark Themes**: Introduced 4 new stunning dark themes: Deep Space, Neon Tokyo, Carbon, and Solar.
 - **Persistent Media Library**: Uploaded files now persist in a `MediaLibrary` folder in the installation root.
 - **Clear Data Feature**: Admin tool to delete all media files and reset server state.
-- **Theme Selection Fix**: Resolved regression where themes were not clickable.
 - **Native Document Rendering**: Restored in-browser rendering for DOCX and XLSX files.
+- **Text Overflow Fix**: Resolved issues with long message content breaking the layout.
+- **Tray Fix**: The system tray "Close" button now correctly terminates the application.
+- **UI Improvements**: Blurred communication interface for students who are blocked by the teacher.
+- **Theme Selection Fix**: Resolved regression where themes were not clickable.
 
- - v8.8.0
-## 🔧 Maintenance
+## [8.8.0] - 2026-02-15
+### Maintenance
 - **Version Correction**: Fixed a versioning mistake in the previous release.
-- **Maintenance**: General stability improvements and cleanup.
+- **General Stability**: Improvements to cleanup routines.
 
 ---
 
@@ -272,7 +279,7 @@ Your information is now remembered for a smoother experience.
 - **Language Sync**: When a teacher changes the interface language, it automatically updates for all students in the class instantly.
 - **Clear Data**: A new "Clear Saved Data" option in Settings lets you easily wipe stored credentials.
 
-### � File Pinning (NEW)
+###  File Pinning (NEW)
 Keep important documents front and center.
 - **Pin Files**: Teachers can now pin important files in the Media Library. Pinned files appear at the top of the list with a highlighted border and pin icon.
 - **Visual Indicators**: Clear visual distinction for pinned vs. regular files.
