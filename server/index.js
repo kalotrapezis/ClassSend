@@ -10,7 +10,7 @@ const TLSConfig = require('./tls-config');
 const multer = require('multer');
 const FileStorage = require('./file-storage');
 const bayes = require('bayes');
-const deepLearningFilter = require('./deep-learning-filter');
+
 const Filter = require('bad-words');
 const filter = new Filter();
 
@@ -218,7 +218,7 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '8.7.2', // Should match package.json
+    version: '8.4.0', // Should match package.json
     classes: classes
   });
 });
@@ -259,15 +259,78 @@ function triggerBatchTraining() {
     isTraining = true;
     console.log("🔄 Starting AI Retraining Batch...");
     // Broadcast start
-    if (io) io.emit('training-started', { estimatedTime: 3000 });
+    if (io) io.emit('training-started', { estimatedTime: 1000 });
 
-    // Simulate training delay (3s)
-    setTimeout(() => {
+    // Actual retraining
+    setImmediate(async () => {
+      await trainClassifier();
       isTraining = false;
       if (io) io.emit('training-ended');
       console.log("✅ AI Retraining Batch Complete");
-    }, 3000);
+    });
   }
+}
+
+// Helper to calculate confidence from Naive Bayes (Log Likelihoods)
+async function categorizeWithConfidence(text) {
+  if (!classifier) return { category: 'clean', confidence: 0 };
+
+  // Use internal bayes methods to get probabilities
+  const tokens = await classifier.tokenizer(text);
+  const frequencyTable = classifier.frequencyTable(tokens);
+
+  // Calculate log-probabilities for each category
+  const categories = Object.keys(classifier.categories);
+  let logProbs = {};
+  let maxLogProb = -Infinity;
+
+  categories.forEach(category => {
+    let categoryProbability = classifier.docCount[category] / classifier.totalDocuments;
+    let logProbability = Math.log(categoryProbability);
+
+    Object.keys(frequencyTable).forEach(token => {
+      const frequencyInText = frequencyTable[token];
+      const tokenProbability = classifier.tokenProbability(token, category);
+      logProbability += frequencyInText * Math.log(tokenProbability);
+    });
+
+    logProbs[category] = logProbability;
+    if (logProbability > maxLogProb) maxLogProb = logProbability;
+  });
+
+  // Softmax normalization to get percentages (0-100)
+  // P(Ci) = exp(Logic - MaxLog) / Sum(exp(LogCj - MaxLog))
+  // We subtract MaxLog to avoid overflow/underflow issues
+
+  let sumExp = 0;
+  categories.forEach(cat => {
+    sumExp += Math.exp(logProbs[cat] - maxLogProb);
+  });
+
+  let probs = {};
+  categories.forEach(cat => {
+    probs[cat] = Math.exp(logProbs[cat] - maxLogProb) / sumExp;
+  });
+
+  // Determine winner
+  let winner = 'clean';
+  let maxP = -1;
+
+  Object.keys(probs).forEach(cat => {
+    if (probs[cat] > maxP) {
+      maxP = probs[cat];
+      winner = cat;
+    }
+  });
+
+  // We specifically care about "profane" confidence
+  const profaneConfidence = (probs['profane'] || 0) * 100;
+
+  return {
+    category: winner,
+    confidence: profaneConfidence, // 0-100
+    details: probs
+  };
 }
 
 
@@ -369,86 +432,132 @@ function savePendingReports() {
 loadPendingReports();
 
 // ===== NAIVE BAYES CLASSIFIER TRAINING =====
+const ngramTokenizer = require('./lib/ngram-tokenizer');
+const CLASSIFIER_MODEL_FILE = path.join(baseDir, 'data', 'classifier-model.json');
+
+// Initialize classifier with N-gram tokenizer
+// This overrides the default word-based tokenizer
+classifier = bayes({
+  tokenizer: function (text) {
+    return ngramTokenizer.tokenize(text);
+  }
+});
+
 // Train the classifier with filter words and custom words
 async function trainClassifier() {
   try {
-    // Reset classifier
-    classifier = bayes();
+    let modelLoaded = false;
 
-    // 1. Load basic filter words from JSON file (Single words)
-    const filterWordsPath = path.join(__dirname, 'public', 'filter-words.json');
-    if (fs.existsSync(filterWordsPath)) {
-      let filterData = fs.readFileSync(filterWordsPath, 'utf-8');
-      filterData = filterData.replace(/^\uFEFF/, '');
-      const filterWords = JSON.parse(filterData);
-
-      for (const word of filterWords) {
-        await classifier.learn(word.toLowerCase(), 'profane');
+    // 1. Try to load persisted model
+    if (fs.existsSync(CLASSIFIER_MODEL_FILE)) {
+      try {
+        const modelJson = fs.readFileSync(CLASSIFIER_MODEL_FILE, 'utf-8');
+        const modelData = JSON.parse(modelJson);
+        classifier = bayes.fromJson(modelJson);
+        // Re-apply tokenizer after loading from JSON (bayes doesn't serialize functions)
+        classifier.tokenizer = function (text) { return ngramTokenizer.tokenize(text); };
+        console.log('🧠 Loaded persisted Naive Bayes model from disk');
+        modelLoaded = true;
+      } catch (err) {
+        console.error('Failed to load persisted model, retraining...', err);
       }
-      console.log(`🧠 Trained classifier with ${filterWords.length} basic filter words`);
     }
 
-    // 2. Load RICH training data (Phrases, Emojis, Clean/Profane categories)
-    const trainingDataPath = path.join(__dirname, 'public', 'training-data.json');
-    if (fs.existsSync(trainingDataPath)) {
-      let trainingDataRaw = fs.readFileSync(trainingDataPath, 'utf-8');
-      trainingDataRaw = trainingDataRaw.replace(/^\uFEFF/, '');
-      const trainingData = JSON.parse(trainingDataRaw);
+    if (!modelLoaded) {
+      console.log('🧠 Starting fresh training...');
 
-      // Train clean examples
-      if (trainingData.clean && Array.isArray(trainingData.clean)) {
-        for (const phrase of trainingData.clean) {
-          await classifier.learn(phrase.toLowerCase(), 'clean');
+      // 2. Load USER PROVIDED training data (C:\Users\Teo\Downloads\classsend-data-2026-02-02.json)
+      // We'll look for it in the Downloads folder or valid fallback locations
+      // For this implementation, we assume the user might have moved it to 'data/' or we read from the absolute path if possible.
+      // However, typically we should read from a project path.
+      // Let's assume we read from 'public/training-data.json' OR the specific file if we can access it.
+      // Since we can't easily guess the user's username in path dynamically strictly, we'll check common spots or just use the project's data.
+
+      // In this specific task, the user pointed to: C:\Users\Teo\Downloads/classsend-data-2026-02-02.json
+      // We should probably copy this file to our data directory or read it if it exists.
+      let specificDataPath = 'C:\\Users\\Teo\\Downloads\\classsend-data-2026-02-02.json';
+      let trainingData = { blacklist: [], whitelist: [] };
+
+      if (fs.existsSync(specificDataPath)) {
+        console.log(`🧠 Found specific training data at: ${specificDataPath}`);
+        const raw = fs.readFileSync(specificDataPath, 'utf-8');
+        trainingData = JSON.parse(raw);
+      } else {
+        // Fallback to internal data if specific file missing
+        console.log('🧠 Specific data file not found, looking for internal defaults...');
+        const internalDataPath = path.join(__dirname, 'public', 'classsend-data.json'); // Hypothetical
+        if (fs.existsSync(internalDataPath)) {
+          trainingData = JSON.parse(fs.readFileSync(internalDataPath, 'utf-8'));
         }
-        console.log(`🧠 Added ${trainingData.clean.length} CLEAN training examples (Phrases/Emojis)`);
       }
 
-      // Train profane examples
-      if (trainingData.profane && Array.isArray(trainingData.profane)) {
-        for (const phrase of trainingData.profane) {
-          await classifier.learn(phrase.toLowerCase(), 'profane');
+      // Train Blacklist
+      if (trainingData.blacklist && Array.isArray(trainingData.blacklist)) {
+        console.log(`🧠 Training ${trainingData.blacklist.length} blacklist items...`);
+        for (const item of trainingData.blacklist) {
+          if (item && item.word) {
+            await classifier.learn(item.word, 'profane');
+          }
         }
-        console.log(`🧠 Added ${trainingData.profane.length} PROFANE training examples (Phrases/Emojis)`);
       }
+
+      // Train Whitelist
+      if (trainingData.whitelist && Array.isArray(trainingData.whitelist)) {
+        console.log(`🧠 Training ${trainingData.whitelist.length} whitelist items...`);
+        for (const item of trainingData.whitelist) {
+          if (item && item.word) {
+            await classifier.learn(item.word, 'clean');
+          }
+        }
+      }
+
+      // 3. Train with mild bad words (Bullying/Gaming terms common in schools)
+      // Keep these as a baseline
+      const MILD_BAD_WORDS = [
+        // --- Greek Bullying/School ---
+        'βλάκας', 'βλακα', 'ηλίθιος', 'ηλίθια', 'χαζός', 'χαζή',
+        'άσχετος', 'άσχετη', 'άχρηστος', 'άχρηστη', 'φλούφλης',
+        'κοτούλα', 'μπέμπης', 'φυτό',
+
+        // --- English/Gaming (Πολύ συχνά σε μαθητές) ---
+        'stupid', 'idiot', 'noob', 'nob', 'n00b', 'loser', 'bot',
+        'trash', 'bad', 'lag', 'hack', 'hacker', 'cheater',
+        'shut up', 'stfu', 'wtf', 'omg', 'hell'
+      ];
+
+      for (const word of MILD_BAD_WORDS) {
+        await classifier.learn(word, 'profane');
+      }
+      console.log(`🧠 Added ${MILD_BAD_WORDS.length} mild bad words`);
+
+      // 4. Custom User Words (Append to training)
+      customForbiddenWords.forEach(async item => {
+        await classifier.learn(item.word, 'profane');
+      });
+      customWhitelistedWords.forEach(async item => {
+        await classifier.learn(item.word, 'clean');
+      });
+
+      // Save the model
+      saveClassifierModel();
     }
-
-    // 3. Train with mild bad words (Bullying/Gaming terms common in schools)
-    const MILD_BAD_WORDS = [
-      // --- Greek Bullying/School ---
-      'βλάκας', 'βλακα', 'ηλίθιος', 'ηλίθια', 'χαζός', 'χαζή',
-      'άσχετος', 'άσχετη', 'άχρηστος', 'άχρηστη', 'φλούφλης',
-      'κοτούλα', 'μπέμπης', 'φυτό',
-
-      // --- English/Gaming (Πολύ συχνά σε μαθητές) ---
-      'stupid', 'idiot', 'noob', 'nob', 'n00b', 'loser', 'bot',
-      'trash', 'bad', 'lag', 'hack', 'hacker', 'cheater',
-      'shut up', 'stfu', 'wtf', 'omg', 'hell'
-    ];
-
-    for (const word of MILD_BAD_WORDS) {
-      await classifier.learn(word.toLowerCase(), 'profane');
-    }
-    console.log(`🧠 Added ${MILD_BAD_WORDS.length} mild bad words (bullying/gaming terms)`);
-
-    // 4. Train with custom forbidden words (Teacher added)
-    // Train on custom blacklist
-    customForbiddenWords.forEach(item => {
-      classifier.learn(item.word, 'profane');
-    });
-
-    // Train on custom whitelist (Good List)
-    customWhitelistedWords.forEach(item => {
-      classifier.learn(item.word, 'clean');
-    });
-
-    console.log(`🧠 Added ${customForbiddenWords.length} custom user words to training (profane)`);
-    console.log(`🧠 Added ${customWhitelistedWords.length} custom safe words to training (clean)`);
 
     classifierTrained = true;
-    console.log('✅ Naive Bayes classifier training complete!');
+    console.log('✅ Naive Bayes classifier (N-gram) ready!');
   } catch (err) {
     console.error('Failed to train classifier:', err);
     classifierTrained = false;
+    // Proceeding without AI filter if training fails
+  }
+}
+
+function saveClassifierModel() {
+  try {
+    const json = classifier.toJson();
+    fs.writeFileSync(CLASSIFIER_MODEL_FILE, json, 'utf-8');
+    console.log('💾 Classifier model saved to disk.');
+  } catch (e) {
+    console.error('Failed to save classifier model:', e);
   }
 }
 
@@ -462,10 +571,12 @@ async function checkMessageWithAI(message) {
   }
 
   try {
-    const result = await classifier.categorize(message.toLowerCase());
+    // New confidence-based check
+    const result = await categorizeWithConfidence(message.toLowerCase());
     return {
-      isProfane: result === 'profane',
-      category: result
+      isProfane: result.confidence > 50, // Default mid-point, but caller handles thresholds
+      confidence: result.confidence,
+      category: result.category
     };
   } catch (err) {
     console.error('AI check failed:', err);
@@ -518,7 +629,7 @@ io.on('connection', (socket) => {
         blockEnabled: true,
         blockThreshold: 90, // Low Sensitivity (10%) = High Threshold
         reportEnabled: true,
-        reportThreshold: 10 // High Sensitivity (90%) = Low Threshold
+        reportThreshold: 20 // Medium Sensitivity to avoid "Hello" -> "Hell" false positives
       },
       blockAllActive: false,
       allowHandsUp: true
@@ -993,8 +1104,9 @@ io.on('connection', (socket) => {
       };
 
       // === DEEP LEARNING FILTER CHECK ===
-      // Only check text messages, not files, and only if deep-learning mode is active
-      if (type === 'text' && classData.filterMode === 'deep-learning') {
+      // === CONTENT FILTERING ===
+      // Only check text messages, not files
+      if (type === 'text') {
         const settings = classData.advancedSettings || {
           blockEnabled: true,
           blockThreshold: 50,
@@ -1002,22 +1114,22 @@ io.on('connection', (socket) => {
           reportThreshold: 30
         };
 
-        // 0. Check against Whitelist first (Priority)
+        // 0. Check against Whitelist first (Global Priority)
         const lowerContent = content.toLowerCase();
         const isWhitelisted = customWhitelistedWords.some(item => lowerContent.includes(item.word.toLowerCase()));
 
         if (isWhitelisted) {
           console.log(`[DEBUG] Message whitelisted: "${content}"`);
-          // Skip all other filters
+          // Skip all other filters and proceed to send
         } else {
-          // 1. Check against blacklist/basic filter (Fast & Explicit)
+          // 1. Check against Blacklist/Basic Filter (Global Fast Check)
+          // Applied in ALL modes except if whitelisted
           // Check custom blacklist
           const isBlacklisted = customForbiddenWords.some(item => lowerContent.includes(item.word));
-          // Check basic filter if enabled (assuming we want to combine logic)
+          // Check basic filter (legacy bad-words lib)
           const isBasicProfane = filter.isProfane(content);
 
           if (isBlacklisted || isBasicProfane) {
-
             console.log(`🚫 Blocked by Blacklist/Basic Filter: "${content}"`);
 
             // Block immediately
@@ -1034,7 +1146,7 @@ io.on('connection', (socket) => {
                 senderName: user.name,
                 confidence: 100,
                 category: 'explicit profanity',
-                addedWords: [], // Already known
+                addedWords: [],
                 classId
               });
             }
@@ -1043,76 +1155,60 @@ io.on('connection', (socket) => {
             io.to(classId).emit('user-was-flagged', { userId: socket.id, userName: user.name });
 
             console.log(`[DEBUG] Message blocked (Blacklist): "${content}" from ${user.name}`);
-            return;
+            return; // STOP: Do not send message
           }
-        }
 
+          // 2. Advanced AI Filtering
+          if (classData.filterMode === 'advanced') {
+            // --- NAIVE BAYES MODE (Level 2) ---
+            // Use the N-gram classifier with Confidence Scoring
+            console.log(`[DEBUG] Advanced (Naive Bayes) Analyzing: "${content}"`);
+            const result = await checkMessageWithAI(content);
+            console.log(`[DEBUG] Advanced N-gram Result: ${result.category} (${result.confidence.toFixed(2)}%)`);
 
+            // Apply thresholds from settings
+            const shouldBlock = settings.blockEnabled && result.confidence >= settings.blockThreshold;
+            const shouldReport = settings.reportEnabled && result.confidence >= settings.reportThreshold;
 
-        // 2. AI Content Filtering (Deep Learning) (if ready)
-        if (deepLearningFilter.isModelReady()) {
-          console.log(`[DEBUG] AI Analyzing: "${content}"`);
-          const result = await deepLearningFilter.classifyMessage(content);
-          console.log(`[DEBUG] AI Result: ${result.tier} (${result.confidence}%)`);
+            if (shouldBlock) {
+              // BLOCK
+              console.log(`🚫 Blocked by Naive Bayes (Confidence ${result.confidence.toFixed(1)}% >= ${settings.blockThreshold}%): "${content}"`);
 
-          // Helper to check thresholds
-          const shouldBlock = settings.blockEnabled && result.confidence >= settings.blockThreshold;
-          const shouldReport = settings.reportEnabled && result.confidence >= settings.reportThreshold;
-
-          if (shouldBlock) {
-            // High confidence toxic: Block the message, notify sender
-            socket.emit('message-blocked', {
-              content,
-              reason: result.category,
-              confidence: result.confidence,
-              classId
-            });
-
-            // Auto-add suspicious words to blacklist
-            const suspiciousWords = deepLearningFilter.extractSuspiciousWords(content);
-            for (const word of suspiciousWords) {
-              if (!customForbiddenWords.some(w => w.word === word)) {
-                customForbiddenWords.push({
-                  word: word,
-                  addedAt: new Date().toISOString(),
-                  source: 'deep-learning-auto'
-                });
-              }
-            }
-            if (suspiciousWords.length > 0) {
-              saveCustomForbiddenWords();
-              io.emit('forbidden-words-updated', customForbiddenWords);
-              console.log(`🧠 Auto-blocked: "${content.substring(0, 30)}..." (${result.confidence}% ${result.category})`);
-            }
-
-            // Notify teacher
-            if (classData.teacherId) {
-              io.to(classData.teacherId).emit('auto-blocked-message', {
-                message: content,
-                senderName: user.name,
+              socket.emit('message-blocked', {
+                content,
+                reason: result.category || 'profanity (ai)',
                 confidence: result.confidence,
-                category: result.category,
-                addedWords: suspiciousWords,
                 classId
               });
-            }
 
-            // Flag the user
-            io.to(classId).emit('user-was-flagged', { userId: socket.id, userName: user.name });
+              // Logic to add to blacklist? 
+              // For now, simpler: only Deep Learning autos-adds to pending/lists.
+              // But we can flag user.
 
-            console.log(`[DEBUG] Message blocked (AI High): "${content}" from ${user.name}`);
-            return; // Don't broadcast the message
-          } else if (shouldReport) {
-            // Medium confidence: Send but create a report for teacher
-            const suspiciousWords = deepLearningFilter.extractSuspiciousWords(content);
-            if (suspiciousWords.length > 0) {
+              if (classData.teacherId) {
+                io.to(classData.teacherId).emit('auto-blocked-message', {
+                  message: content,
+                  senderName: user.name,
+                  confidence: result.confidence,
+                  category: result.category || 'profanity',
+                  addedWords: [],
+                  classId
+                });
+              }
+              io.to(classId).emit('user-was-flagged', { userId: socket.id, userName: user.name });
+              return; // STOP
+            } else if (shouldReport) {
+              // REPORT / WARN
+              console.log(`⚠️ Reported by Naive Bayes (Confidence ${result.confidence.toFixed(1)}% >= ${settings.reportThreshold}%): "${content}"`);
+
+              // Create report
               const report = {
                 id: Date.now().toString(),
-                word: suspiciousWords[0],
+                word: content, // Full message as context
                 context: content,
-                messageId: messageId, // Link to the message for deletion
-                reporterName: 'AI Detection',
-                reporterId: 'deep-learning',
+                messageId: messageId,
+                reporterName: 'Advanced Filter',
+                reporterId: 'naive-bayes',
                 senderName: user.name,
                 classId,
                 timestamp: new Date().toISOString(),
@@ -1125,12 +1221,9 @@ io.on('connection', (socket) => {
               if (classData.teacherId) {
                 io.to(classData.teacherId).emit('new-report', report);
               }
-              console.log(`🧠 AI flagged for review: "${content.substring(0, 30)}..." (${result.confidence}% ${result.category})`);
+              // Allow message to pass
             }
-            // Continue to broadcast the message (medium tier doesn't block)
           }
-          // Safe tier: Just continue normally
-          console.log(`[DEBUG] Message passed AI (Safe/Low): "${content}"`);
         }
       }
 

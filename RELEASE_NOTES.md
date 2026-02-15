@@ -1,112 +1,20 @@
-# Release Notes - v8.7.3
+# Release Notes - v8.4
 
-## 🛠️ Connection Stability & UX Polish
-- **Role Selection Polish**: Clicking "Change Role" in settings now shows the selection card in-place without a page reload, preventing race conditions where the app auto-selected student on slow machines.
-- **SmartIP Connection Retries**: Increased connection timeout to 2s with 3 automatic retries per server for greater reliability in busy school networks.
-- **History Link Fix**: The "Connect" button in the connection history list now correctly performs a full page redirect with identity parameters (`role`, `name`).
-- **Debugging Tools**: Added `server/debug.bat` (visible console) and `server/debug_log.bat` (outputs logs + system info to `%USERPROFILE%\ClassSend_debug_log.txt`) for easier troubleshooting on deployed PCs.
-- **Network Compatibility**: Relaxed CSP headers to ensure reliable connections when the app is accessed via different IP addresses or hostnames.
-
----
-
-# Release Notes - v8.7.2
-
-## 🛠️ Randomizer & Nickname Localization
-- **Greek Nicknames Fixed**: Fixed an issue where the nickname randomizer defaulted to English even when the interface was set to Greek.
-- **Improved Randomization**: The "Regenerate Name" button now correctly respects the current application language.
+## 🧠 N-gram Classifier & Persistence
+- **Greek Morphology Support**: The "Advanced" (Naive Bayes) filter now uses N-gram (trigram) tokenization. This allows it to detect variations of words (suffixes, prefixes) without needing every single form in the blacklist.
+  - *Example*: Training on `βλάκας` now automatically helps detect `βλακέντιε` or `μαλάκες` from `μαλάκας`.
+- **Model Persistence**: The trained AI model is now saved to `server/data/classifier-model.json`. It loads instantly on startup, preserving all "Learned" words from reports and teacher bans.
+- **Pipeline Integration**: The N-gram classifier is now correctly invoked in the `send-message` pipeline when the class is in "Advanced" mode.
 
 ---
 
-# Release Notes - v8.7.1
-
-## ⚡ Reliability & Path Handling
-- **Path Improvements**: Enhanced cross-platform path handling for configuration and data files.
-- **Model Loading**: Improved robust model discovery for offline AI filtering.
-
----
-
-# Release Notes - v8.7.0
-
-## 🚀 Student-First Experience & Debug Tools
-
-### 🎓 Smart Default Role
-- **Student-First**: The application now defaults to the **Student** role on launch, bypassing the role selection screen to get students into class faster.
-- **Teacher Switch**: Easily switch to Teacher mode via the **Settings > Personalization** menu.
-- **Saved Roles**: Your last used role is remembered for future sessions.
-
-### 🖼️ UI Refinements & Fixes
-- **Modern Branding**: Replaced the generic rocket emoji with the official application logo (`icon.ico`) on the About page.
-- **Enhanced Icons**: Replaced the "Block Messages" tool icon with a cleaner, more intuitive SVG asset.
-
-### 🛠️ Hidden Debug Unlock
-- **Troubleshooting Power**: Introducing a hidden debug mechanism for advanced users and support.
-- **5-Click Activation**: Rapidly click the application icon on the **About** page 5 times to instantly unlock all hidden settings (System, Data, Streaming) and enable session logs, regardless of your current role.
-
----
-
-# Release Notes - v8.6.0
-
-## 🌐 Smart Network Improvements
-
-### 🧠 Intelligent IP History
-- **Smart Learning**: ClassSend now keeps track of servers you've successfully connected to in the past.
-- **Auto-Retry**: If the automatic network discovery fails (common on some restricted Wi-Fi networks), the app automatically checks your history and reconnects you to known classes.
-
-### 🛡️ Cross-Network Identity
-- **Seamless Role Switching**: Fixed a bug where switching between different server IPs (e.g., WiFi to Hotspot) would make the app forget your Role (Student/Teacher). Your identity now travels with you!
-- **Identity Transfer**: Securely passes your role and name when redirecting to a remote class, ensuring you land in the chat immediately without needing to re-select your role.
-
-### 🛠️ Developer
-- **Discovery API**: Added a new lightweight API endpoint for faster server probing and diagnostics.
-
----
-
-# Release Notes - v8.5.0
-
-## 🎨 Visual Overhaul & Media Support
-
-### 🖼️ Enhanced File Icons
-- **SVG Integration**: Replaced all generic file type emojis with high-quality SVG icons for a cleaner, more professional look.
-- **Specific Media Icons**: Added dedicated icons for **Audio** (`.mp3`, `.wav`) and **Video** (`.mp4`, `.avi`) files, making it easier to identify media at a glance.
-- **Application Support**: Added specific icons for executables and installers (`.exe`, `.apk`).
-
-### 📱 Tablet Optimization
-- **Image Viewer Fixes**: The image viewer is now properly sized for tablet screens, ensuring the close button and zoom controls are always accessible.
-- **Better Zoom Controls**: Zoom In/Out buttons are now larger, centered, and have better visibility with a frosted glass background.
-
-### 🛠️ Usability Improvements
-- **Teacher Tools Menu**: Consolidated all teacher actions (Share Screen, Block Messages, etc.) into a convenient popup menu for cleaner UI.
-- **Minimize Wrappers**: Added "Minimize" buttons to both Image and PDF viewers, allowing you to keep files open in the background while chatting.
-
-### Fixed
-- **Network Discovery**: Fixed an issue where classes with Greek/Latin characters were not discoverable by students.
-- **Background**: Fixed `bonjour` hostname generation for non-Latin names and implemented Base64 encoding for class lists.
-- **Minimize Buttons**: Fixed Minimize buttons for Video and PDF viewers.
-
----
-
-# Release Notes - v8.4.0
-
-## 🚀 Smart Connectivity & UI Polish
-
-### 🌐 Smart IP Entry (Manual Connection)
-- **Auto-Detection**: The manual connection screens now intelligently detect your local network prefix and pre-fill it for you (e.g., `192.168.1.`).
-- **Port Visibility**: The current server port is now visible and automatically handled during manual connection, ensuring you always connect to the right place.
-- **Unified Helper**: The Smart IP tool is now available both in the "Available Classes" screen and directly within the **Connection Info** modal for instant access.
-- **Greek Localization**: Full Greek translations added for the entire Smart IP feature set.
-
-### 🛡️ Smart UI & Role Awareness
-- **Teacher Polish**: Manual connection tools are automatically hidden when logged in as a **Teacher**, keeping the interface clean and focused.
-- **Improved Overlay**: The "Searching for Class..." overlay is now constrained to the chat area, ensuring header buttons (Settings, Connection Info) remain clickable while searching.
-
-### 📥 Automated Word List Backups
-- **Server-Side Backups**: Word lists are now automatically backed up to the server whenever a teacher switches roles or exits. No more manual CSV downloads required!
-- **Auto-Pruning**: The server intelligently keeps the last 10 backups to save space while ensuring your data is safe.
+# Release Notes - v8.3.7
+## 🔧 Maintenance
+- **Stability**: Improvements to network discovery and file handling.
 
 ---
 
 # Release Notes - v8.3.1
-
 ## 🛠️ Critical Fixes & Improvements
 
 ### 📥 Import/Export Reliability

@@ -1,35 +1,22 @@
-# ClassSend (v8.7.2 Latest)
-**ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.
+# Cla![Version](https://img.shields.io/badge/version-v8.4.0-blue)
+![Platform](https://img.shields.io/badge/platform-Windows-blue)
+![License](https://img.shields.io/badge/license-ISC-green)
 
-## 🚀 Latest Features (v8.7.2)
-- **🎲 Randomizer Fix**: Nickname randomizer now correctly supports Greek and localized word lists.
-- **⚡ reliability**: Improved cross-platform data path handling and model discovery.
+**ClassSend** is a lightweight, local network file sharing and chat application designed for classrooms. It now features a high-performance **N-gram AI Classifier** for intelligent content filtering without the bloat.
 
-## 🚀 Previous Features (v8.7.0)
-- **🎓 Student-First Flow**: App defaults to Student role for zero-friction entry.
-- **🖼️ Logo Branding**: Official logo integration on the About page.
-- **🛠️ Debug Unlock**: Hidden 5-click unlock for advanced settings and logs.
+## 🚀 Latest Features (v8.4)
+- **🧠 Enhanced AI (N-gram)**: Upgraded Naive Bayes classifier with N-gram tokenization to better handle Greek morphology.
+- **💾 Model Persistence**: The AI now saves its training state to disk, allowing it to remember learned words across restarts.
+- **📚 User Data Training**: Custom user-provided datasets are now used for initial training.
 
-## 🚀 Previous Features (v8.6.0)
-- **🧠 Smart IP History**: Automatically remembers and retries successful connections if discovery fails.
-- **🛡️ Identity Roaming**: Your Role and Name now persist correctly even when switching server IPs.
-- **⚡ API Probing**: Faster connection checks for known servers.
+## 🚀 Previous Features (v8.3.7)
+- **� Maintenance Release**: Stability improvements and minor bug fixes.
 
-## 🚀 Previous Features (v8.5.0)
-- **🎨 Visual Overhaul**: Replaced emojis with beautiful SVG icons for all file types.
-- **🎵 Media Icons**: Distinct icons for Audio, Video, and Applications.
-- **📱 Tablet Polish**: Fixed Image Viewer layout and zoom controls for touch devices.
-- **🛠️ Usability**: New Teacher Tools menu and Minimize buttons for file viewers.
-
-## 🚀 Previous Features (v8.4.0)
-- **🌐 Smart IP Entry**: Manual connection now auto-detects network prefix and port.
-- **🇬🇷 Greek Networking**: Full Greek localization for manual connection tools.
-- **🛡️ Role-Aware UI**: Manual connection helper is automatically hidden for Teachers.
-- **📥 Auto Backups**: Word lists are automatically backed up to the server.
+🚀 Latest Features (v8.7.2)
+🎲 Randomizer Fix: Nickname randomizer now correctly supports Greek and localized word lists.
+⚡ reliability: Improved cross-platform data path handling and model discovery.
 
 ## 🚀 Previous Features (v8.3.0)
-
-## 🚀 Previous Features (v8.2.0)
 - **🇬🇷 Complete Greek Gallery**: Fixed missing translations in the Media Library.
 - **🔄 Settings Sync**: Teachers' language and filter settings now push to students automatically.
 
@@ -85,10 +72,10 @@
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Linux AppImage**: `ClassSend-8.7.2-x64.AppImage`
-- **Linux Zip**: `ClassSend-linux-x64-8.7.2.zip`
-- **Windows Installer (64-bit)**: `ClassSend-8.7.2 Setup.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-8.7.2.zip`
+- **Linux AppImage**: `ClassSend-8.4-temp-x64.AppImage`
+- **Linux Zip**: `ClassSend-linux-x64-8.4-temp.zip`
+- **Windows Installer (64-bit)**: `ClassSend-8.4-temp Setup.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-8.4-temp.zip`
 
 ## 🧠 Offline AI Setup (Required for Deep Learning)
 The "Deep Learning" filter requires the `toxic-bert` model, which is excluded from this repository due to size limits.
@@ -160,40 +147,3 @@ ClassSend wouldn't be possible without these amazing open-source projects:
 ## 📄 License
 This project is licensed under the **GNU General Public License v3.0 (GPLv3)**.
 This guarantees that ClassSend remains free and open-source software forever. Anyone can use, modify, and distribute it, provided that all changes remain open-source under the same license.
-
-This project was **vibecoded** using **Antigravity Gemini 3 Pro** and **Claude 4.5**, showcasing the capabilities and limitations of modern AI-assisted development.
-
-### Architectural Evolution: Monolithic vs. Modular
-
-During development, we attempted to transition from a **monolithic structure** to a more **modular architecture**. This experiment revealed interesting insights about AI-assisted development:
-
-#### Monolithic Architecture
-- **Challenge**: Memory and context window limitations with too many lines of code in single files
-- **Impact**: As files grew larger, the AI models struggled to maintain full context
-- **Result**: Slower development and increased error rates as codebase expanded
-
-#### Modular Architecture
-- **Advantages**: 
-  - Files were coded **faster** with **fewer errors** initially
-  - Clearer separation of concerns
-  - Easier for AI to focus on individual components
-- **Challenges**: 
-  - **Lost connection context**: As the number of modules increased, the meaning and relationships between files became harder to track
-  - **Integration complexity**: Understanding how components interact across multiple files proved difficult
-  - **Context fragmentation**: AI models lost sight of the "big picture" when dealing with many small files
-
-#### The Verdict
-
-While both approaches presented challenges, we found that:
-- **Errors increase** with codebase size **regardless of architecture**
-- **Modular structure** enabled faster initial development and fewer syntax errors
-- **Understanding and maintaining** a modular file structure proved **slightly more difficult** in the end
-- **Context coherence**: The monolithic approach, despite its limitations, sometimes maintained better overall understanding of system state
-
-This experience highlights an important consideration for AI-assisted development: **architectural choices should balance AI capabilities with human maintainability**. The "perfect" structure may depend on project size, team composition, and the specific AI tools being used.
-
-### What We Learned
-- AI coding assistants excel at **focused, well-defined tasks** in smaller files
-- **Cross-file relationships** and **system-wide state** remain challenging for current AI models
-- **Hybrid approaches** may be optimal: modular where possible, but not at the expense of coherence
-- **Clear documentation** and **explicit interfaces** become even more critical with AI-assisted development
