@@ -1,6 +1,16 @@
 # Release Notes
 
-## [9.0.0] - 2026-02-15
+## [9.1.2] - 2026-02-15
+### Fixed
+- **Email Display**: Fixed visual glitch where email addresses were broken by mention highlighting.
+- **Email Action**: The "Email" button now correctly opens the default OS mail client.
+- **Auto-Connect**: Improved reliability of auto-connection and retry logic.
+
+## [9.0.1] - 2026-02-15
+4: ### Added
+5: - **Build Update**: Bug fixes and performance improvements.
+6: 
+7: ## [9.0.0] - 2026-02-15
 ### Added
 - **Persistent Media Library**: Uploaded files now persist in a `MediaLibrary` folder in the installation root.
 - **Clear Data Feature**: Admin tool to delete all media files and reset server state.

@@ -167,7 +167,15 @@ export const translations = {
         "ai-consolidating": "Consolidating AI Model...",
         "status-connecting": "Connecting...",
         "pdf-title": "📄 PDF Viewer",
-        "image-title": "🖼️ Image Viewer"
+        "image-title": "🖼️ Image Viewer",
+        "btn-copy-label": "Copy",
+        "btn-email-label": "Email",
+        "btn-open-link-label": "Open",
+        "btn-pin-label": "Pin",
+        "btn-unpin-label": "Unpin",
+        "btn-block-label": "Block",
+        "btn-report-label": "Report",
+        "btn-reported-label": "Reported"
     },
     el: {
         "app-title": "ClassSend",
@@ -337,6 +345,14 @@ export const translations = {
         "ai-consolidating": "Ενοποίηση Μοντέλου AI...",
         "status-connecting": "Σύνδεση...",
         "pdf-title": "📄 Προβολή PDF",
-        "image-title": "🖼️ Προβολή Εικόνας"
+        "image-title": "🖼️ Προβολή Εικόνας",
+        "btn-copy-label": "Αντιγραφή",
+        "btn-email-label": "Email",
+        "btn-open-link-label": "Άνοιγμα",
+        "btn-pin-label": "Καρφίτσωμα",
+        "btn-unpin-label": "Ξεκαρφίτσωμα",
+        "btn-block-label": "Αποκλεισμός",
+        "btn-report-label": "Αναφορά",
+        "btn-reported-label": "Αναφέρθηκε"
     }
 };

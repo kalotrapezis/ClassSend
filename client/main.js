@@ -122,7 +122,7 @@ function connectToServer(serverUrl) {
 let savedRole = localStorage.getItem('classsend-role'); // Persistent role
 let currentRole = savedRole; // 'teacher' or 'student'
 let userName = localStorage.getItem('classsend-userName');
-let currentClassId = null;
+let currentClassId = localStorage.getItem('classsend-classId'); // Restore saved class ID
 let joinedClasses = new Map(); // classId -> { messages: [], users: [], teacherName: string }
 let availableClasses = []; // [{ id, teacherName }]
 let customWhitelistedWords = [];
@@ -443,6 +443,24 @@ const logsContent = document.getElementById("logs-content");
 const btnCopyLogs = document.getElementById("btn-copy-logs");
 const btnCloseLogs = document.getElementById("btn-close-logs");
 
+if (btnCopyLogs) {
+    btnCopyLogs.addEventListener("click", () => {
+        const logsText = logsContent.textContent;
+        if (!logsText) return;
+
+        copyToClipboard(logsText, () => {
+            const originalHTML = btnCopyLogs.innerHTML;
+            btnCopyLogs.innerHTML = '<img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />';
+            setTimeout(() => {
+                btnCopyLogs.innerHTML = originalHTML;
+            }, 1000);
+        }, () => {
+            console.error("Failed to copy logs");
+            alert("Failed to copy logs to clipboard");
+        });
+    });
+}
+
 // Slider Elements
 const modelBlockSlider = document.getElementById("model-block-threshold");
 const modelReportSlider = document.getElementById("model-report-threshold");
@@ -519,63 +537,75 @@ if (hostnameToggle) {
     hostnameToggle.addEventListener("change", updateConnectionUrl);
 }
 
+// Helper: Robust Copy to Clipboard
+async function copyToClipboard(text, onSuccess, onError) {
+    let copied = false;
+
+    // Try modern Clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+        } catch (err) {
+            console.warn("Clipboard API failed, trying fallback: ", err);
+        }
+    }
+
+    // Fallback method using execCommand
+    if (!copied) {
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            copied = document.execCommand("copy");
+            document.body.removeChild(textArea);
+        } catch (err) {
+            console.error("Fallback copy failed: ", err);
+        }
+    }
+
+    if (copied) {
+        if (onSuccess) onSuccess();
+    } else {
+        if (onError) onError();
+    }
+}
+
 if (btnCopyUrl) {
-    btnCopyUrl.addEventListener("click", async () => {
+    btnCopyUrl.addEventListener("click", () => {
         const url = connectionUrl.textContent;
-        let copied = false;
+        const originalText = btnCopyUrl.textContent; // Store original text/icon if needed, though we replace innerHTML below
 
-        // Try modern Clipboard API first
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            try {
-                await navigator.clipboard.writeText(url);
-                copied = true;
-            } catch (err) {
-                console.warn("Clipboard API failed, trying fallback: ", err);
-            }
-        }
-
-        // Fallback method using execCommand
-        if (!copied) {
-            try {
-                const textArea = document.createElement("textarea");
-                textArea.value = url;
-                textArea.style.position = "fixed";
-                textArea.style.left = "-9999px";
-                textArea.style.top = "-9999px";
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                copied = document.execCommand("copy");
-                document.body.removeChild(textArea);
-            } catch (err) {
-                console.error("Fallback copy failed: ", err);
-            }
-        }
-
-        if (copied) {
-            const originalText = btnCopyUrl.textContent;
+        copyToClipboard(url, () => {
+            // Success
+            const originalContent = btnCopyUrl.innerHTML;
             btnCopyUrl.innerHTML = '<img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />';
 
             // Auto-close connection info if enabled
             if (checkAutoCloseConnection && checkAutoCloseConnection.checked) {
                 setTimeout(() => {
                     connectionModal.classList.add("hidden");
-                    btnCopyUrl.textContent = originalText;
+                    btnCopyUrl.innerHTML = originalContent;
                 }, 800);
             } else {
                 setTimeout(() => {
-                    btnCopyUrl.textContent = originalText;
+                    btnCopyUrl.innerHTML = originalContent;
                 }, 1500);
             }
-        } else {
-            // Show error feedback
-            const originalText = btnCopyUrl.textContent;
+        }, () => {
+            // Error
+            const originalContent = btnCopyUrl.innerHTML;
             btnCopyUrl.innerHTML = '<img src="/assets/exit-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />';
             setTimeout(() => {
-                btnCopyUrl.textContent = originalText;
+                btnCopyUrl.innerHTML = originalContent;
             }, 1500);
             console.error("Failed to copy URL to clipboard");
-        }
+        });
     });
 }
 
@@ -785,7 +815,7 @@ socket.on("connect", () => {
     // Re-join if we were in a class
     if (currentClassId && userName) {
         console.log("Reconnecting to class", currentClassId);
-        joinClass(currentClassId, userName);
+        joinClass(currentClassId, userName, true);
     }
 
     // Refresh active classes
@@ -899,7 +929,7 @@ function handleAutoFlow() {
 
                 window.location.href = serverUrl;
             } else {
-                joinClass(targetClass.id, userName);
+                joinClass(targetClass.id, userName, true);
             }
         } else if (targetClasses.length > 1) {
             // Case 2: Multiple REAL classes -> Show selection
@@ -920,6 +950,9 @@ function handleAutoFlow() {
             // Case 3: No REAL classes -> Ensure we are in Lobby (Waiting Room)
             if (currentClassId !== 'Lobby') {
                 console.log('Auto-flow: No classes available, joining Lobby as waiting room...');
+                // Prevent Blue Screen: Show the screen immediately while we try to join
+                availableClassesScreen.classList.remove('hidden');
+                roleSelection.classList.add('hidden');
                 joinOrCreateLobby();
             }
         }
@@ -1390,7 +1423,7 @@ function renderScanningStateInChat() {
     }
 }
 
-function joinClass(classIdToJoin, nameToUse) {
+function joinClass(classIdToJoin, nameToUse, isAutoJoin = false) {
     socket.emit("join-class", { classId: classIdToJoin, userName: nameToUse }, (response) => {
         if (response.success) {
             const hasTeacher = response.users?.some(u => u.role === 'teacher') || false;
@@ -1431,7 +1464,48 @@ function joinClass(classIdToJoin, nameToUse) {
 
             switchClass(classIdToJoin);
         } else {
-            alert(response.message);
+            if (isAutoJoin) {
+                console.warn(`Auto-join to ${classIdToJoin} failed: ${response.message}`);
+                // If the class doesn't exist, we should probably reset the UI to avoid being stuck
+                // But only if we were trying to rejoin the current class
+                if (classIdToJoin === currentClassId) {
+                    currentClassId = null;
+                    // Go back to role selection or lobby if appropriate
+                    // For now, let's just show available classes or handleAutoFlow
+                    // For now, let's just show available classes or handleAutoFlow
+                    if (handleAutoFlow && typeof handleAutoFlow === 'function') {
+                        // Resetting currentClassId allows handleAutoFlow to run again
+                        window.joiningInProgress = false; // Reset flag so auto-flow can run
+                        autoFlowTriggered = true; // FORCE auto-flow to retry since we are "starting fresh"
+
+                        // Show waiting state immediately
+                        availableClassesScreen.classList.remove('hidden');
+                        chatInterface.classList.add('hidden');
+                        if (typeof showWaitingForClass === 'function') {
+                            showWaitingForClass();
+                            // Custom message for retry
+                            const emptyState = availableClassesList.querySelector('.empty-state');
+                            if (emptyState) {
+                                const msgDiv = emptyState.querySelector('div:nth-child(2)');
+                                if (msgDiv) msgDiv.textContent = "Class not found. Retrying...";
+                            }
+                        }
+
+                        // Retry after delay to allow network/server to stabilize
+                        console.log("Auto-join failed, retrying in 2s...");
+                        setTimeout(() => {
+                            socket.emit("get-active-classes");
+                        }, 2000);
+                    } else {
+                        // Fallback
+                        availableClassesScreen.classList.remove('hidden');
+                        chatInterface.classList.add('hidden');
+                    }
+                    showToast("Session expired or class closed", "warning");
+                }
+            } else {
+                alert(response.message);
+            }
         }
     });
 }
@@ -2237,6 +2311,7 @@ function renderMessage(message) {
 
 
     } else {
+        messageDiv.classList.add("text-message");
         const contentWithMentions = highlightMentions(message.content);
 
         // Detect URLs
@@ -2247,6 +2322,8 @@ function renderMessage(message) {
         const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
         const hasEmail = emailRegex.test(message.content);
 
+        const t = (key) => translations[currentLanguage][key] || key;
+
         messageDiv.innerHTML = `
       <div class="message-header">
         <span class="message-sender ${message.senderRole}">${escapeHtml(message.senderName)}</span>
@@ -2255,12 +2332,12 @@ function renderMessage(message) {
       <div class="message-content">
         ${contentWithMentions}
         <div class="message-actions">
-          <button class="action-btn copy-btn" title="Copy"><img src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy" style="width: 16px; height: 16px;" /></button>
-          ${hasEmail ? '<button class="action-btn mailto-btn" title="Email" data-i18n-title="btn-email">✉️</button>' : ''}
-          ${hasUrl ? '<button class="action-btn url-btn" title="Open Link" data-i18n-title="btn-open-link">🔗</button>' : ''}
-          ${currentRole === 'teacher' ? `<button class="action-btn pin-action-btn" data-message-id="${message.id}" title="Toggle Pin"><img src="/assets/pin-svgrepo-com.svg" class="icon-svg" alt="Pin" style="width: 16px; height: 16px;" /></button>` : ''}
-          ${currentRole === 'teacher' ? `<button class="action-btn ban-action-btn" data-message-id="${message.id}" data-message-content="${escapeHtml(message.content)}" title="Block & Delete"><img src="/assets/block-1-svgrepo-com.svg" class="icon-svg" alt="Block" style="width: 16px; height: 16px;" /></button>` : ''}
-          ${currentRole === 'student' ? `<button class="action-btn report-action-btn" data-message-id="${message.id}" data-message-content="${escapeHtml(message.content)}" title="Report"><img src="/assets/report-svgrepo-com.svg" class="icon-svg" alt="Report" style="width: 16px; height: 16px;" /></button>` : ''}
+          <button class="action-btn copy-btn" title="${t('btn-copy-label')}"><img src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-copy-label')}</span></button>
+          ${hasEmail ? `<button class="action-btn mailto-btn" title="${t('btn-email-label')}" data-i18n-title="btn-email-label">✉️<span class="btn-label">${t('btn-email-label')}</span></button>` : ''}
+          ${hasUrl ? `<button class="action-btn url-btn" title="${t('btn-open-link-label')}" data-i18n-title="btn-open-link-label"><img src="/assets/link-circle.svg" class="icon-svg" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-open-link-label')}</span></button>` : ''}
+          ${currentRole === 'teacher' ? `<button class="action-btn pin-action-btn" data-message-id="${message.id}" title="${t('btn-pin-label')}"><img src="/assets/pin-svgrepo-com.svg" class="icon-svg" alt="Pin" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-pin-label')}</span></button>` : ''}
+          ${currentRole === 'teacher' ? `<button class="action-btn ban-action-btn" data-message-id="${message.id}" data-message-content="${escapeHtml(message.content)}" title="${t('btn-block-label')}"><img src="/assets/block-1-svgrepo-com.svg" class="icon-svg" alt="Block" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-block-label')}</span></button>` : ''}
+          ${currentRole === 'student' ? `<button class="action-btn report-action-btn" data-message-id="${message.id}" data-message-content="${escapeHtml(message.content)}" title="${t('btn-report-label')}"><img src="/assets/report-svgrepo-com.svg" class="icon-svg" alt="Report" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-report-label')}</span></button>` : ''}
         </div>
       </div>
     `;
@@ -2268,14 +2345,17 @@ function renderMessage(message) {
         // Copy button
         const copyBtn = messageDiv.querySelector('.copy-btn');
         if (copyBtn) {
-            copyBtn.addEventListener('click', async () => {
-                try {
-                    await navigator.clipboard.writeText(message.content);
-                    copyBtn.innerHTML = '<img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />';
-                    setTimeout(() => copyBtn.innerHTML = '<img src="/assets/copy-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />', 1500);
-                } catch (err) {
+            copyBtn.addEventListener('click', () => {
+                copyToClipboard(message.content, () => {
+                    copyBtn.innerHTML = `<img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-copy-label')}</span>`;
+                    copyBtn.classList.add('success');
+                    setTimeout(() => {
+                        copyBtn.innerHTML = `<img src="/assets/copy-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-copy-label')}</span>`;
+                        copyBtn.classList.remove('success');
+                    }, 1500);
+                }, () => {
                     alert('Failed to copy');
-                }
+                });
             });
         }
 
@@ -2285,7 +2365,7 @@ function renderMessage(message) {
             if (mailtoBtn) {
                 mailtoBtn.addEventListener('click', () => {
                     const emails = message.content.match(emailRegex);
-                    if (emails) window.location.href = `mailto:${emails[0]}`;
+                    if (emails) window.open(`mailto:${emails[0]}`, '_blank');
                 });
             }
         }
@@ -2296,7 +2376,7 @@ function renderMessage(message) {
             if (urlBtn) {
                 urlBtn.addEventListener('click', () => {
                     const urls = message.content.match(urlRegex);
-                    if (urls) window.open(urls[0], '_blank');
+                    if (urls) openWebViewer(urls[0]);
                 });
             }
         }
@@ -2355,7 +2435,7 @@ function renderMessage(message) {
                     reporterName: userName
                 }, (response) => {
                     if (response && response.success) {
-                        reportBtn.textContent = '✅ Reported';
+                        reportBtn.textContent = '✅ ' + (translations[currentLanguage]['btn-reported-label'] || 'Reported');
                         reportBtn.disabled = true;
                         console.log(`✅ Message reported: ${messageContent.substring(0, 30)}...`);
                     } else {
@@ -2499,8 +2579,8 @@ function renderMediaHistory() {
 function highlightMentions(text) {
     // Escape HTML first
     let escaped = escapeHtml(text);
-    // Then highlight @mentions
-    return escaped.replace(/@(\w+)/g, '<span class="mention">@$1</span>');
+    // Mentions disabled to prevent email interference
+    return escaped;
 }
 
 function scrollToBottom() {
@@ -5657,6 +5737,10 @@ function closeAllViewers() {
     imageZoomLevel = 1;
     imageTranslateX = 0;
     imageTranslateY = 0;
+
+    // Clear Web Frame
+    if (webFrame) webFrame.src = "";
+    if (webViewerModal) webViewerModal.classList.add("hidden");
 }
 
 function openPdfViewer(url) {
@@ -5790,6 +5874,8 @@ if (btnRestoreFile) {
             documentViewerModal.classList.remove("hidden");
         } else if (activeViewer === 'media' && mediaPlayerModal) {
             mediaPlayerModal.classList.remove("hidden");
+        } else if (activeViewer === 'web' && webViewerModal) {
+            webViewerModal.classList.remove("hidden");
         }
         btnRestoreFile.classList.add("hidden");
         btnRestoreFile.classList.remove("active");
@@ -5985,3 +6071,101 @@ if (aboutAppIcon) {
         }
     });
 }
+// --- Web Viewer Functions ---
+const webViewerModal = document.getElementById("web-viewer-modal");
+const webFrame = document.getElementById("web-frame");
+const btnCloseWeb = document.getElementById("btn-close-web");
+const btnMinimizeWeb = document.getElementById("btn-minimize-web");
+const btnWebBack = document.getElementById("btn-web-back");
+const btnWebForward = document.getElementById("btn-web-forward");
+const btnWebRefresh = document.getElementById("btn-web-refresh");
+
+function openWebViewer(url) {
+    if (!url) return;
+
+    // Ensure URL has protocol
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+
+    closeAllViewers();
+    activeViewer = 'web';
+
+    if (webViewerModal && webFrame) {
+        webViewerModal.classList.remove("hidden");
+        webFrame.src = url;
+    }
+}
+
+if (btnCloseWeb) {
+    btnCloseWeb.addEventListener("click", () => {
+        closeAllViewers();
+        if (webFrame) webFrame.src = "";
+    });
+}
+
+if (btnMinimizeWeb) {
+    btnMinimizeWeb.addEventListener("click", () => {
+        if (webViewerModal) webViewerModal.classList.add("hidden");
+        if (btnRestoreFile) {
+            btnRestoreFile.classList.remove("hidden");
+            btnRestoreFile.classList.add("active");
+        }
+    });
+}
+
+// Web Navigation Controls
+if (btnWebBack && webFrame) {
+    btnWebBack.addEventListener("click", () => {
+        try {
+            if (webFrame.canGoBack()) {
+                webFrame.goBack();
+            }
+        } catch (e) {
+            console.warn("Navigation failed:", e);
+        }
+    });
+}
+
+if (btnWebForward && webFrame) {
+    btnWebForward.addEventListener("click", () => {
+        try {
+            if (webFrame.canGoForward()) {
+                webFrame.goForward();
+            }
+        } catch (e) {
+            console.warn("Navigation failed:", e);
+        }
+    });
+}
+
+if (btnWebRefresh && webFrame) {
+    btnWebRefresh.addEventListener("click", () => {
+        try {
+            webFrame.reload();
+        } catch (e) {
+            console.warn('Reload failed:', e);
+        }
+    });
+}
+
+// SAFETY UI UNLOCK
+setTimeout(() => {
+    const isRoleSelectionVisible = !roleSelection.classList.contains('hidden');
+    const isAvailableClassesVisible = !availableClassesScreen.classList.contains('hidden');
+    const isChatVisible = !chatInterface.classList.contains('hidden');
+    const isSetupVisible = !classSetup.classList.contains('hidden');
+
+    if (!isRoleSelectionVisible && !isAvailableClassesVisible && !isChatVisible && !isSetupVisible) {
+        console.warn('⚠️ Safety UI Unlock: All screens were hidden! Forcing UI to show.');
+        if (currentClassId && currentClassId !== 'Lobby') {
+            availableClassesScreen.classList.remove('hidden');
+            if (typeof renderAvailableClasses === 'function') renderAvailableClasses();
+        } else if (savedRole === 'student') {
+            availableClassesScreen.classList.remove('hidden');
+            if (typeof renderAvailableClasses === 'function') renderAvailableClasses();
+        } else {
+            roleSelection.classList.remove('hidden');
+        }
+    }
+}, 2000);

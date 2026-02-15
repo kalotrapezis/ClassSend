@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu } = require('electron');
+const { app, BrowserWindow, Tray, Menu, shell } = require('electron');
 const path = require('path');
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -127,6 +127,7 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
+            webviewTag: true
         },
         backgroundColor: '#0f172a'
     });
@@ -160,6 +161,16 @@ function createWindow() {
             mainWindow.show();
             mainWindow.focus();
         }, 500);
+    });
+
+    // Intercept window.open calls (e.g. for mailto links)
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('mailto:')) {
+            shell.openExternal(url);
+            return { action: 'deny' };
+        }
+        // For everything else, behave as normal (allow new window)
+        return { action: 'allow' };
     });
 
     // Hide the menu bar (User request) - handled by autoHideMenuBar: true

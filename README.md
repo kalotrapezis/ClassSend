@@ -1,10 +1,13 @@
-# Cla![Version](https://img.shields.io/badge/version-v9.0.0-blue)
+# Cla![Version](https://img.shields.io/badge/version-v9.0.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
 **ClassSend** is a lightweight, local network file sharing and chat application designed for classrooms. It now features a high-performance **N-gram AI Classifier** for intelligent content filtering without the bloat.
 
-## 🚀 Latest Features (v9.0)
+## 🚀 Latest Features (v9.0.1)
+8: - **Maintenance Release**: bug fixes.
+9: 
+10: ## 🚀 Previous Features (v9.0)
 - **Persistent Media Library**: Uploaded files now persist in a `MediaLibrary` folder in the installation root.
 - **Clear Data Feature**: Admin tool to delete all media files and reset server state.
 - **Theme Selection Fix**: Resolved regression where themes were not clickable.
