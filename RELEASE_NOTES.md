@@ -1,5 +1,17 @@
 # Release Notes
 
+## [9.2.0] - 2026-02-16
+### Added
+- **Smart Auto-Connect**: The app now intelligently probes for known servers from history and handles offline/online states automatically, reducing the need for manual IP entry.
+- **Auto-Setup**: First-time users are now automatically set to the "Student" role and taken directly to the class search screen, skipping the role selection step.
+- **Auto-Delete System Messages**: System messages (User joined/left) now automatically fade out after 10 seconds to keep the chat clean.
+- **Visual Timer**: A circular countdown timer appears on system messages before they disappear.
+- **Refined Localization**:
+    - **Themes**: Theme names now display correctly in the selected language (e.g., Greek).
+    - **Connection Status**: Fixed an issue where the status text would revert to English when switching languages.
+    - **Screen Share**: The "Share Screen" button text now updates dynamically when toggled or when the language changes.
+- **Refined Name Generator**: The random name generator now produces grammatically correct adjectives and nouns in Greek.
+
 ## [9.1.2] - 2026-02-15
 ### Fixed
 - **Email Display**: Fixed visual glitch where email addresses were broken by mention highlighting.

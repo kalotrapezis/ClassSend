@@ -175,7 +175,13 @@ export const translations = {
         "btn-unpin-label": "Unpin",
         "btn-block-label": "Block",
         "btn-report-label": "Report",
-        "btn-reported-label": "Reported"
+        "btn-report-label": "Report",
+        "btn-reported-label": "Reported",
+        "theme-deep-space": "Deep Space",
+        "theme-neon-tokyo": "Neon Tokyo",
+        "theme-carbon": "Carbon",
+        "theme-solar": "Solar",
+        "theme-high-contrast": "High Contrast"
     },
     el: {
         "app-title": "ClassSend",
@@ -353,6 +359,11 @@ export const translations = {
         "btn-unpin-label": "Ξεκαρφίτσωμα",
         "btn-block-label": "Αποκλεισμός",
         "btn-report-label": "Αναφορά",
-        "btn-reported-label": "Αναφέρθηκε"
+        "btn-reported-label": "Αναφέρθηκε",
+        "theme-deep-space": "Βαθύ Διάστημα",
+        "theme-neon-tokyo": "Νέον Τόκιο",
+        "theme-carbon": "Άνθρακας",
+        "theme-solar": "Ηλιακό",
+        "theme-high-contrast": "Υψηλή Αντίθεση"
     }
 };

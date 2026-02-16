@@ -155,16 +155,39 @@ let isAutoDiscoveryEnabled = localStorage.getItem('classsend-auto-discovery') ==
 function startNetworkDiscovery() {
     if (networkDiscoveryStarted) return;
 
-    // Always probe history first
-    probeKnownServers();
+    // Smart Network Check (Booting Process)
+    // 1. Check if we are online immediately
+    if (navigator.onLine) {
+        console.log("Network status: ONLINE. Starting probe sequence...");
+        // Small delay (500ms) to ensure socket/IO is ready even if "online" is true
+        setTimeout(() => {
+            startProbingSequence();
+        }, 500);
+    } else {
+        console.log("Network status: OFFLINE. Waiting for network...");
+        // Show scanning/offline state in UI (optional, but "Looking for classes" covers it)
+
+        // 2. Wait for online event
+        window.addEventListener('online', () => {
+            console.log("Network status changed: ONLINE. Starting probe sequence...");
+            // Wait a moment for connection to stabilize
+            setTimeout(() => {
+                startProbingSequence();
+            }, 2000);
+        }, { once: true }); // Only trigger once
+    }
 
     if (isAutoDiscoveryEnabled) {
+        // Broadcasting ON: also start UDP listener
         networkDiscoveryStarted = true;
         socket.emit("start-discovery");
-        console.log("Started network discovery for other ClassSend servers");
-    } else {
-        console.log("Auto-discovery disabled. Only probing known servers.");
     }
+}
+
+function startProbingSequence() {
+    // If broadcasting is disabled, we rely solely on history probing
+    // If broadcasting is enabled, we probe history AND listen for broadcasts
+    probeKnownServers();
 }
 
 function stopNetworkDiscovery() {
@@ -227,29 +250,41 @@ function saveKnownServer(url) {
 async function probeKnownServers() {
     try {
         const knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
-        console.log(`Probing ${knownServers.length} known servers (2s timeout × 3 attempts)...`);
+        if (knownServers.length === 0) {
+            console.log("[Probing] No known servers in history.");
+            // If broadcast is OFF, we are stuck. Open manual connect.
+            if (!isAutoDiscoveryEnabled && currentRole === 'student' && !currentClassId) {
+                if (btnShowUrl) btnShowUrl.click();
+            }
+            return;
+        }
 
+        console.log(`Probing ${knownServers.length} known servers...`);
+        let foundAny = false;
+
+        // Parallel-ish probing would be faster, but sequential is safer to avoid congestion
         for (const serverUrl of knownServers) {
-            // Skip current origin/localhost if we are scanning
             if (serverUrl === window.location.origin) continue;
 
             const probeUrl = `${serverUrl}/api/discovery-info`;
             let probeSuccess = false;
 
-            // Retry up to 3 times with 2s timeout each
-            for (let attempt = 1; attempt <= 3 && !probeSuccess; attempt++) {
+            // Retry Logic: 1s, 2s, 4s
+            const timeouts = [1000, 2000, 4000];
+
+            for (let attempt = 0; attempt < timeouts.length && !probeSuccess; attempt++) {
+                const timeoutMs = timeouts[attempt];
+                console.log(`[Probing] ${serverUrl} - Attempt ${attempt + 1}/${timeouts.length} (Timeout: ${timeoutMs}ms)`);
+
                 try {
                     const controller = new AbortController();
-                    const id = setTimeout(() => controller.abort(), 2000); // 2s timeout
+                    const id = setTimeout(() => controller.abort(), timeoutMs);
 
                     const response = await fetch(probeUrl, { signal: controller.signal });
                     clearTimeout(id);
 
                     if (response.ok) {
                         const info = await response.json();
-
-                        // Construct a "discovered" object to reuse existing logic
-                        // We need to parse IP and Port from URL
                         let ip, port;
                         try {
                             const urlObj = new URL(serverUrl);
@@ -257,7 +292,7 @@ async function probeKnownServers() {
                             port = urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80);
                         } catch (e) {
                             console.warn("Invalid known log URL", serverUrl);
-                            break; // Don't retry if URL is invalid
+                            break;
                         }
 
                         const serverInfo = {
@@ -268,32 +303,38 @@ async function probeKnownServers() {
                             version: info.version || "unknown"
                         };
 
-                        // Manually trigger discovery logic
                         const key = `${serverInfo.ip}:${serverInfo.port}`;
                         if (!discoveredServers.has(key)) {
                             discoveredServers.set(key, serverInfo);
-                            console.log(`[Probing] Found known server: ${serverInfo.name} at ${key} (attempt ${attempt})`);
-
-                            // Update UI immediately
+                            console.log(`[Probing] SUCCESS: Found ${serverInfo.name} at ${key}`);
                             if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
                                 renderAvailableClasses();
                             }
                         }
                         probeSuccess = true;
+                        foundAny = true;
                     }
                 } catch (err) {
-                    // Log retry info on failure
-                    if (attempt < 3) {
-                        console.log(`[Probing] Attempt ${attempt}/3 failed for ${serverUrl}, retrying...`);
-                    } else {
-                        console.log(`[Probing] All 3 attempts failed for ${serverUrl}`);
-                    }
+                    console.log(`[Probing] Failed attempt ${attempt + 1} for ${serverUrl}: ${err.name}`);
                 }
+            }
+
+            if (foundAny) {
+                console.log("[Probing] Server found. Stopping chain.");
+                handleAutoFlow();
+                return;
             }
         }
 
-        // Trigger auto-flow re-check after probing completes
         handleAutoFlow();
+
+        if (!foundAny && !isAutoDiscoveryEnabled && currentRole === 'student' && !currentClassId) {
+            console.log("[Auto-Connect] All probes failed. Opening manual connect.");
+            if (classSetup.classList.contains('hidden') && roleSelection.classList.contains('hidden')) {
+                if (btnShowUrl) btnShowUrl.click();
+            }
+        }
+
     } catch (e) {
         console.error("Failed to probe known servers:", e);
     }
@@ -318,11 +359,18 @@ const chatInterface = document.getElementById("chat-interface");
 // savedRole is already declared at top of file
 
 // DEFAULT ROLE LOGIC: If no role is saved, default to 'student'
+// DEFAULT ROLE LOGIC: Force 'student' if no role is saved
 if (!savedRole) {
     console.log("No saved role found. Defaulting to 'student'.");
     savedRole = 'student';
     localStorage.setItem('classsend-role', 'student');
     currentRole = 'student';
+    // Trigger auto-flow immediately
+    setTimeout(() => {
+        if (typeof handleAutoFlow === 'function') handleAutoFlow();
+        // Also ensure UI is correct
+        roleSelection.classList.add('hidden');
+    }, 100);
 }
 
 if (savedRole) {
@@ -808,8 +856,19 @@ mediaPopup.addEventListener("click", (e) => {
 socket.on("connect", () => {
     connectionStatus.classList.remove("disconnected");
     connectionStatus.classList.add("connected");
+
+    // Localization-aware update
+    connectionStatus.setAttribute('data-i18n', 'status-connected');
     const statusText = connectionStatus.querySelector(".status-text");
-    if (statusText) statusText.textContent = "Connected";
+    if (statusText) {
+        statusText.setAttribute('data-i18n', 'status-connected');
+        // If translations available, use them immediately
+        if (typeof translations !== 'undefined' && currentLanguage && translations[currentLanguage]) {
+            statusText.textContent = translations[currentLanguage]['status-connected'] || "Connected";
+        } else {
+            statusText.textContent = "Connected";
+        }
+    }
     connectionStatus.title = "Connected";
 
     // Re-join if we were in a class
@@ -843,8 +902,19 @@ socket.on("connect", () => {
 socket.on("disconnect", () => {
     connectionStatus.classList.remove("connected");
     connectionStatus.classList.add("disconnected");
+
+    // Localization-aware update
+    connectionStatus.setAttribute('data-i18n', 'status-disconnected');
     const statusText = connectionStatus.querySelector(".status-text");
-    if (statusText) statusText.textContent = "Disconnected";
+    if (statusText) {
+        statusText.setAttribute('data-i18n', 'status-disconnected');
+        // If translations available, use them immediately
+        if (typeof translations !== 'undefined' && currentLanguage && translations[currentLanguage]) {
+            statusText.textContent = translations[currentLanguage]['status-disconnected'] || "Disconnected";
+        } else {
+            statusText.textContent = "Disconnected";
+        }
+    }
     connectionStatus.title = "Disconnected";
 
     // Stop periodic refresh when disconnected
@@ -2414,6 +2484,26 @@ function renderMessage(message) {
         }
     }
 
+    // Auto-delete System Messages after 10 seconds
+    if (message.senderRole === 'system') {
+        // Add timer UI
+        const timerDiv = document.createElement('div');
+        timerDiv.className = 'system-message-timer';
+        timerDiv.innerHTML = `
+            <svg class="timer-svg" viewBox="0 0 20 20">
+                <circle class="timer-circle-bg" cx="10" cy="10" r="9"></circle>
+                <circle class="timer-circle-progress" cx="10" cy="10" r="9"></circle>
+            </svg>
+        `;
+        messageDiv.appendChild(timerDiv);
+
+        setTimeout(() => {
+            messageDiv.style.transition = "opacity 0.5s ease-out";
+            messageDiv.style.opacity = "0";
+            setTimeout(() => messageDiv.remove(), 500);
+        }, 10000);
+    }
+
     // Report button for students
     if (currentRole === 'student') {
         const reportBtn = messageDiv.querySelector('.report-action-btn');
@@ -3051,12 +3141,22 @@ if (languageSelect) {
     languageSelect.addEventListener('change', (e) => {
         currentLanguage = e.target.value;
         localStorage.setItem('language', currentLanguage);
+
+        // Auto-regenerate name in new language
+        const newName = generateRandomName(currentLanguage);
+        userName = newName;
+        localStorage.setItem('classsend-userName', newName);
+        if (settingsNameInput) settingsNameInput.value = newName;
+
         updateUIText();
         updateRoleDisplay(); // Update role text
 
         // If teacher in a class, sync language to all students
         if (currentRole === 'teacher' && currentClassId) {
             socket.emit('set-class-language', { classId: currentClassId, language: currentLanguage });
+        } else if (currentRole === 'student' && currentClassId) {
+            // If student, update name on server
+            socket.emit("change-user-name", { classId: currentClassId, newName }, (response) => { });
         }
     });
 }
@@ -4075,17 +4175,16 @@ function stopScreenShare() {
 function updateScreenShareButton() {
     const label = btnShareScreen.querySelector('.btn-label');
     const toolBtn = document.getElementById("btn-tool-share-screen");
+    // Aligning with 'Block Hands' pattern: Only toggle active state, do NOT change text.
+    // This allows updateUIText() to handle localization centrally and consistently.
+    // Text will remain "Screen Sharing" (localized) but button will light up when active.
 
     if (isScreenSharing) {
-        btnShareScreen.classList.add("active");
         if (toolBtn) toolBtn.classList.add("active");
-        if (label) label.textContent = "Stop Sharing";
-        else btnShareScreen.innerHTML = "Stop Sharing"; // Fallback
+        if (btnShareScreen && btnShareScreen !== toolBtn) btnShareScreen.classList.add("active");
     } else {
-        btnShareScreen.classList.remove("active");
         if (toolBtn) toolBtn.classList.remove("active");
-        if (label) label.textContent = "Screen Sharing";
-        else btnShareScreen.innerHTML = "Screen Sharing"; // Fallback
+        if (btnShareScreen && btnShareScreen !== toolBtn) btnShareScreen.classList.remove("active");
     }
 }
 
