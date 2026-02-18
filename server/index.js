@@ -10,6 +10,7 @@ const TLSConfig = require('./tls-config');
 const multer = require('multer');
 const FileStorage = require('./file-storage');
 const bayes = require('bayes');
+const configManager = require('./config-manager');
 
 const Filter = require('bad-words');
 const filter = new Filter();
@@ -218,7 +219,7 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '9.2.0', // Should match package.json
+    version: '9.3.0', // Should match package.json
     classes: classes
   });
 });
@@ -428,8 +429,10 @@ function savePendingReports() {
   }
 }
 
-// Load reports on startup
-loadPendingReports();
+// Load reports on startup (deferred)
+setTimeout(() => {
+  loadPendingReports();
+}, 500);
 
 // ===== NAIVE BAYES CLASSIFIER TRAINING =====
 const ngramTokenizer = require('./lib/ngram-tokenizer');
@@ -561,8 +564,10 @@ function saveClassifierModel() {
   }
 }
 
-// Train classifier on startup
-trainClassifier();
+// Train classifier with delay to allow server startup
+setTimeout(() => {
+  trainClassifier();
+}, 2000);
 
 // Function to check message with classifier (for advanced mode)
 async function checkMessageWithAI(message) {
@@ -631,6 +636,26 @@ io.on('connection', (socket) => {
 
     // 5. Notify all clients to reset
     io.emit('data-cleared');
+  });
+
+  // Handle Clear Media Library Request (Specific)
+  socket.on('clear-media-library', () => {
+    console.log(`🗑️ User ${socket.id} requested Clear Media Library`);
+    fileStorage.clearAllFiles();
+    io.emit('media-library-cleared');
+    console.log("✅ Media Library cleared.");
+  });
+
+  // Settings Management
+  socket.on('get-settings', (callback) => {
+    if (callback) callback(configManager.getAll());
+  });
+
+  socket.on('update-settings', (newSettings) => {
+    if (newSettings.enableLogging !== undefined) {
+      configManager.set('enableLogging', newSettings.enableLogging);
+      io.emit('settings-updated', configManager.getAll()); // Broadcast change
+    }
   });
   function broadcastActiveClasses() {
     const classesList = Array.from(activeClasses.entries()).map(([id, data]) => ({
