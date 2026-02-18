@@ -181,7 +181,12 @@ export const translations = {
         "theme-neon-tokyo": "Neon Tokyo",
         "theme-carbon": "Carbon",
         "theme-solar": "Solar",
-        "theme-high-contrast": "High Contrast"
+        "theme-high-contrast": "High Contrast",
+        "btn-clear": "Clear",
+        "label-enable-logs": "Enable Session Logs",
+        "logs-description": "In-memory log viewer (On by default).",
+        "label-auto-export": "Automatic Report Export",
+        "auto-export-description": "Automatically save logs to disk (Overwrite on Startup)."
     },
     el: {
         "app-title": "ClassSend",
@@ -205,7 +210,7 @@ export const translations = {
         "label-class-id": "ID Τάξης (Προαιρετικό)",
         "placeholder-name": "Εισάγετε το όνομά σας",
         "placeholder-class-id": "Κενό για νέα τάξη",
-        "btn-join": "Είσοδος στην Τάξη",
+        "btn-join": "Συμμετοχή", // Changed from "Είσοδος στην Τάξη"
         "btn-create": "Δημιουργία Τάξης",
         "btn-cancel": "Ακύρωση",
         "btn-change-name": "Αλλαγή Ονόματος",
@@ -364,6 +369,11 @@ export const translations = {
         "theme-neon-tokyo": "Νέον Τόκιο",
         "theme-carbon": "Άνθρακας",
         "theme-solar": "Ηλιακό",
-        "theme-high-contrast": "Υψηλή Αντίθεση"
+        "theme-high-contrast": "Υψηλή Αντίθεση",
+        "btn-clear": "Εκκαθάριση",
+        "label-enable-logs": "Ενεργοποίηση Καταγραφής Συνεδρίας",
+        "logs-description": "Προβολή καταγραφών στη μνήμη (Ενεργό από προεπιλογή).",
+        "label-auto-export": "Αυτόματη Εξαγωγή Αναφοράς",
+        "auto-export-description": "Αυτόματη αποθήκευση καταγραφών στο δίσκο (Αντικατάσταση στην εκκίνηση)."
     }
 };

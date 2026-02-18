@@ -1,6 +1,6 @@
 {
   "name": "classsend",
-  "version": "9.2.0",
+  "version": "9.3.0",
   "description": "**ClassSend** is a local network file sharing and chat application designed for classrooms. It allows teachers and students to communicate and share files instantly without needing an internet connection or external servers.",
   "main": "index.js",
   "scripts": {

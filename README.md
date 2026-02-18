@@ -1,16 +1,25 @@
-# Cla![Version](https://img.shields.io/badge/version-v9.2.0-blue)
+# Cla![Version](https://img.shields.io/badge/version-v9.3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
 **ClassSend** is a lightweight, local network file sharing and chat application designed for classrooms. It now features a high-performance **N-gram AI Classifier** for intelligent content filtering without the bloat.
 
-## 🚀 Latest Features (v9.2.0)
-- **⚡ Smart Auto-Connect**: The app now remembers your last connected server and intelligently probes the network to reconnect automatically, even if you go offline and come back.
+## 🚀 Latest Features (v9.3.0)
+- **🎨 SVG Transition**: High-quality SVG icons replace emojis in file and web viewing panes.
+- **🛡️ Improved Moderation UI**: Message area darkens when "Block All" is active for clear visual feedback.
+- **📂 Persistent Media Library**: Dedicated installation folder for shared files that persists across restarts.
+- **🌐 Non-Windows Webviewer**: Partial fixes for tablet and across-platform web viewing.
+- **🛠️ Persistent Teacher Tools**: Tool menu stays open for multiple rapid adjustments.
+- **🔍 Diagnostic Tools**: Debugging logs enabled by default with automatic log export to text files.
+- **🔄 Connection Fixes**: Improved auto-connection from history and better respect for connection info settings.
+
+## 🚀 Previous Features (v9.2.0)
+- **⚡ Smart Auto-Connect**: The app now intelligently probes for known servers from history and handles offline/online states automatically.
 - **🎓 Instant Start**: New students skip the setup screens and go straight to finding a class.
-- **✨ Visual Polish**: System messages now auto-delete with a sleek visual timer, keeping your chat focused.
+- **✨ Visual Polish**: System messages now auto-delete with a sleek visual timer.
 - **🌍 Enhanced Localization**: Improved translations for Themes, Connection Status, and interactive buttons.
-9: 
-10: ## 🚀 Previous Features (v9.0)
+
+## 🚀 Previous Features (v9.0)
 - **Persistent Media Library**: Uploaded files now persist in a `MediaLibrary` folder in the installation root.
 - **Clear Data Feature**: Admin tool to delete all media files and reset server state.
 - **Theme Selection Fix**: Resolved regression where themes were not clickable.

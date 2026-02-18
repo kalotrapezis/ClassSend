@@ -8,6 +8,8 @@ if (require('electron-squirrel-startup')) {
     process.exit(0); // Ensure immediate exit
 }
 
+const fs = require('fs');
+
 // Set USER_DATA_PATH for the server to use (Must be before requiring index.js)
 // This ensures we write to a writable location (e.g. ~/.config/...) instead of the read-only AppImage mount
 // app.getPath('userData') is only available after app is ready or in main process, but we need it for top-level requires if they run immediately.
@@ -16,14 +18,63 @@ if (app) {
     process.env.USER_DATA_PATH = app.getPath('userData');
 }
 
-// Server import moved to startServer function to avoid blocking startup
-let serverInstance;
-let stopServerFunc;
-let getTrainingStatusFunc;
+// --- CRASH REPORTING & LOGGING ---
+const configManager = require('./config-manager'); // Import ConfigManager
 
-let mainWindow;
-let tray;
-let isQuitting = false;
+// --- CRASH REPORTING & LOGGING ---
+const logFilePath = path.join(app.getPath('home'), 'classSendReport.txt');
+
+// Initialize logs: Overwrite if enabled, otherwise do nothing
+try {
+    if (configManager.get('autoExportLogs')) {
+        const sessionHeader = `=== ClassSend Session Started: ${new Date().toISOString()} ===\n`;
+        fs.writeFileSync(logFilePath, sessionHeader); // Overwrite mode
+    }
+} catch (e) {
+    // Ignore if fails (permissions etc)
+}
+
+function logToFile(type, args) {
+    // Check config before writing to disk
+    if (!configManager.get('autoExportLogs')) return;
+
+    try {
+        const message = args.map(arg =>
+            typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        ).join(' ');
+        const logLine = `[${new Date().toISOString()}] [${type}] ${message}\n`;
+        fs.appendFileSync(logFilePath, logLine);
+    } catch (e) {
+        // Fallback
+    }
+}
+
+// Override console methods to log to file
+const originalLog = console.log;
+const originalError = console.error;
+const originalWarn = console.warn;
+
+console.log = (...args) => {
+    logToFile('INFO', args);
+    originalLog.apply(console, args);
+};
+
+console.error = (...args) => {
+    logToFile('ERROR', args);
+    originalError.apply(console, args);
+};
+
+console.warn = (...args) => {
+    logToFile('WARN', args);
+    originalWarn.apply(console, args);
+};
+
+// Catch unhandled exceptions
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err);
+    logToFile('FATAL', ['UNCAUGHT EXCEPTION:', err]);
+});
+// --------------------------------
 
 // Disable hardware acceleration to prevent GPU process crashes on Linux
 app.disableHardwareAcceleration();
@@ -40,19 +91,35 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
     }
 });
 
+// Server import moved to startServer function to avoid blocking startup
+let serverInstance;
+let stopServerFunc;
+let getTrainingStatusFunc;
+
+let mainWindow;
+let tray;
+let isQuitting = false;
+
 function startAppServer() {
     console.log("Starting server...");
-    try {
-        const { server, stopServer, getTrainingStatus } = require('./index.js');
-        // Store references
-        serverInstance = server;
-        stopServerFunc = stopServer;
-        getTrainingStatusFunc = getTrainingStatus;
+    // Wrap in setTimeout(0) to allow current event loop to finish (rendering splash)
+    setTimeout(() => {
+        try {
+            console.log("Loading server module...");
+            const { server, stopServer, getTrainingStatus } = require('./index.js');
+            // Store references
+            serverInstance = server;
+            stopServerFunc = stopServer;
+            getTrainingStatusFunc = getTrainingStatus;
 
-        console.log("Server module loaded.");
-    } catch (err) {
-        console.error("Failed to start server:", err);
-    }
+            console.log("Server module loaded.");
+        } catch (err) {
+            console.error("Failed to start server:", err);
+            // Show error dialog
+            const { dialog } = require('electron');
+            dialog.showErrorBox("Startup Error", "Failed to start the server:\n" + err.message);
+        }
+    }, 10);
 }
 
 const net = require('net');
@@ -113,9 +180,10 @@ function createWindow() {
     splashWindow.center();
 
     // Initialize server AFTER showing splash screen
+    // Increased delay to ensure splash renders before heavy lifting
     setTimeout(() => {
         startAppServer();
-    }, 100);
+    }, 500);
 
     // Create main window (hidden initially)
     mainWindow = new BrowserWindow({
