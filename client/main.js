@@ -254,7 +254,7 @@ async function probeKnownServers() {
             console.log("[Probing] No known servers in history.");
             // If broadcast is OFF, we are stuck. Open manual connect.
             if (!isAutoDiscoveryEnabled && currentRole === 'student' && !currentClassId) {
-                if (btnShowUrl) btnShowUrl.click();
+                // if (btnShowUrl) btnShowUrl.click(); // REMOVED: User requested no automatic popups
             }
             return;
         }
@@ -331,7 +331,7 @@ async function probeKnownServers() {
         if (!foundAny && !isAutoDiscoveryEnabled && currentRole === 'student' && !currentClassId) {
             console.log("[Auto-Connect] All probes failed. Opening manual connect.");
             if (classSetup.classList.contains('hidden') && roleSelection.classList.contains('hidden')) {
-                if (btnShowUrl) btnShowUrl.click();
+                // if (btnShowUrl) btnShowUrl.click(); // REMOVED: User requested no automatic popups
             }
         }
 
@@ -627,14 +627,9 @@ async function copyToClipboard(text, onSuccess, onError) {
 if (btnCopyUrl) {
     btnCopyUrl.addEventListener("click", () => {
         const url = connectionUrl.textContent;
-        const originalText = btnCopyUrl.textContent; // Store original text/icon if needed, though we replace innerHTML below
-
         copyToClipboard(url, () => {
-            // Success
             const originalContent = btnCopyUrl.innerHTML;
             btnCopyUrl.innerHTML = '<img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />';
-
-            // Auto-close connection info if enabled
             if (checkAutoCloseConnection && checkAutoCloseConnection.checked) {
                 setTimeout(() => {
                     connectionModal.classList.add("hidden");
@@ -645,14 +640,6 @@ if (btnCopyUrl) {
                     btnCopyUrl.innerHTML = originalContent;
                 }, 1500);
             }
-        }, () => {
-            // Error
-            const originalContent = btnCopyUrl.innerHTML;
-            btnCopyUrl.innerHTML = '<img src="/assets/exit-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" />';
-            setTimeout(() => {
-                btnCopyUrl.innerHTML = originalContent;
-            }, 1500);
-            console.error("Failed to copy URL to clipboard");
         });
     });
 }
@@ -663,7 +650,6 @@ if (btnCloseConnection) {
     });
 }
 
-// Close modal when clicking outside
 if (connectionModal) {
     connectionModal.addEventListener("click", (e) => {
         if (e.target === connectionModal) {
@@ -772,8 +758,8 @@ document.addEventListener("click", (e) => {
 if (btnToolHandsDown) {
     btnToolHandsDown.addEventListener("click", () => {
         socket.emit("lower-all-hands", { classId: currentClassId });
-        toolsMenu.classList.remove("active");
-        btnToolsToggle.classList.remove("active");
+        // toolsMenu.classList.remove("active"); // Removed to keep menu open
+        // btnToolsToggle.classList.remove("active");
     });
 }
 
@@ -784,8 +770,8 @@ if (btnToolBlockMessages) {
         const classData = joinedClasses.get(currentClassId);
         const newState = !classData.blockAllActive;
         socket.emit("toggle-block-all-messages", { classId: currentClassId, enabled: newState });
-        toolsMenu.classList.remove("active");
-        btnToolsToggle.classList.remove("active");
+        // toolsMenu.classList.remove("active"); // Removed to keep menu open
+        // btnToolsToggle.classList.remove("active");
     });
 }
 
@@ -794,8 +780,8 @@ if (btnToolAllowHands) {
         const classData = joinedClasses.get(currentClassId);
         const newState = !classData.allowHandsUp;
         socket.emit("toggle-allow-hands-up", { classId: currentClassId, enabled: newState });
-        toolsMenu.classList.remove("active");
-        btnToolsToggle.classList.remove("active");
+        // toolsMenu.classList.remove("active"); // Removed to keep menu open
+        // btnToolsToggle.classList.remove("active");
     });
 }
 
@@ -853,6 +839,83 @@ mediaPopup.addEventListener("click", (e) => {
     }
 });
 
+// Clear Media Library (Admin/Teacher)
+const btnClearMedia = document.getElementById("btn-clear-media");
+if (btnClearMedia) {
+    btnClearMedia.addEventListener("click", () => {
+        // Optional: specific check if user is teacher
+        if (currentRole !== 'teacher') {
+            alert("Only teachers can clear the media library.");
+            return;
+        }
+
+        if (confirm("Are you sure you want to clear the entire Media Library? This action cannot be undone.")) {
+            socket.emit("clear-media-library");
+        }
+    });
+}
+
+socket.on("media-library-cleared", () => {
+    const mediaList = document.getElementById("media-list");
+    if (mediaList) {
+        mediaList.innerHTML = `<div class="empty-media-state" data-i18n="library-empty">No media shared yet</div>`;
+    }
+    showToast("Media Library cleared", "success");
+
+    // Check if we need to hide the clear button based on role (though it should be handled by role switches)
+    if (currentRole !== 'teacher' && btnClearMedia) {
+        btnClearMedia.style.display = 'none';
+    }
+});
+
+// --- Settings Management ---
+socket.on('settings-updated', (settings) => {
+    if (settings.enableLogging !== undefined) {
+        const toggle = document.getElementById('toggle-log-history');
+        if (toggle) toggle.checked = settings.enableLogging;
+        isLoggingEnabled = settings.enableLogging;
+    }
+    if (settings.autoExportLogs !== undefined) {
+        const toggle = document.getElementById('toggle-auto-export');
+        if (toggle) toggle.checked = settings.autoExportLogs;
+    }
+});
+
+// Initial settings fetch
+socket.emit('get-settings', (settings) => {
+    if (settings) {
+        if (settings.enableLogging !== undefined) {
+            const toggle = document.getElementById('toggle-log-history');
+            if (toggle) toggle.checked = settings.enableLogging;
+            isLoggingEnabled = settings.enableLogging;
+        }
+        if (settings.autoExportLogs !== undefined) {
+            const toggle = document.getElementById('toggle-auto-export');
+            if (toggle) toggle.checked = settings.autoExportLogs;
+        }
+    }
+});
+
+// Wire up Toggle
+const toggleLogHistory = document.getElementById('toggle-log-history');
+if (toggleLogHistory) {
+    toggleLogHistory.addEventListener('change', (e) => {
+        const enabled = e.target.checked;
+        isLoggingEnabled = enabled; // Update local state immediately
+        socket.emit('update-settings', { enableLogging: enabled });
+        showToast(enabled ? "Session Logging Enabled" : "Session Logging Disabled", "info");
+    });
+}
+
+const toggleAutoExport = document.getElementById('toggle-auto-export');
+if (toggleAutoExport) {
+    toggleAutoExport.addEventListener('change', (e) => {
+        const enabled = e.target.checked;
+        socket.emit('update-settings', { autoExportLogs: enabled });
+        showToast(enabled ? "Automatic Export Enabled" : "Automatic Export Disabled", "info");
+    });
+}
+
 socket.on("connect", () => {
     connectionStatus.classList.remove("disconnected");
     connectionStatus.classList.add("connected");
@@ -879,6 +942,21 @@ socket.on("connect", () => {
 
     // Refresh active classes
     socket.emit("get-active-classes");
+
+    // Re-fetch settings on reconnect
+    socket.emit('get-settings', (settings) => {
+        if (settings) {
+            if (settings.enableLogging !== undefined) {
+                const toggle = document.getElementById('toggle-log-history');
+                if (toggle) toggle.checked = settings.enableLogging;
+                isLoggingEnabled = settings.enableLogging;
+            }
+            if (settings.autoExportLogs !== undefined) {
+                const toggle = document.getElementById('toggle-auto-export');
+                if (toggle) toggle.checked = settings.autoExportLogs;
+            }
+        }
+    });
 
     // Start periodic refresh of class list
     startClassRefreshInterval();
@@ -973,56 +1051,62 @@ function handleAutoFlow() {
     if (savedRole === 'student' && autoFlowTriggered && (!currentClassId || currentClassId === 'Lobby') && !window.joiningInProgress) {
 
         const allClasses = getAllAvailableClasses();
-        // Ignore 'Lobby' when looking for classes to join
-        const targetClasses = allClasses.filter(c => c.id !== 'Lobby');
+        const savedTargetId = localStorage.getItem('classsend-classId');
 
-        if (targetClasses.length === 1) {
-            // Case 1: Exactly one REAL class -> Auto-join
+        // Priority 1: If we have a saved target AND it's in the list -> AUTO-JOIN
+        const targetedClass = savedTargetId ? allClasses.find(c => c.id === savedTargetId) : null;
+
+        if (targetedClass) {
             window.joiningInProgress = true;
-            const targetClass = targetClasses[0];
-
-            console.log(`Auto-flow: Only one class available (${targetClass.id}), auto-joining...`);
+            console.log(`Auto-flow: Found saved target ${targetedClass.id}, auto-joining...`);
             roleSelection.classList.add('hidden');
             classSetup.classList.add('hidden');
-            // Ensure available classes screen is hidden if we were showing it
             availableClassesScreen.classList.add('hidden');
 
-            if (targetClass.isRemote) {
-                // Redirect to remote server
-                let serverUrl = `http://${targetClass.serverIp}:${targetClass.serverPort}`;
-                // Append identity
+            if (targetedClass.isRemote) {
+                let serverUrl = `http://${targetedClass.serverIp}:${targetedClass.serverPort}`;
                 if (savedRole && userName) {
                     serverUrl += `?role=${encodeURIComponent(savedRole)}&name=${encodeURIComponent(userName)}`;
                 }
+                saveKnownServer(serverUrl);
+                window.location.href = serverUrl;
+            } else {
+                joinClass(targetedClass.id, userName, true);
+            }
+            return;
+        }
 
-                saveKnownServer(serverUrl); // Save history
+        // Priority 2: Only one REAL class available (excluding Lobby) -> AUTO-JOIN
+        const realClasses = allClasses.filter(c => c.id !== 'Lobby');
+        if (realClasses.length === 1) {
+            window.joiningInProgress = true;
+            const targetClass = realClasses[0];
+            console.log(`Auto-flow: Only one class available (${targetClass.id}), auto-joining...`);
+            roleSelection.classList.add('hidden');
+            classSetup.classList.add('hidden');
+            availableClassesScreen.classList.add('hidden');
 
+            if (targetClass.isRemote) {
+                let serverUrl = `http://${targetClass.serverIp}:${targetClass.serverPort}`;
+                if (savedRole && userName) {
+                    serverUrl += `?role=${encodeURIComponent(savedRole)}&name=${encodeURIComponent(userName)}`;
+                }
+                saveKnownServer(serverUrl);
                 window.location.href = serverUrl;
             } else {
                 joinClass(targetClass.id, userName, true);
             }
-        } else if (targetClasses.length > 1) {
-            // Case 2: Multiple REAL classes -> Show selection
-            console.log(`Auto-flow: Multiple classes available (${targetClasses.length}), showing selection...`);
-
-            // Only interrupt Lobby if we found multiple choices
-            if (currentClassId === 'Lobby') {
-                // Optional: Notify user or just switch screen?
-                // For now, let's switch to selection screen to let them choose
-                // But we need to make sure we don't look broken
-            }
-
+        } else if (realClasses.length > 1) {
+            // Priority 3: Multiple choice -> Show selection
+            console.log(`Auto-flow: Multiple classes available (${realClasses.length}), showing selection...`);
             roleSelection.classList.add('hidden');
             classSetup.classList.add('hidden');
             availableClassesScreen.classList.remove('hidden');
             renderAvailableClasses();
         } else {
-            // Case 3: No REAL classes -> Ensure we are in Lobby (Waiting Room)
+            // Priority 4: No REAL classes -> Wait in Lobby
             if (currentClassId !== 'Lobby') {
                 console.log('Auto-flow: No classes available, joining Lobby as waiting room...');
-                // Prevent Blue Screen: Show the screen immediately while we try to join
-                availableClassesScreen.classList.remove('hidden');
-                roleSelection.classList.add('hidden');
                 joinOrCreateLobby();
             }
         }
@@ -1093,7 +1177,7 @@ function joinOrCreateLobby() {
             console.log(`Auto-flow: Joined Lobby ${classId}, hasTeacher: ${response.hasTeacher}`);
         } else {
             console.error('Auto-flow: Failed to join/create Lobby', response.message);
-            availableClassesScreen.classList.remove('hidden');
+            window.joiningInProgress = false; // RESET LOCK
             showWaitingForClass();
         }
     });
@@ -1117,24 +1201,7 @@ function updateChatDisabledState() {
 
     // Show overlay if (Student AND in Lobby)
     if (currentRole === 'student' && currentClassId === 'Lobby') {
-        if (isDiscoveryOff && isHistoryEmpty) {
-            // Skip overlay, hide it
-            if (searchingOverlay) searchingOverlay.classList.add("hidden");
-
-            // Automatically open Connection Modal if not already open
-            if (connectionModal && connectionModal.classList.contains("hidden")) {
-                console.log("Auto-flow: Discovery off & History empty. Opening manual connection modal.");
-                btnShowUrl.click(); // Reuse existing trigger to fetch server info and open modal
-
-                // Optional: Focus the manual input after a short delay to allow DOM/modal update
-                setTimeout(() => {
-                    const suffixInput = document.getElementById("smart-ip-suffix-modal");
-                    if (suffixInput) suffixInput.focus();
-                }, 500);
-            }
-        } else {
-            if (searchingOverlay) searchingOverlay.classList.remove("hidden");
-        }
+        if (searchingOverlay) searchingOverlay.classList.remove("hidden");
 
         // Also disable input to be safe, though overlay covers it
         messageInput.disabled = true;
@@ -1230,6 +1297,18 @@ socket.on("block-all-messages-updated", (data) => {
     if (classData) {
         classData.blockAllActive = data.enabled;
         if (data.classId === currentClassId) {
+            // UI Feedback for Students
+            if (currentRole === 'student') {
+                if (data.enabled) {
+                    messagesContainer.classList.add("blocked");
+                    messageInput.disabled = true;
+                    messageInput.placeholder = "Messages are blocked by teacher";
+                } else {
+                    messagesContainer.classList.remove("blocked");
+                    messageInput.disabled = false;
+                    messageInput.placeholder = "Type a message...";
+                }
+            }
             updateToolStates();
             const lang = currentLanguage;
             const msg = data.enabled ?
@@ -1369,15 +1448,6 @@ btnSubmitSetup.addEventListener("click", () => {
                 if (settingsNameInput) settingsNameInput.value = userName;
 
                 switchClass(enteredClassId);
-
-                // Auto-open connection info if enabled
-                if (checkAutoOpenConnection && checkAutoOpenConnection.checked) {
-                    socket.emit("get-server-info", { classId: enteredClassId }, (info) => {
-                        serverInfo = info;
-                        updateConnectionUrl();
-                        connectionModal.classList.remove("hidden");
-                    });
-                }
             } else {
                 alert(response.message);
             }
@@ -1404,7 +1474,7 @@ function renderAvailableClasses() {
         availableClassesList.innerHTML = `
             <div class="empty-state">
                 <div class="spinner"></div>
-                <div>No classes available. Waiting for teacher...</div>
+                <div data-i18n="searching-classes">Looking for classes...</div>
             </div>`;
         return;
     }
@@ -1425,7 +1495,7 @@ function renderAvailableClasses() {
                 <div class="class-card-teacher">Teacher: ${escapeHtml(classInfo.teacherName)}</div>
                 <div class="class-card-location" style="font-size: 0.8em; opacity: 0.7;">${escapeHtml(locationLabel)}</div>
             </div>
-            <button class="class-card-join-btn">Join →</button>
+            <button class="class-card-join-btn">${translations[currentLanguage]['btn-join']} →</button>
         `;
 
         classCard.addEventListener("click", () => {
@@ -1513,7 +1583,7 @@ function joinClass(classIdToJoin, nameToUse, isAutoJoin = false) {
                 // Manually trigger blocked UI
                 messageInput.disabled = true;
                 messageInput.placeholder = t('You have been blocked by the teacher.');
-                messageInput.style.backgroundImage = "url('/assets/message-square-xmark-svgrepo-com.svg')";
+                messageInput.style.backgroundImage = "url('/assets/message-block.svg')";
                 messageInput.style.backgroundRepeat = "no-repeat";
                 messageInput.style.backgroundPosition = "right 10px center";
                 messageInput.style.backgroundSize = "20px";
@@ -1540,41 +1610,18 @@ function joinClass(classIdToJoin, nameToUse, isAutoJoin = false) {
                 // But only if we were trying to rejoin the current class
                 if (classIdToJoin === currentClassId) {
                     currentClassId = null;
-                    // Go back to role selection or lobby if appropriate
-                    // For now, let's just show available classes or handleAutoFlow
-                    // For now, let's just show available classes or handleAutoFlow
                     if (handleAutoFlow && typeof handleAutoFlow === 'function') {
                         // Resetting currentClassId allows handleAutoFlow to run again
                         window.joiningInProgress = false; // Reset flag so auto-flow can run
                         autoFlowTriggered = true; // FORCE auto-flow to retry since we are "starting fresh"
 
-                        // Show waiting state immediately
-                        availableClassesScreen.classList.remove('hidden');
-                        chatInterface.classList.add('hidden');
-                        if (typeof showWaitingForClass === 'function') {
-                            showWaitingForClass();
-                            // Custom message for retry
-                            const emptyState = availableClassesList.querySelector('.empty-state');
-                            if (emptyState) {
-                                const msgDiv = emptyState.querySelector('div:nth-child(2)');
-                                if (msgDiv) msgDiv.textContent = "Class not found. Retrying...";
-                            }
-                        }
-
-                        // Retry after delay to allow network/server to stabilize
-                        console.log("Auto-join failed, retrying in 2s...");
-                        setTimeout(() => {
-                            socket.emit("get-active-classes");
-                        }, 2000);
-                    } else {
-                        // Fallback
-                        availableClassesScreen.classList.remove('hidden');
-                        chatInterface.classList.add('hidden');
+                        // SILENT RETRY: Just log and wait for next active-classes or server-discovery
+                        console.log("Auto-join failed, waiting for next discovery cycle...");
                     }
-                    showToast("Session expired or class closed", "warning");
                 }
             } else {
                 alert(response.message);
+                window.joiningInProgress = false; // Reset lock on manual join failure too
             }
         }
     });
@@ -1631,6 +1678,14 @@ function switchClass(id) {
 
     updateToolStates();
     updateChatDisabledState();
+
+    // Auto-open connection info if enabled
+    if (checkAutoOpenConnection && checkAutoOpenConnection.checked) {
+        // Use a small timeout to let UI settle
+        setTimeout(() => {
+            if (btnShowUrl) btnShowUrl.click();
+        }, 500);
+    }
 }
 
 function deleteClass(id) {
@@ -2707,7 +2762,7 @@ function renderUsersList() {
         }
 
         const handIcon = user.handRaised ? ' <span class="hand-raised-icon" title="Hand Raised"><img src="/assets/hand-shake-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /></span>' : '';
-        const blockedIcon = isBlocked ? ' <span class="blocked-icon" title="Blocked"><img src="/assets/message-square-xmark-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /></span>' : '';
+        const blockedIcon = isBlocked ? ' <span class="blocked-icon" title="Blocked"><img src="/assets/message-block.svg" class="icon-svg" style="width: 16px; height: 16px;" /></span>' : '';
 
         userDiv.innerHTML = `
             <span class="user-status"></span>
@@ -4907,26 +4962,7 @@ if (btnCloseLogs) {
     });
 }
 
-// Log History Toggle
-const toggleLogHistory = document.getElementById("toggle-log-history");
-if (toggleLogHistory) {
-    toggleLogHistory.checked = isLoggingEnabled; // Set initial state
-    toggleLogHistory.addEventListener("change", (e) => {
-        isLoggingEnabled = e.target.checked;
-        if (isLoggingEnabled) {
-            // Log directly to original console to avoid circular dependency check, 
-            // but we want this confirmation to appear in the captured logs if enabled.
-            // Since isLoggingEnabled is true now, console.log will capture it.
-            console.log("📝 Log History Enabled (Session Only)");
-        } else {
-            console.log("📝 Log History Disabled");
-            // Clear logs from viewer to reflect "history disabled" state visually?
-            // Or just stop recording new ones. 
-            // "Default off" -> likely wants privacy.
-            // Let's keep it simple: stop recording.
-        }
-    });
-}
+
 
 // ===== UNIFIED IMPORT/EXPORT LOGIC =====
 const btnImportData = document.getElementById("btn-import-data");
@@ -5838,7 +5874,8 @@ function closeAllViewers() {
     imageTranslateY = 0;
 
     // Clear Web Frame
-    if (webFrame) webFrame.src = "";
+    const webFrame = document.getElementById("web-frame");
+    if (webFrame) webFrame.src = "about:blank";
     if (webViewerModal) webViewerModal.classList.add("hidden");
 }
 
@@ -6172,7 +6209,7 @@ if (aboutAppIcon) {
 }
 // --- Web Viewer Functions ---
 const webViewerModal = document.getElementById("web-viewer-modal");
-const webFrame = document.getElementById("web-frame");
+// const webFrame = document.getElementById("web-frame"); // Removed to support dynamic creation
 const btnCloseWeb = document.getElementById("btn-close-web");
 const btnMinimizeWeb = document.getElementById("btn-minimize-web");
 const btnWebBack = document.getElementById("btn-web-back");
@@ -6190,16 +6227,54 @@ function openWebViewer(url) {
     closeAllViewers();
     activeViewer = 'web';
 
-    if (webViewerModal && webFrame) {
+    if (webViewerModal) {
         webViewerModal.classList.remove("hidden");
-        webFrame.src = url;
+
+        // --- WEBVİEWER CROSS-PLATFORM FIX ---
+        const isElectron = navigator.userAgent.toLowerCase().indexOf(' electron/') > -1;
+        const webContainer = webViewerModal.querySelector('.web-container');
+
+        let frame = document.getElementById("web-frame");
+
+        if (isElectron) {
+            // Ensure it is a webview
+            if (frame && frame.tagName !== 'WEBVIEW') {
+                frame.remove();
+                frame = null;
+            }
+            if (!frame) {
+                frame = document.createElement('webview');
+                frame.id = 'web-frame';
+                frame.setAttribute('allowpopups', '');
+                frame.style.cssText = "width:100%; height:100%; display:inline-flex;";
+                webContainer.prepend(frame);
+            }
+        } else {
+            // Browser mode - use iframe
+            if (frame && frame.tagName !== 'IFRAME') {
+                frame.remove();
+                frame = null;
+            }
+            if (!frame) {
+                frame = document.createElement('iframe');
+                frame.id = 'web-frame';
+                frame.style.cssText = "width:100%; height:100%; border:none;";
+                webContainer.prepend(frame);
+            }
+        }
+
+        setTimeout(() => {
+            const currentFrame = document.getElementById("web-frame");
+            if (currentFrame) currentFrame.src = url;
+        }, 10);
     }
 }
 
 if (btnCloseWeb) {
     btnCloseWeb.addEventListener("click", () => {
         closeAllViewers();
-        if (webFrame) webFrame.src = "";
+        const frame = document.getElementById("web-frame");
+        if (frame) frame.src = "about:blank";
     });
 }
 
@@ -6214,11 +6289,15 @@ if (btnMinimizeWeb) {
 }
 
 // Web Navigation Controls
-if (btnWebBack && webFrame) {
+if (btnWebBack) {
     btnWebBack.addEventListener("click", () => {
+        const frame = document.getElementById("web-frame");
+        if (!frame) return;
         try {
-            if (webFrame.canGoBack()) {
-                webFrame.goBack();
+            if (frame.tagName === 'WEBVIEW') {
+                if (frame.canGoBack()) frame.goBack();
+            } else if (frame.contentWindow) {
+                frame.contentWindow.history.back();
             }
         } catch (e) {
             console.warn("Navigation failed:", e);
@@ -6226,11 +6305,15 @@ if (btnWebBack && webFrame) {
     });
 }
 
-if (btnWebForward && webFrame) {
+if (btnWebForward) {
     btnWebForward.addEventListener("click", () => {
+        const frame = document.getElementById("web-frame");
+        if (!frame) return;
         try {
-            if (webFrame.canGoForward()) {
-                webFrame.goForward();
+            if (frame.tagName === 'WEBVIEW') {
+                if (frame.canGoForward()) frame.goForward();
+            } else if (frame.contentWindow) {
+                frame.contentWindow.history.forward();
             }
         } catch (e) {
             console.warn("Navigation failed:", e);
@@ -6238,10 +6321,16 @@ if (btnWebForward && webFrame) {
     });
 }
 
-if (btnWebRefresh && webFrame) {
+if (btnWebRefresh) {
     btnWebRefresh.addEventListener("click", () => {
+        const frame = document.getElementById("web-frame");
+        if (!frame) return;
         try {
-            webFrame.reload();
+            if (frame.tagName === 'WEBVIEW') {
+                frame.reload();
+            } else if (frame.contentWindow) {
+                frame.contentWindow.location.reload();
+            }
         } catch (e) {
             console.warn('Reload failed:', e);
         }

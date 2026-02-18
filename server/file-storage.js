@@ -7,11 +7,41 @@ class FileStorage {
         // Use USER_DATA_PATH if set (Electron), otherwise fallback to process.cwd() (Installation Root)
         const baseDir = process.env.USER_DATA_PATH || process.cwd();
         this.uploadDir = path.join(baseDir, 'MediaLibrary');
+        this.metadataFile = path.join(this.uploadDir, 'files.json');
         this.files = new Map(); // fileId → { name, size, type, path, classId, uploadedBy, timestamp }
 
         // Create uploads directory
         if (!fs.existsSync(this.uploadDir)) {
             fs.mkdirSync(this.uploadDir, { recursive: true });
+        }
+
+        this.loadMetadata();
+    }
+
+    loadMetadata() {
+        try {
+            if (fs.existsSync(this.metadataFile)) {
+                const data = fs.readFileSync(this.metadataFile, 'utf8');
+                const fileList = JSON.parse(data);
+                fileList.forEach(file => {
+                    // Verify file existence on disk before adding to memory
+                    if (fs.existsSync(file.path)) {
+                        this.files.set(file.id, file);
+                    }
+                });
+                console.log(`[MediaLibrary] Loaded ${this.files.size} files from persistence.`);
+            }
+        } catch (err) {
+            console.error('[MediaLibrary] Failed to load metadata:', err);
+        }
+    }
+
+    saveMetadata() {
+        try {
+            const fileList = Array.from(this.files.values());
+            fs.writeFileSync(this.metadataFile, JSON.stringify(fileList, null, 2));
+        } catch (err) {
+            console.error('[MediaLibrary] Failed to save metadata:', err);
         }
     }
 
@@ -21,6 +51,7 @@ class FileStorage {
 
     saveFile(fileId, metadata) {
         this.files.set(fileId, metadata);
+        this.saveMetadata();
     }
 
     getFile(fileId) {
@@ -37,14 +68,17 @@ class FileStorage {
             }
         }
         this.files.delete(fileId);
+        this.saveMetadata();
     }
 
     // Clean up old files (optional - can be called periodically)
     cleanupOldFiles(maxAgeMs = 24 * 60 * 60 * 1000) {
         const now = Date.now();
+        let changed = false;
         for (const [fileId, file] of this.files.entries()) {
             if (now - file.timestamp > maxAgeMs) {
-                this.deleteFile(fileId);
+                this.deleteFile(fileId); // deleteFile handles saveMetadata, but efficient batching would be better
+                changed = true;
             }
         }
     }
@@ -69,6 +103,7 @@ class FileStorage {
             }
         }
         fileIds.forEach(id => this.deleteFile(id));
+        // deleteFile saves metadata each time, essentially correct but could be optimized.
     }
 
     // Clear all data (Admin feature)
@@ -85,6 +120,7 @@ class FileStorage {
             }
         }
         this.files.clear();
+        this.saveMetadata();
         console.log("✅ MediaLibrary cleared.");
     }
 }

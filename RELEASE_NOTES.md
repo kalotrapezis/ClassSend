@@ -1,5 +1,21 @@
 # Release Notes
 
+## [9.3.0] - 2026-02-18
+### Added
+- **SVG Transition**: Replaced emojis with high-quality SVG icons in file and web viewing panes for a more professional and consistent visual experience.
+- **Improved Moderation UI**: The message area now dynamically darkens when "Block All" is active, providing clear visual feedback that communication is disabled.
+- **Persistent Media Library**: Implemented a dedicated folder in the installation directory for file transfers, ensuring shared media persists across application restarts.
+- **Enhanced Web Viewer**: Added partial fixes for the web viewer on non-Windows devices (tablets, etc.), improving accessibility outside the main desktop app.
+- **Teacher Tool Menu**: Improved menu behavior; the tool menu now remains open after interaction (hand blocking, disabling, message blocking, screen sharing), allowing for multiple rapid adjustments.
+- **Diagnostic Enhancements**:
+    - Debugging logs are now enabled by default for easier troubleshooting.
+    - Enhanced feedback for automatic scanning and connection status.
+    - **Automatic Log Export**: The application now automatically exports logs to a text file in the user's directory upon startup and shutdown.
+- **Connection Improvements**:
+    - Resolved issues with automatic connection from history when podcasting is off.
+    - The connection information popup now strictly respects the user's settings toggle.
+- **Media Library Management**: Added a "Clear" button to easily manage and reset shared media files.
+
 ## [9.2.0] - 2026-02-16
 ### Added
 - **Smart Auto-Connect**: The app now intelligently probes for known servers from history and handles offline/online states automatically, reducing the need for manual IP entry.
