@@ -1,5 +1,9 @@
 # Release Notes
 
+## [9.3.1] - 2026-02-18
+### Added
+- **Single Instance Lock**: Prevent multiple instances of the application. When clicking the shortcut while the app is active, the existing window is now restored and brought to focus.
+
 ## [9.3.0] - 2026-02-18
 ### Added
 - **SVG Transition**: Replaced emojis with high-quality SVG icons in file and web viewing panes for a more professional and consistent visual experience.
