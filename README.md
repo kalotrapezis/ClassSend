@@ -1,4 +1,5 @@
-# Cla![Version](https://img.shields.io/badge/version-v9.3.0-blue)
+# ClassSend 9.3.0
+![Version](https://img.shields.io/badge/version-v9.3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
