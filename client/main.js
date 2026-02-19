@@ -2759,8 +2759,31 @@ function highlightMentions(text) {
     return escaped;
 }
 
+let isChatFrozen = false;
+
 function scrollToBottom() {
+    if (isChatFrozen) return;
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function jumpToMessage(messageId) {
+    const messageEl = messagesContainer.querySelector(`.message[data-id="${messageId}"]`);
+    if (messageEl) {
+        // Freeze auto-scroll
+        isChatFrozen = true;
+
+        // Scroll to message
+        messageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Add highlight
+        messageEl.classList.add('highlight-message');
+
+        // Remove highlight and unfreeze after 5 seconds
+        setTimeout(() => {
+            messageEl.classList.remove('highlight-message');
+            isChatFrozen = false;
+        }, 5000);
+    }
 }
 
 // Users List
@@ -3431,6 +3454,7 @@ function containsInappropriateContent(text) {
 }
 
 // Real-time input monitoring
+const filterWarning = document.getElementById('filter-warning');
 messageInput.addEventListener('input', () => {
     const hasInappropriate = containsInappropriateContent(messageInput.value);
 
@@ -3622,8 +3646,19 @@ function renderPinnedMessages() {
         </div>
     `;
 
-    // Add event listeners for action buttons
+    // Add event listeners for pinned messages
     const pinnedContainer = document.getElementById('pinned-messages-container');
+
+    // Add click listener to main pinned message cards for jumping
+    pinnedContainer.querySelectorAll('.pinned-message').forEach(el => {
+        el.addEventListener('click', (e) => {
+            // Don't jump if clicking an action button
+            if (e.target.closest('.action-btn')) return;
+
+            const messageId = el.dataset.messageId;
+            jumpToMessage(messageId);
+        });
+    });
 
     // Join Stream buttons
     pinnedContainer.querySelectorAll('.join-stream-btn-pinned').forEach(btn => {
@@ -3638,15 +3673,47 @@ function renderPinnedMessages() {
     });
 
     // Copy buttons
+    // Copy buttons
     pinnedContainer.querySelectorAll('.copy-btn-pinned').forEach(btn => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation(); // Prevent jump when clicking copy
             const content = btn.dataset.content;
-            try {
-                await navigator.clipboard.writeText(content);
-                btn.textContent = '✅';
-                setTimeout(() => btn.textContent = '📋', 1500);
-            } catch (err) {
-                alert('Failed to copy');
+
+            const copyToClipboard = async (text) => {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } catch (err) {
+                    console.warn('Clipboard API failed, trying fallback:', err);
+                    // Fallback
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.style.position = "fixed"; // Avoid scrolling to bottom
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        return true;
+                    } catch (err) {
+                        console.error('Fallback copy failed', err);
+                        document.body.removeChild(textArea);
+                        return false;
+                    }
+                }
+            };
+
+            const success = await copyToClipboard(content);
+            if (success) {
+                const originalContent = btn.innerHTML;
+                const icon = btn.querySelector('img');
+                if (icon) {
+                    icon.src = "/assets/tick-circle-svgrepo-com.svg";
+                }
+                setTimeout(() => btn.innerHTML = originalContent, 1500);
+            } else {
+                alert('Failed to copy to clipboard');
             }
         });
     });

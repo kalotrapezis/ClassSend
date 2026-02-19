@@ -5195,71 +5195,74 @@ input:checked+.slider:before {
     stroke-dashoffset: 0;
   }
 }
+
 /* Premium Transitions for Class Card */
 .available-class-card {
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
-    animation: fadeInUp 0.5s ease-out forwards;
-    opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+  animation: fadeInUp 0.5s ease-out forwards;
+  opacity: 0;
 }
 
 .available-class-card:hover {
-    transform: translateY(-5px) scale(1.02);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-    border-color: var(--accent-primary);
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  border-color: var(--accent-primary);
 }
 
 @keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Premium Join Button */
 .class-card-join-btn {
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
-    color: var(--text-primary);
-    border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    position: relative;
-    overflow: hidden;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
+  color: var(--text-primary);
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
 }
 
 .class-card-join-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 15px var(--accent-glow);
-    padding-right: 1.5rem; /* Make room for arrow movement */
+  transform: scale(1.05);
+  box-shadow: 0 0 15px var(--accent-glow);
+  padding-right: 1.5rem;
+  /* Make room for arrow movement */
 }
 
 .class-card-join-btn:active {
-    transform: scale(0.95);
+  transform: scale(0.95);
 }
 
 /* Add a shimmer effect on hover */
 .class-card-join-btn::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 50%;
-    height: 100%;
-    background: linear-gradient(to right, transparent, rgba(255,255,255,0.3), transparent);
-    transform: skewX(-20deg);
-    transition: left 0.5s ease;
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.5s ease;
 }
 
 .class-card-join-btn:hover::after {
-    left: 150%;
-    transition: left 0.7s ease;
+  left: 150%;
+  transition: left 0.7s ease;
 }
 
 /* Fullscreen Mode for Modals */
@@ -5271,7 +5274,8 @@ input:checked+.slider:before {
   max-width: 100% !important;
   max-height: 100% !important;
   border-radius: 0 !important;
-  background-color: black; /* Optional: standard fullscreen bg */
+  background-color: black;
+  /* Optional: standard fullscreen bg */
 }
 
 .modal.fullscreen .popup-header {
@@ -5280,3 +5284,135 @@ input:checked+.slider:before {
 
 /* Hide header in fullscreen if desired, or keep it. Keeping it is usually better for "Exit" button access. */
 
+/* --- PINNED MESSAGES POLISH --- */
+#pinned-messages-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.pinned-message {
+  display: flex;
+  align-items: flex-start;
+  /* Align to top for multiline */
+  justify-content: space-between;
+  background: var(--mention-bg);
+  border-left: 4px solid var(--accent-primary);
+  padding: 0.75rem;
+  border-radius: 12px;
+  /* Match normal message roundness */
+  gap: 0.75rem;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: background 0.2s ease;
+}
+
+.pinned-message:hover {
+  background: var(--accent-glow);
+}
+
+.pinned-message-header {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  /* Top align */
+  overflow: hidden;
+  margin-right: 0.5rem;
+  position: relative;
+  flex-direction: column;
+  /* Stack sender and text */
+}
+
+.pinned-sender {
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: var(--accent-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+.pinned-text {
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  /* Show up to 3 lines */
+  /* Show up to 3 lines */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  /* Allow wrapping */
+  line-height: 1.4;
+  font-size: 0.95rem;
+  /* Remove mask to show full text within limits */
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.pinned-message-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  z-index: 2;
+  /* Ensure actions are on the right */
+  margin-left: auto;
+}
+
+.pinned-message-actions .action-btn {
+  width: auto;
+  height: 28px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0.8;
+  transition: all 0.2s ease;
+
+  /* Add explicit border and background matching normal buttons */
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.pinned-message-actions .action-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--accent-primary);
+  border-radius: 6px;
+}
+
+/* --- MESSAGE JUMP HIGHLIGHT --- */
+.highlight-message {
+  animation: highlightPulse 2s ease-in-out infinite;
+  border-left: 4px solid var(--accent-primary);
+  background: var(--bg-tertiary);
+}
+
+@keyframes highlightPulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-glow);
+  }
+
+  70% {
+    box-shadow: 0 0 10px 10px transparent;
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.pinned-message {
+  cursor: pointer;
+  /* Indicate it's clickable */
+}

@@ -1,5 +1,14 @@
 # Release Notes
 
+## [9.3.4] - 2026-02-19
+### Changed
+- **Log Privacy**: Automatic log export is now **disabled by default**. Users can enable it in the Advanced Settings if needed.
+- **UI Polish**: Updated the "Copy" success feedback icon to use a consistent SVG graphic instead of an emoji.
+
+### Fixed
+- **Version Display**: Verified and updated version numbers across all client and server components.
+- **Console Errors**: Resolved a `ReferenceError` related to the filter warning element in the message input area.
+
 ## [9.3.3] - 2026-02-19
 ### Added
 - **Pinned Message Enhancements**: Pinned messages now use consistent SVG icons with translated labels for actions (Copy, Open, Unpin).
