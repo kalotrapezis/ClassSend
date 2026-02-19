@@ -1045,8 +1045,13 @@ function getAllAvailableClasses() {
     discoveredServers.forEach((serverInfo) => {
         if (serverInfo.classes && Array.isArray(serverInfo.classes)) {
             serverInfo.classes.forEach(cls => {
+                if (!cls || !cls.id) return; // Skip invalid classes
+
                 // Avoid duplicates if multiple discovery packets come in or local server is discovered
-                if (!allClasses.find(c => c.id === cls.id)) {
+                // Use lenient string comparison for IDs to be safe
+                const exists = allClasses.some(c => String(c.id) === String(cls.id));
+
+                if (!exists) {
                     allClasses.push({
                         ...cls,
                         isRemote: true,
@@ -1497,35 +1502,44 @@ function renderAvailableClasses() {
     }
 
     allClasses.forEach(classInfo => {
-        const classCard = document.createElement("div");
-        classCard.classList.add("available-class-card");
-        if (classInfo.isRemote) {
-            classCard.classList.add("remote-class-card");
-        }
+        try {
+            if (!classInfo || !classInfo.id) return;
+            if (classInfo.id === 'Lobby') return; // Never show Lobby in the list
 
-        const locationLabel = classInfo.isRemote ? `Running on ${classInfo.serverIp}` : 'Local Network';
 
-        classCard.innerHTML = `
-            <div class="class-card-icon">📚</div>
-            <div class="class-card-info">
-                <div class="class-card-name">${escapeHtml(classInfo.id)}</div>
-                <div class="class-card-teacher">Teacher: ${escapeHtml(classInfo.teacherName)}</div>
-                <div class="class-card-location" style="font-size: 0.8em; opacity: 0.7;">${escapeHtml(locationLabel)}</div>
-            </div>
-            <button class="class-card-join-btn">${translations[currentLanguage]['btn-join']} →</button>
-        `;
-
-        classCard.addEventListener("click", () => {
+            const classCard = document.createElement("div");
+            classCard.classList.add("available-class-card");
             if (classInfo.isRemote) {
-                // Redirect to the other server
-                const serverUrl = `http://${classInfo.serverIp}:${classInfo.serverPort}`;
-                window.location.href = serverUrl;
-            } else {
-                joinClass(classInfo.id, userName);
+                classCard.classList.add("remote-class-card");
             }
-        });
 
-        availableClassesList.appendChild(classCard);
+            const locationLabel = classInfo.isRemote ? `Running on ${classInfo.serverIp}` : 'Local Network';
+            const safeStartedName = classInfo.teacherName ? escapeHtml(classInfo.teacherName) : 'Unknown';
+
+            classCard.innerHTML = `
+                <div class="class-card-icon">📚</div>
+                <div class="class-card-info">
+                    <div class="class-card-name">${escapeHtml(String(classInfo.id))}</div>
+                    <div class="class-card-teacher">Teacher: ${safeStartedName}</div>
+                    <div class="class-card-location" style="font-size: 0.8em; opacity: 0.7;">${escapeHtml(locationLabel)}</div>
+                </div>
+                <button class="class-card-join-btn">${translations[currentLanguage]['btn-join']} →</button>
+            `;
+
+            classCard.addEventListener("click", () => {
+                if (classInfo.isRemote) {
+                    // Redirect to the other server
+                    const serverUrl = `http://${classInfo.serverIp}:${classInfo.serverPort}`;
+                    window.location.href = serverUrl;
+                } else {
+                    joinClass(classInfo.id, userName);
+                }
+            });
+
+            availableClassesList.appendChild(classCard);
+        } catch (err) {
+            console.error("Failed to render class card:", err, classInfo);
+        }
     });
 }
 
