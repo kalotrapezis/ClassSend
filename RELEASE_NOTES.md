@@ -1,6 +1,10 @@
 # Release Notes
 
-## [9.3.1] - 2026-02-18
+## [9.3.2] - 2026-02-19
+### Fixed
+- **Class Duplication**: Fixed a bug where the same class could appear twice in the list (once from network, once from history), forcing the user to manually select it instead of auto-joining.
+- **Hidden Lobby**: Ensured that internal "Lobby" classes are strictly hidden from the class list to prevent confusion.
+
 ### Added
 - **Single Instance Lock**: Prevent multiple instances of the application. When clicking the shortcut while the app is active, the existing window is now restored and brought to focus.
 - **Auto-Connect Enhancement**: Students now periodically check their history for known teachers while waiting in the Lobby. This ensures they connect automatically even if the teacher starts ClassSend after the students.
