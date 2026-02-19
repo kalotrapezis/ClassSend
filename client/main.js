@@ -138,6 +138,15 @@ function startClassRefreshInterval() {
         if (socket.connected) {
             socket.emit("get-active-classes");
         }
+
+        // AUTO-CONNECT FIX: If we are in the Lobby (Waiting Room) or have no class,
+        // and using IP history is viable, keep probing.
+        // This handles cases where Teacher starts AFTER Student.
+        if ((!currentClassId || currentClassId === 'Lobby') && currentRole === 'student') {
+            // Only probe if we aren't already flooding the network
+            probeKnownServers();
+        }
+
     }, 5000);
 }
 function stopClassRefreshInterval() {
@@ -247,19 +256,24 @@ function saveKnownServer(url) {
     }
 }
 
+
+// State for probing lock
+let isProbing = false;
+
 async function probeKnownServers() {
+    if (isProbing) return; // Prevent overlapping probes
+    isProbing = true;
+
     try {
         const knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
         if (knownServers.length === 0) {
-            console.log("[Probing] No known servers in history.");
-            // If broadcast is OFF, we are stuck. Open manual connect.
-            if (!isAutoDiscoveryEnabled && currentRole === 'student' && !currentClassId) {
-                // if (btnShowUrl) btnShowUrl.click(); // REMOVED: User requested no automatic popups
-            }
+            // Only log this once or if discovery is explicitly starting, otherwise it spams
+            // console.log("[Probing] No known servers in history.");
+            isProbing = false;
             return;
         }
 
-        console.log(`Probing ${knownServers.length} known servers...`);
+        console.log(`[Probing] Checking ${knownServers.length} known servers...`);
         let foundAny = false;
 
         // Parallel-ish probing would be faster, but sequential is safer to avoid congestion
@@ -322,6 +336,7 @@ async function probeKnownServers() {
             if (foundAny) {
                 console.log("[Probing] Server found. Stopping chain.");
                 handleAutoFlow();
+                isProbing = false;
                 return;
             }
         }
@@ -337,6 +352,8 @@ async function probeKnownServers() {
 
     } catch (e) {
         console.error("Failed to probe known servers:", e);
+    } finally {
+        isProbing = false;
     }
 }
 

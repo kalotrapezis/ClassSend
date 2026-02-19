@@ -1,5 +1,5 @@
-# ClassSend 9.3.0
-![Version](https://img.shields.io/badge/version-v9.3.0-blue)
+# ClassSend 9.3.1
+![Version](https://img.shields.io/badge/version-v9.3.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -103,8 +103,20 @@ To enable it:
 2.  Place the files in: `server/models/Xenova/toxic-bert/onnx/`
 3.  Ensure `model_quantized.onnx` is present in that folder.
 
+
+## 🛠️ Troubleshooting Connection Issues
+If students cannot see the teacher's class automatically:
+
+1.  **Check Network**: Ensure both Teacher and Students are on the **Same Wi-Fi Network**.
+2.  **Firewall**: On the Teacher's computer, ensure **Windows Firewall** allows "Node.js" or "ClassSend" on Private Networks.
+3.  **Manual Connect**:
+    *   **Teacher**: Click the 🌐 icon -> Toggle "Standard IP". Note the IP (e.g., `10.17.3.125`).
+    *   **Student**: Click "Manual Connect" (or 🌐) -> Enter that IP.
+4.  **IP History**: Once a student connects successfully once, ClassSend remembers the IP.
+    *   **New in v9.3.1**: Students now periodically probe this history every 10 seconds while waiting in the Lobby, so they will auto-connect even if the Teacher starts ClassSend *after* the students.
+
 ## 🛠️ How to Run (Development)
-If you want to modify the code or contribute:
+
 
 1.  **Install Dependencies**:
     ```bash
