@@ -5262,3 +5262,21 @@ input:checked+.slider:before {
     transition: left 0.7s ease;
 }
 
+/* Fullscreen Mode for Modals */
+.modal.fullscreen .modal-content,
+.modal.fullscreen .web-modal-content,
+.modal.fullscreen .video-modal-content {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  border-radius: 0 !important;
+  background-color: black; /* Optional: standard fullscreen bg */
+}
+
+.modal.fullscreen .popup-header {
+  border-radius: 0 !important;
+}
+
+/* Hide header in fullscreen if desired, or keep it. Keeping it is usually better for "Exit" button access. */
+

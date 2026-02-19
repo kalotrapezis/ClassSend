@@ -3588,6 +3588,9 @@ function renderPinnedMessages() {
     }
 
     container.style.display = 'block';
+
+    const t = (key) => translations[currentLanguage][key] || key;
+
     container.innerHTML = `
         <div class="pinned-header">
             <span class="pinned-icon"><img src="/assets/pin-svgrepo-com.svg" class="icon-svg" alt="Pin" /></span>
@@ -3608,11 +3611,11 @@ function renderPinnedMessages() {
                         <span class="pinned-text">${escapeHtml(translations[currentLanguage][msg.content] || t(msg.content) || msg.content)}</span>
                     </div>
                     <div class="pinned-message-actions">
-                        <button class="action-btn copy-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Copy">📋</button>
-                        ${hasEmail ? `<button class="action-btn mailto-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Email">✉️</button>` : ''}
-                        ${hasUrl ? `<button class="action-btn url-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Open Link">🔗</button>` : ''}
-                        ${msg.action === 'join-stream' ? `<button class="action-btn join-stream-btn-pinned" title="Join Stream">${t('btn-join-stream')}</button>` : ''}
-                        ${currentRole === 'teacher' ? `<button class="action-btn unpin-btn" data-message-id="${msg.id}" title="Unpin">❌</button>` : ''}
+                        <button class="action-btn copy-btn-pinned" data-content="${escapeHtml(msg.content)}" title="${t('btn-copy-label')}"><img src="/assets/copy-svgrepo-com.svg" class="icon-svg" style="width: 14px; height: 14px;" /><span class="btn-label">${t('btn-copy-label')}</span></button>
+                        ${hasEmail ? `<button class="action-btn mailto-btn-pinned" data-content="${escapeHtml(msg.content)}" title="${t('btn-email-label')}"><img src="/assets/sms-4-svgrepo-com.svg" class="icon-svg" style="width: 14px; height: 14px;" /><span class="btn-label">${t('btn-email-label')}</span></button>` : ''}
+                        ${hasUrl ? `<button class="action-btn url-btn-pinned" data-content="${escapeHtml(msg.content)}" title="${t('btn-open-link-label')}"><img src="/assets/link-circle.svg" class="icon-svg" style="width: 14px; height: 14px;" /><span class="btn-label">${t('btn-open-link-label')}</span></button>` : ''}
+                        ${msg.action === 'join-stream' ? `<button class="action-btn join-stream-btn-pinned" title="${t('btn-join-stream')}">${t('btn-join-stream')}</button>` : ''}
+                        ${currentRole === 'teacher' ? `<button class="action-btn unpin-btn" data-message-id="${msg.id}" title="${t('btn-unpin-label') || 'Unpin'}"><img src="/assets/pin-svgrepo-com.svg" class="icon-svg" style="width: 14px; height: 14px;" /><span class="btn-label">${t('btn-unpin-label') || 'Unpin'}</span></button>` : ''}
                     </div>
                 </div>
             `}).join('')}
@@ -3664,7 +3667,7 @@ function renderPinnedMessages() {
             const content = btn.dataset.content;
             const urlRegex = /(https?:\/\/[^\s]+)/gi;
             const urls = content.match(urlRegex);
-            if (urls) window.open(urls[0], '_blank');
+            if (urls) openWebViewer(urls[0]);
         });
     });
 
@@ -6246,6 +6249,7 @@ const btnMinimizeWeb = document.getElementById("btn-minimize-web");
 const btnWebBack = document.getElementById("btn-web-back");
 const btnWebForward = document.getElementById("btn-web-forward");
 const btnWebRefresh = document.getElementById("btn-web-refresh");
+const btnWebFullscreen = document.getElementById("btn-web-fullscreen");
 
 function openWebViewer(url) {
     if (!url) return;
@@ -6364,6 +6368,26 @@ if (btnWebRefresh) {
             }
         } catch (e) {
             console.warn('Reload failed:', e);
+        }
+    });
+}
+
+// Fullscreen for Web Viewer
+if (btnWebFullscreen) {
+    btnWebFullscreen.addEventListener("click", () => {
+        if (webViewerModal) {
+            webViewerModal.classList.toggle("fullscreen");
+
+            // Only toggle title/icon if needed, but styling handles the view.
+            // SVG change logic if we want to change the icon (optional, matching video player)
+            // btnWebFullscreen.innerHTML = webViewerModal.classList.contains("fullscreen") ? '<img src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" />' : '<img src="/assets/full-screen-square-svgrepo-com.svg" class="icon-video-ctrl" />';
+        }
+    });
+
+    // Escape listener for web viewer fullscreen
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && webViewerModal && webViewerModal.classList.contains("fullscreen")) {
+            webViewerModal.classList.remove("fullscreen");
         }
     });
 }

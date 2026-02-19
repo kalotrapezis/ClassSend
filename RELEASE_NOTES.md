@@ -1,5 +1,11 @@
 # Release Notes
 
+## [9.3.3] - 2026-02-19
+### Added
+- **Pinned Message Enhancements**: Pinned messages now use consistent SVG icons with translated labels for actions (Copy, Open, Unpin).
+- **Internal Web Viewer**: Pinned links now open directly within the application's secure web viewer instead of an external browser.
+- **Web Viewer Fullscreen**: Added a fullscreen toggle to the in-app web viewer for better presentation capability.
+
 ## [9.3.2] - 2026-02-19
 ### Fixed
 - **Class Duplication**: Fixed a bug where the same class could appear twice in the list (once from network, once from history), forcing the user to manually select it instead of auto-joining.

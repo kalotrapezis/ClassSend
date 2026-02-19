@@ -1,6 +1,6 @@
 {
     "name": "classsend",
-    "version": "9.3.2",
+    "version": "9.3.3",
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
@@ -56,7 +56,7 @@
                     "config": {
                         "name": "ClassSend",
                         "setupIcon": "./assets/icon.ico",
-                        "setupExe": "ClassSend-9.3.2 Setup.exe",
+                        "setupExe": "ClassSend-9.3.3 Setup.exe",
                         "loadingGif": "./assets/loadingGif.gif"
                     }
                 },
