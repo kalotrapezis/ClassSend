@@ -1,5 +1,21 @@
 # Release Notes
 
+## [9.3.7] - 2026-02-20
+### Added
+- **Persisted Log Settings**: Log settings are now persisted across application restarts.
+- **Persistent Media Library**: The media library is now saved to a "media" folder in the teacher's installation directory. Students mirror the teacher's media library, and all file transfers correspond directly with this folder.
+- **Media Management**: The Media Library now features "Delete-Clear" and "Download All" buttons (available to teachers only).
+- **Pinned Comments**: Improved UI and behavior for pinned messages, including better action button handling.
+- **SVG Transition**: Replaced various action icons with premium SVG assets.
+- **UI Enhancements**:
+    - Added text labels to action buttons. The labels are placed on the right, keeping content on the left, with a smooth fade-out effect for overflowing content.
+    - Updated message action buttons and new elements to use the same consistent styling, roundness, and colors.
+    - Added progress bars to indicate when a file is being sent or received in the chat.
+    - Consistent UI styling across all message types.
+- **In-App Web Viewer**:
+    - The "Link" button now opens websites securely in the internal web-viewer.
+    - Added a full-screen option to the right side of the web-viewer controls.
+
 ## [9.3.5] - 2026-02-20
 ### Fixed
 - **Auto-Connection**: Fixed a critical bug where the `joiningInProgress` lock was not cleared after joining the Lobby, permanently blocking automatic redirection to the teacher's server from history.

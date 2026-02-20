@@ -4,9 +4,9 @@ const crypto = require('crypto');
 
 class FileStorage {
     constructor() {
-        // Use USER_DATA_PATH if set (Electron), otherwise fallback to process.cwd() (Installation Root)
-        const baseDir = process.env.USER_DATA_PATH || process.cwd();
-        this.uploadDir = path.join(baseDir, 'MediaLibrary');
+        // Store in the installation root directory as "media"
+        const baseDir = process.cwd();
+        this.uploadDir = path.join(baseDir, 'media');
         this.metadataFile = path.join(this.uploadDir, 'files.json');
         this.files = new Map(); // fileId → { name, size, type, path, classId, uploadedBy, timestamp }
 

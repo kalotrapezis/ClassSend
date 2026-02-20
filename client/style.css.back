@@ -1586,28 +1586,6 @@ body {
   color: var(--text-primary);
 }
 
-/* File Message Action Buttons - pill style matching text messages */
-.file-message .action-btn {
-  width: auto;
-  height: auto;
-  padding: 4px 12px;
-  border-radius: 16px;
-  border: 1px solid var(--border-color);
-  background: rgba(255, 255, 255, 0.05);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.file-message .action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-}
-
-
 
 
 
@@ -2837,15 +2815,6 @@ body {
   gap: 0.5rem;
   margin-top: 0.5rem;
   flex-wrap: wrap;
-  align-items: center;
-}
-
-/* Pinned buttons have text labels — override the fixed 32px width from .action-btn */
-.pinned-message-actions .action-btn {
-  width: auto !important;
-  min-width: unset !important;
-  padding: 0.25rem 0.6rem !important;
-  gap: 4px;
 }
 
 /* =========================================
@@ -3299,31 +3268,7 @@ input:checked+.slider:before {
   border-radius: 6px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  position: relative;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.pinned-message:hover {
-  background: var(--bg-hover);
-}
-
-.pinned-content-wrapper {
-  flex: 1;
-  min-width: 0;
-  /* Important for flex child truncation */
-  /* Fade out effect on the right side */
-  mask-image: linear-gradient(to right, black 85%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
-}
-
-.pinned-message-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
 }
 
 .pinned-sender {
@@ -3333,58 +3278,28 @@ input:checked+.slider:before {
 }
 
 .pinned-text {
+  flex: 1;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.pinned-message-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  z-index: 1;
+.unpin-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0 4px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
 }
 
-.action-btn.copy-btn-pinned,
-.action-btn.mailto-btn-pinned,
-.action-btn.url-btn-pinned,
-.action-btn.join-stream-btn-pinned,
-.action-btn.unpin-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.unpin-btn:hover {
+  opacity: 1;
+  color: var(--error);
 }
-
-@keyframes flash-round {
-
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-    filter: brightness(1);
-  }
-
-  15%,
-  45%,
-  75% {
-    box-shadow: 0 0 0 2px var(--accent-primary);
-    filter: brightness(1.2);
-  }
-
-  30%,
-  60% {
-    box-shadow: 0 0 0 0 transparent;
-    filter: brightness(1);
-  }
-}
-
-.highlight-flash {
-  animation: flash-round 5s ease-in-out;
-  border-radius: 8px;
-  position: relative;
-  z-index: 10;
-}
-
-/* The buttons already use .action-btn from general chat, which provides the rounded style, borders, and hover effects. */
 
 /* Hand-Raising Styles */
 /* Emoji handled by font-size in shared block */
@@ -5032,9 +4947,9 @@ input:checked+.slider:before {
 
 /* Document Viewer Modal */
 .doc-modal-content {
-  width: 92%;
-  height: 92%;
-  max-width: 1400px;
+  width: 90%;
+  height: 90%;
+  max-width: 1200px;
   display: flex;
   flex-direction: column;
   background: #f8f9fa;
@@ -5059,17 +4974,17 @@ input:checked+.slider:before {
   /* Canvas background */
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  padding: 1rem;
+  align-items: center;
+  padding: 2rem;
 }
 
 .doc-content {
   width: 100%;
-  max-width: none;
+  max-width: 900px;
   min-height: 100%;
   background: white;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
+  padding: 3rem;
   color: black;
   border-radius: 4px;
 }
@@ -5280,202 +5195,70 @@ input:checked+.slider:before {
     stroke-dashoffset: 0;
   }
 }
-
 /* Premium Transitions for Class Card */
 .available-class-card {
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
-  animation: fadeInUp 0.5s ease-out forwards;
-  opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+    animation: fadeInUp 0.5s ease-out forwards;
+    opacity: 0;
 }
 
 .available-class-card:hover {
-  transform: translateY(-5px) scale(1.02);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  border-color: var(--accent-primary);
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    border-color: var(--accent-primary);
 }
 
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Premium Join Button */
 .class-card-join-btn {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
-  color: var(--text-primary);
-  border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
+    color: var(--text-primary);
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
 }
 
 .class-card-join-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 15px var(--accent-glow);
-  padding-right: 1.5rem;
-  /* Make room for arrow movement */
+    transform: scale(1.05);
+    box-shadow: 0 0 15px var(--accent-glow);
+    padding-right: 1.5rem; /* Make room for arrow movement */
 }
 
 .class-card-join-btn:active {
-  transform: scale(0.95);
+    transform: scale(0.95);
 }
 
 /* Add a shimmer effect on hover */
 .class-card-join-btn::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transform: skewX(-20deg);
-  transition: left 0.5s ease;
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.3), transparent);
+    transform: skewX(-20deg);
+    transition: left 0.5s ease;
 }
 
 .class-card-join-btn:hover::after {
-  left: 150%;
-  transition: left 0.7s ease;
+    left: 150%;
+    transition: left 0.7s ease;
 }
 
-/* Modal Fullscreen Maximized Class */
-.modal-content.modal-maximized {
-  width: 100vw !important;
-  height: 100vh !important;
-  max-width: none !important;
-  max-height: none !important;
-  border-radius: 0 !important;
-  margin: 0 !important;
-  padding: 0;
-  top: 0 !important;
-  left: 0 !important;
-  transform: none !important;
-  transition: all 0.2s ease;
-}
-
-.modal-content.modal-maximized .web-container,
-.modal-content.modal-maximized .pdf-container,
-.modal-content.modal-maximized .doc-container,
-.modal-content.modal-maximized .image-container-enhanced {
-  flex: 1;
-  height: calc(100vh - 50px);
-  /* Account for header */
-}
-
-/* Web Viewer Fullscreen (matches screen-sharing behavior) */
-#web-viewer-modal.fullscreen {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 10000 !important;
-  background: rgba(0, 0, 0, 0.95);
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-}
-
-#web-viewer-modal.fullscreen .modal-content {
-  width: 100vw !important;
-  height: 100vh !important;
-  max-width: none !important;
-  max-height: none !important;
-  border-radius: 0 !important;
-  margin: 0 !important;
-}
-
-#web-viewer-modal.fullscreen .web-container {
-  flex: 1;
-  height: calc(100vh - 50px);
-}
-
-/* ===== FILE TRANSFER PROGRESS INDICATOR ===== */
-.file-transfer-indicator {
-  margin: 4px 12px;
-  padding: 10px 14px;
-  background: rgba(6, 182, 212, 0.06);
-  border: 1px solid rgba(6, 182, 212, 0.25);
-  border-radius: 12px;
-  animation: ftFadeIn 0.25s ease;
-  max-width: 520px;
-  align-self: flex-start;
-}
-
-@keyframes ftFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.file-transfer-content {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.file-transfer-label {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-
-  em {
-    color: var(--text-primary);
-    font-style: normal;
-    font-weight: 500;
-  }
-}
-
-.file-transfer-bar-wrap {
-  height: 5px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 99px;
-  overflow: hidden;
-  width: 100%;
-}
-
-/* Determinate (sender) bar */
-.file-transfer-bar {
-  height: 100%;
-  width: 0%;
-  border-radius: 99px;
-  background: linear-gradient(90deg, var(--accent-primary), var(--accent-hover));
-  transition: width 0.3s ease;
-}
-
-/* Indeterminate (receiver) shimmer */
-.file-transfer-bar.indeterminate {
-  width: 40%;
-  animation: ftShimmer 1.4s ease-in-out infinite;
-}
-
-@keyframes ftShimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-
-  100% {
-    transform: translateX(300%);
-  }
-}
-
-.file-transfer-pct {
-  font-size: 0.75rem;
-  color: var(--accent-primary);
-  font-weight: 600;
-  text-align: right;
-}
