@@ -1,6 +1,9 @@
 # Release Notes
 
-## [9.3.2] - 2026-02-19
+## [9.3.5] - 2026-02-20
+### Fixed
+- **Auto-Connection**: Fixed a critical bug where the `joiningInProgress` lock was not cleared after joining the Lobby, permanently blocking automatic redirection to the teacher's server from history.
+- **Version Update**: Internal consistency update for v9.3.5.
 ### Fixed
 - **Class Duplication**: Fixed a bug where the same class could appear twice in the list (once from network, once from history), forcing the user to manually select it instead of auto-joining.
 - **Hidden Lobby**: Ensured that internal "Lobby" classes are strictly hidden from the class list to prevent confusion.

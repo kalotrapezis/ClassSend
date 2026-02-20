@@ -239,11 +239,18 @@ socket.on("server-lost", (serverInfo) => {
 // ===== IP HISTORY & PROBING =====
 function saveKnownServer(url) {
     try {
+        // Never save our own origin — we are already connected to it
+        const cleanUrl = url.split('?')[0].replace(/\/$/, '');
+        const ownOrigin = window.location.origin.replace(/\/$/, '');
+        if (cleanUrl === ownOrigin) return;
+
         let knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
+        // Normalise URL before storing (strip query params & trailing slash)
+        const normalizedUrl = cleanUrl;
         // Add if unique
-        if (!knownServers.includes(url)) {
+        if (!knownServers.includes(normalizedUrl)) {
             // Add to FRONT
-            knownServers.unshift(url);
+            knownServers.unshift(normalizedUrl);
             // Limit to last 10
             if (knownServers.length > 10) knownServers.pop();
             localStorage.setItem('classsend-known-servers', JSON.stringify(knownServers));
@@ -1192,6 +1199,7 @@ function joinOrCreateLobby() {
 
             if (settingsNameInput) settingsNameInput.value = userName;
             switchClass(classId);
+            window.joiningInProgress = false; // Allow future auto-flow to redirect to teacher from history
 
             // Check if chat should be disabled (no teacher yet)
             updateChatDisabledState();
@@ -4499,7 +4507,10 @@ function renderHistoryList(container, isMini = false) {
     container.innerHTML = "";
 
     try {
-        const knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
+        const allKnownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
+        const ownOrigin = window.location.origin.replace(/\/$/, '');
+        // Filter out our own IP so we never show "connect to myself" entries
+        const knownServers = allKnownServers.filter(s => s.replace(/\/$/, '') !== ownOrigin);
 
         if (knownServers.length === 0) {
             container.innerHTML = `<div class="empty-state-small" data-i18n="history-empty">No history yet</div>`;
