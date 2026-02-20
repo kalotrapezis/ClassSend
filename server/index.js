@@ -41,6 +41,8 @@ const fileStorage = new FileStorage();
 app.use(express.static(path.join(__dirname, 'public')));
 // Serve assets directory
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
+// Serve media directory for in-app viewers
+app.use('/media', express.static(path.join(process.cwd(), 'media')));
 
 // TLS/HTTPS support (optional)
 const USE_TLS = process.env.USE_TLS === 'true' || false;
@@ -219,7 +221,7 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '9.3.5', // Should match package.json
+    version: '9.3.7', // Should match package.json
     classes: classes
   });
 });
@@ -603,7 +605,7 @@ io.on('connection', (socket) => {
   socket.emit('network-info', { ip, prefix, port });
 
   // Broadcast active classes to all clients
-  socket.emit('active-classes', Array.from(activeClasses.values()));
+  socket.emit('active-classes', Array.from(activeClasses.entries()).map(([id, data]) => ({ id, teacherName: data.teacherName })));
 
   // HANDLE CLEAR DATA REQUEST
   socket.on('clear-data', () => {
@@ -638,6 +640,23 @@ io.on('connection', (socket) => {
     io.emit('data-cleared');
   });
 
+  // File Transfer Progress: Client emits this before starting XHR upload
+  socket.on('file-transfer-start', ({ classId, fileName, fileSize }) => {
+    // Broadcast to ALL class members (including sender) so everyone sees the indicator
+    io.to(classId).emit('file-transfer-start', {
+      senderId: socket.id,
+      classId,
+      fileName,
+      fileSize
+    });
+    console.log(`[FileTransfer] ${socket.id} started uploading "${fileName}" (${fileSize} bytes) to ${classId}`);
+  });
+
+  // File Transfer Cancel: Client emits this on XHR error/abort
+  socket.on('file-transfer-cancel', ({ classId, senderId }) => {
+    io.to(classId).emit('file-transfer-cancel', { senderId: senderId || socket.id });
+  });
+
   // Handle Clear Media Library Request (Specific)
   socket.on('clear-media-library', () => {
     console.log(`🗑️ User ${socket.id} requested Clear Media Library`);
@@ -652,8 +671,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('update-settings', (newSettings) => {
+    let updated = false;
     if (newSettings.enableLogging !== undefined) {
       configManager.set('enableLogging', newSettings.enableLogging);
+      updated = true;
+    }
+    if (newSettings.autoExportLogs !== undefined) {
+      configManager.set('autoExportLogs', newSettings.autoExportLogs);
+      updated = true;
+    }
+    if (updated) {
       io.emit('settings-updated', configManager.getAll()); // Broadcast change
     }
   });

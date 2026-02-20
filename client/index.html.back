@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' ws: wss: http: https:;">
+  <title data-i18n="app-title">ClassSend</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Raleway:wght@100;200;300;400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="./style.css?v=9.3.5">
+</head>
+
+<body>
+  <div id="app">
+    <!-- Role Selection Screen -->
+    <div id="role-selection" class="screen hidden">
+      <div class="screen-content">
+        <h1>ClassSend</h1>
+        <h2 data-i18n="select-role-title">Select Your Role</h2>
+        <div class="card-container">
+          <button id="btn-teacher" class="role-card teacher-card">
+            <span class="role-icon"><img src="/assets/teacher-svgrepo-com.svg" class="role-svg" alt="Teacher" /></span>
+            <span class="role-label" data-i18n="role-teacher">Teacher</span>
+          </button>
+          <button id="btn-student" class="role-card student-card">
+            <span class="role-icon"><img src="/assets/student-person-svgrepo-com.svg" class="role-svg"
+                alt="Student" /></span>
+            <span class="role-label" data-i18n="role-student">Student</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Class Setup Screen (Teacher/Student) -->
+    <div id="class-setup" class="screen hidden">
+      <div class="screen-content">
+        <h1>ClassSend</h1>
+        <div id="setup-form">
+          <h2 id="setup-title">Create Class</h2>
+          <div class="input-group">
+            <label for="class-id-input" data-i18n="label-class-id">Class ID</label>
+            <input type="text" id="class-id-input" placeholder="e.g., MATH101" autocomplete="off"
+              data-i18n-placeholder="placeholder-class-id-example">
+          </div>
+          <div class="input-group">
+            <label for="user-name-input" data-i18n="label-name">Your Name</label>
+            <input type="text" id="user-name-input" placeholder="e.g., John Doe" autocomplete="off"
+              data-i18n-placeholder="placeholder-name-example">
+          </div>
+          <button id="btn-submit-setup" class="primary-btn" data-i18n="btn-create">Create Class</button>
+          <button id="btn-back" class="secondary-btn" data-i18n="btn-back">Back</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Available Classes Screen (Student Only) -->
+    <div id="available-classes" class="screen hidden">
+      <div class="screen-content">
+        <h1>ClassSend</h1>
+        <h2 data-i18n="header-available-classes">Available Classes</h2>
+        <div id="available-classes-list" class="available-classes-list">
+          <!-- Classes will be dynamically added here -->
+          <div class="empty-state" data-i18n="searching-classes">Looking for classes...</div>
+        </div>
+
+        <!-- Manual Connection (Smart IP) -->
+        <div class="manual-connection-section">
+          <h3 data-i18n="manual-connect-title"><img src="/assets/history-svgrepo-com.svg" class="icon-svg"
+              alt="History" /> Connect Manually</h3>
+          <p class="manual-connect-hint" data-i18n="manual-connect-hint">Don't see your class? Enter the server IP.</p>
+          <div class="smart-ip-group">
+            <span id="smart-ip-prefix" class="smart-ip-prefix">...</span>
+            <input type="number" id="smart-ip-suffix" class="smart-ip-suffix" placeholder="XX" min="0" max="255"
+              data-i18n-placeholder="placeholder-ip-suffix">
+            <span class="smart-ip-port-display">:<span id="smart-ip-port">...</span></span>
+            <button id="btn-manual-connect" class="small-primary-btn" data-i18n="btn-connect">Connect</button>
+          </div>
+
+          <!-- History List (Smart IP Dialog) -->
+          <div id="smart-ip-history-list" class="known-servers-list dialog-list hidden">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+        <button id="btn-back-from-classes" class="secondary-btn" data-i18n="btn-back">Back</button>
+      </div>
+    </div>
+
+    <!-- Chat Interface -->
+    <div id="chat-interface" class="hidden">
+      <!-- Header -->
+      <header class="chat-header">
+        <div class="header-left">
+          <button id="btn-menu-toggle" class="header-btn menu-btn mobile-only">
+            ☰
+          </button>
+          <div class="user-info-section">
+            <div id="connection-status" class="status-indicator disconnected" title="Disconnected">
+              <span class="status-dot"></span>
+              <span class="status-text desktop-only" data-i18n="status-disconnected">Disconnected</span>
+            </div>
+          </div>
+          <h1 class="app-title" data-i18n="app-title">ClassSend</h1>
+          <!-- Buttons moved to left -->
+          <button id="btn-show-url" class="header-btn connection-btn" title="Connection Information"
+            data-i18n-title="btn-show-url-title">
+            <img src="/assets/connection-pattern-1104-svgrepo-com.svg" class="icon-svg" alt="Connection" />
+            <span data-i18n="modal-connection-title" class="desktop-only">Connection</span>
+          </button>
+          <button id="btn-media-toggle" class="header-btn media-btn" title="Media Library"
+            data-i18n-title="btn-media-title">
+            <img src="/assets/files-svgrepo-com.svg" class="icon-svg" alt="Media" />
+            <span data-i18n="btn-media-title" class="desktop-only">Library</span>
+          </button>
+          <button id="btn-settings-toggle" class="header-btn settings-btn" title="Settings"
+            data-i18n-title="btn-settings-title">
+            <img src="/assets/settings-svgrepo-com.svg" class="icon-svg" alt="Settings" />
+            <span data-i18n="btn-settings-title" class="desktop-only">Settings</span>
+          </button>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal hidden">
+          <div class="settings-modal-content">
+            <div class="popup-header">
+              <h3 data-i18n="modal-settings-title"><img src="/assets/settings-svgrepo-com.svg" class="icon-svg"
+                  alt="Settings" /> Settings</h3>
+              <button id="btn-close-settings" class="close-btn">×</button>
+            </div>
+
+            <div class="settings-layout">
+              <!-- Sidebar -->
+              <div class="settings-sidebar">
+                <button class="settings-tab-btn active" data-tab="personalization">
+                  <img src="/assets/brush-svgrepo-com.svg" class="tab-icon" alt="Personalization" />
+                  <span data-i18n="settings-section-personalization">Personalization</span>
+                </button>
+                <button class="settings-tab-btn hidden" id="tab-moderation" data-tab="moderation">
+                  <img src="/assets/brain-svgrepo-com.svg" class="tab-icon" alt="AI" />
+                  <span data-i18n="settings-section-filter">Content Moderation</span>
+                </button>
+                <button class="settings-tab-btn" data-tab="connection">
+                  <img src="/assets/connection-pattern-1104-svgrepo-com.svg" class="tab-icon" alt="Connection" />
+                  <span data-i18n="settings-subsection-connection">Connection</span>
+                </button>
+                <button class="settings-tab-btn" data-tab="streaming">
+                  <img src="/assets/screen-mirror-svgrepo-com.svg" class="tab-icon" alt="Screen Sharing" />
+                  <span data-i18n="settings-section-streaming">Screen Sharing</span>
+                </button>
+                <button class="settings-tab-btn" data-tab="data">
+                  <img src="/assets/admin-tools-svgrepo-com.svg" class="tab-icon" alt="Admin" />
+                  <span data-i18n="settings-section-admin">Administration</span>
+                </button>
+                <button class="settings-tab-btn hidden" id="tab-system" data-tab="system">
+                  <img src="/assets/logs-wood-svgrepo-com.svg" class="tab-icon" alt="System" />
+                  <span data-i18n="settings-section-advanced">System Monitoring</span>
+                </button>
+                <button class="settings-tab-btn" data-tab="about">
+                  <img src="/assets/about-faq-help-svgrepo-com.svg" class="tab-icon" alt="About" />
+                  <span data-i18n="about-tab">About</span>
+                </button>
+              </div>
+
+              <!-- Content Area -->
+              <div class="settings-content">
+
+                <!-- Personalization Page -->
+                <div id="settings-page-personalization" class="settings-page active">
+                  <h4 class="settings-page-header" data-i18n="settings-section-personalization">Personalization</h4>
+
+                  <div class="setting-item">
+                    <label data-i18n="label-theme">Theme</label>
+                    <div class="theme-selector-container">
+                      <!-- Blue - Cyan (Default) -->
+                      <div class="theme-card active" data-theme="default">
+                        <div class="theme-preview blue-cyan"></div>
+                        <span class="theme-name" data-i18n="theme-deep-space">Deep Space</span>
+                        <div class="theme-check">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <!-- Magenta - Pink -->
+                      <div class="theme-card" data-theme="magenta">
+                        <div class="theme-preview magenta"></div>
+                        <span class="theme-name" data-i18n="theme-neon-tokyo">Neon Tokyo</span>
+                        <div class="theme-check">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <!-- Black - Gray -->
+                      <div class="theme-card" data-theme="black">
+                        <div class="theme-preview black"></div>
+                        <span class="theme-name" data-i18n="theme-carbon">Carbon</span>
+                        <div class="theme-check">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <!-- Orange - Yellow -->
+                      <div class="theme-card" data-theme="orange">
+                        <div class="theme-preview orange"></div>
+                        <span class="theme-name" data-i18n="theme-solar">Solar</span>
+                        <div class="theme-check">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <!-- High Contrast -->
+                      <div class="theme-card" data-theme="contrast">
+                        <div class="theme-preview contrast"></div>
+                        <span class="theme-name" data-i18n="theme-high-contrast">High Contrast</span>
+                        <div class="theme-check">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="setting-item">
+                    <label for="language-select" data-i18n="label-language">Language</label>
+                    <select id="language-select" class="setting-select">
+                      <option value="en">English</option>
+                      <option value="el">Ελληνικά</option>
+                    </select>
+                  </div>
+
+                  <div class="setting-item">
+                    <label for="settings-name-input" data-i18n="label-name">Your Name</label>
+                    <div class="input-with-button">
+                      <input type="text" id="settings-name-input" class="setting-input" maxlength="20"
+                        data-i18n-placeholder="placeholder-name">
+                      <button id="btn-settings-change-name" class="small-primary-btn"
+                        data-i18n="btn-change-name">Change</button>
+                      <button id="btn-regenerate-name" class="small-secondary-btn" title="Generate random name"
+                        data-i18n-title="btn-regenerate-name-title"><img src="/assets/random-1dice-svgrepo-com.svg"
+                          class="icon-svg" alt="Random" /></button>
+                    </div>
+                  </div>
+
+                  <div class="setting-item">
+                    <label data-i18n="label-role">Your Role</label>
+                    <div class="role-display-section">
+                      <span id="current-role-display" class="role-badge">-</span>
+                      <button id="btn-change-role" class="secondary-btn" data-i18n="btn-change-role">
+                        <img src="/assets/change-switch.svg" class="icon-svg" alt="Change Role" /> Change Role
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Content Moderation Page (Teacher Only) -->
+                <div id="settings-page-moderation" class="settings-page hidden">
+                  <h4 class="settings-page-header" data-i18n="settings-section-filter"><img
+                      src="/assets/brain-svgrepo-com.svg" class="icon-svg" alt="AI" /> Content Filtering</h4>
+
+                  <!-- Filter Mode -->
+                  <div class="setting-item">
+                    <label for="filter-mode-select" data-i18n="label-filter-mode">Filter Mode</label>
+                    <select id="filter-mode-select" class="setting-select">
+                      <option value="legacy" data-i18n="filter-mode-legacy">Legacy (Low RAM)</option>
+                      <option value="advanced" data-i18n="filter-mode-advanced">Advanced (Naive Bayes)</option>
+
+                    </select>
+                  </div>
+                  <p class="setting-hint" data-i18n="filter-mode-hint">Legacy: Client-side word matching. Advanced:
+                    Server AI (N-gram).</p>
+
+
+
+                  <!-- Advanced Model Preferences -->
+                  <div id="advanced-model-preferences" class="advanced-model-preferences hidden">
+                    <h5 class="subsection-header" data-i18n="advanced-model-preferences">Advanced Model Preferences</h5>
+
+                    <!-- Blocking Sensitivity -->
+                    <div class="setting-sub-group">
+                      <div class="setting-header-row">
+                        <label for="model-block-toggle" data-i18n="model-block-toggle">Model Automatic Blocking</label>
+                        <label class="switch small">
+                          <input type="checkbox" id="model-block-toggle" checked>
+                          <span class="slider round"></span>
+                        </label>
+                      </div>
+                      <input type="range" id="model-block-threshold" min="0" max="100" value="10" class="slider-range">
+                      <div class="range-labels">
+                        <span data-i18n="lenient">Lenient</span>
+                        <span id="model-block-val">10%</span>
+                        <span data-i18n="strict">Strict</span>
+                      </div>
+                      <p class="setting-hint" data-i18n="model-block-hint">Automatically block words the AI thinks are
+                        dangerous.</p>
+                    </div>
+
+                    <!-- Reporting Sensitivity -->
+                    <div class="setting-sub-group">
+                      <div class="setting-header-row">
+                        <label for="model-report-toggle" data-i18n="model-report-toggle">Model Automatic
+                          Reporting</label>
+                        <label class="switch small">
+                          <input type="checkbox" id="model-report-toggle" checked>
+                          <span class="slider round"></span>
+                        </label>
+                      </div>
+                      <input type="range" id="model-report-threshold" min="0" max="100" value="90" class="slider-range">
+                      <div class="range-labels">
+                        <span data-i18n="lenient">Lenient</span>
+                        <span id="model-report-val">90%</span>
+                        <span data-i18n="strict">Strict</span>
+                      </div>
+                      <p class="setting-hint" data-i18n="model-report-hint">Automatically flag words the AI thinks are
+                        dangerous for teacher review.
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Lists Management -->
+                  <div class="setting-item" style="margin-top: 1.5rem;">
+                    <label data-i18n="manage-lists">Manage Lists</label>
+                    <div class="lists-actions">
+                      <button id="btn-open-blacklist-modal" class="secondary-btn">
+                        <img src="/assets/list-cross-svgrepo-com.svg" class="icon-svg" alt="Blacklist" />
+                        <span data-i18n="btn-blacklist">Manage Blacklist</span>
+                      </button>
+                      <button id="btn-open-whitelist-modal" class="secondary-btn whitelist-settings-btn">
+                        <img src="/assets/list-heart-minimalistic-svgrepo-com.svg" class="icon-svg" alt="Whitelist" />
+                        <span data-i18n="btn-whitelist">Manage Whitelist</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Connection Page -->
+                <div id="settings-page-connection" class="settings-page hidden">
+                  <h4 class="settings-page-header" data-i18n="settings-subsection-connection">Connection Information
+                  </h4>
+
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <label for="auto-open-connection" data-i18n="label-auto-open-connection">Open connection info
+                        automatically</label>
+                      <label class="switch">
+                        <input type="checkbox" id="auto-open-connection">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <label for="auto-close-connection" data-i18n="label-auto-close-connection">Close connection info
+                        automatically after copying</label>
+                      <label class="switch">
+                        <input type="checkbox" id="auto-close-connection">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <div>
+                        <label for="auto-discovery-toggle" class="setting-label-tight"
+                          data-i18n="label-auto-discovery">Automatic Search</label>
+                        <p class="setting-description" data-i18n="auto-discovery-description">Search for classes on the
+                          local network.</p>
+                      </div>
+                      <label class="switch">
+                        <input type="checkbox" id="auto-discovery-toggle">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Known servers history in settings -->
+                  <div class="setting-item">
+                    <label data-i18n="label-known-servers"><img src="/assets/history-svgrepo-com.svg" class="icon-svg"
+                        alt="History" /> Known Servers History</label>
+                    <button id="btn-open-history-modal" class="secondary-btn"
+                      style="width: 100%; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                      <img src="/assets/history-svgrepo-com.svg" class="icon-svg" style="width: 18px; height: 18px;" />
+                      <span data-i18n="btn-manage-history">Manage History</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Streaming Page -->
+                <div id="settings-page-streaming" class="settings-page hidden">
+                  <h4 class="settings-page-header" data-i18n="settings-section-streaming">Screen Sharing</h4>
+
+                  <div class="setting-item">
+                    <label for="screen-share-quality" data-i18n="label-screen-share-quality">Screen Share
+                      Quality</label>
+                    <select id="screen-share-quality" class="setting-select">
+                      <option value="auto" data-i18n="quality-auto">Auto</option>
+                      <option value="ethernet" data-i18n="quality-ethernet">Ethernet (Fast)</option>
+                      <option value="wifi" data-i18n="quality-wifi">WiFi (Slow)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Administration Page -->
+                <div id="settings-page-data" class="settings-page hidden">
+                  <h4 class="settings-page-header" data-i18n="settings-section-admin">Administration</h4>
+
+                  <!-- Class Management (Teacher Only) -->
+                  <div id="class-management-section" class="setting-item hidden">
+                    <label for="rename-class-input" data-i18n="label-class-name">Class Name</label>
+                    <div class="input-with-button">
+                      <input type="text" id="rename-class-input" class="setting-input" maxlength="30"
+                        data-i18n-placeholder="placeholder-class-id">
+                      <button id="btn-rename-class" class="small-primary-btn" data-i18n="btn-rename">Rename</button>
+                    </div>
+                    <p class="setting-hint" data-i18n="rename-class-hint">Change the name of your current class.</p>
+                  </div>
+
+                  <!-- Startup Settings -->
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <div>
+                        <label for="startup-toggle" class="setting-label-tight" data-i18n="label-startup">Start on
+                          Login</label>
+                        <p class="setting-description" data-i18n="startup-description">Automatically start ClassSend
+                          when you log in.</p>
+                      </div>
+                      <label class="switch">
+                        <input type="checkbox" id="startup-toggle">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="setting-item">
+                    <label data-i18n="data-management">Data Management</label>
+                    <p class="setting-description" data-i18n="data-management-hint">Import/Export both Blacklist and
+                      Whitelist data.</p>
+                    <div class="logs-actions">
+                      <button id="btn-import-data" class="secondary-btn" title="Import Data"
+                        data-i18n-title="btn-import-data-title">
+                        <img src="/assets/import-svgrepo-com.svg" class="icon-svg" alt="Import" /> <span
+                          data-i18n="btn-import">Import</span>
+                      </button>
+                      <button id="btn-export-data" class="secondary-btn" title="Export Data"
+                        data-i18n-title="btn-export-data-title">
+                        <img src="/assets/export-svgrepo-com.svg" class="icon-svg" alt="Export" /> <span
+                          data-i18n="btn-export">Export</span>
+                      </button>
+                      <input type="file" id="file-import-data" accept=".json" class="hidden">
+                    </div>
+                  </div>
+
+                  <div class="setting-item">
+                    <label data-i18n="label-clear-data">Clear All Data</label>
+                    <button id="btn-clear-data" class="secondary-btn">
+                      <img src="/assets/trash-bin.svg" class="icon-svg" alt="Clear" /> <span
+                        data-i18n="btn-clear-data">Clear</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- System Monitoring Page (Advanced) -->
+                <div id="settings-page-system" class="settings-page hidden">
+                  <h4 class="settings-page-header" data-i18n="settings-section-advanced">System Monitoring</h4>
+
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <div>
+                        <label for="toggle-log-history" class="setting-label-tight" data-i18n="label-enable-logs">Enable
+                          Log History</label>
+                        <p class="setting-description" data-i18n="logs-description">In-memory log viewer (On by
+                          default).</p>
+                      </div>
+                      <label class="switch">
+                        <input type="checkbox" id="toggle-log-history">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <div>
+                        <label for="toggle-auto-export" class="setting-label-tight"
+                          data-i18n="label-auto-export">Automatic Report Export</label>
+                        <p class="setting-description" data-i18n="auto-export-description">Automatically export session
+                          logs to disk (On by default).</p>
+                      </div>
+                      <label class="switch">
+                        <input type="checkbox" id="toggle-auto-export">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="setting-item logs-setting">
+                    <label data-i18n="label-logs">Session Logs</label>
+                    <div class="logs-actions">
+                      <button id="btn-view-logs" class="secondary-btn">
+                        <img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /> <span
+                          data-i18n="btn-view-logs">View</span>
+                      </button>
+                      <button id="btn-download-logs" class="secondary-btn">
+                        <img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" /> <span
+                          data-i18n="btn-download-logs">Download</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="logs-viewer" class="logs-viewer hidden">
+                    <div class="logs-viewer-header">
+                      <span data-i18n="logs-title">Session Logs</span>
+                      <button id="btn-pause-logs" class="copy-btn" title="Pause Logs"
+                        data-i18n-title="btn-pause-logs"><img src="/assets/pause-svgrepo-com.svg" class="icon-svg"
+                          alt="Pause" style="width: 16px; height: 16px;" /></button>
+                      <button id="btn-copy-logs" class="copy-btn" title="Copy" data-i18n-title="btn-copy-logs"><img
+                          src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy"
+                          style="width: 16px; height: 16px;" /></button>
+                      <button id="btn-close-logs" class="close-btn">×</button>
+                    </div>
+                    <pre id="logs-content" class="logs-content"></pre>
+                  </div>
+                </div>
+
+                <!-- About Page -->
+                <div id="settings-page-about" class="settings-page hidden">
+                  <h4 class="settings-page-header" data-i18n="about-header">About</h4>
+                  <div class="about-content" style="text-align: center; padding: 1.5rem 1rem;">
+                    <div class="about-logo" style="margin-bottom: 0.5rem;"><img id="about-app-icon"
+                        src="/assets/icon.ico" alt="ClassSend" style="width: 64px; height: 64px; cursor: pointer;" />
+                    </div>
+                    <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
+                    <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
+                        id="app-version-display">9.3.5</span></p>
+
+                    <div class="about-recent-changes"
+                      style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
+                      <h4 style="margin-top: 0; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;"
+                        data-i18n="recent-improvements">
+                        Recent Improvements:</h4>
+                      <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.4;">
+                        <li data-i18n="imp-svg-icons">SVG File Icons & Media Types</li>
+                        <li data-i18n="imp-tablet-fix">Tablet Image Viewer Fixes</li>
+                        <li data-i18n="imp-teacher-menu">Teacher Tools Menu</li>
+                        <li data-i18n="imp-minimize-btn">Minimize Buttons for Viewers</li>
+                      </ul>
+                    </div>
+
+                    <a href="https://github.com/kalotrapezis/ClassSend/releases" target="_blank"
+                      class="about-update-btn">
+                      <span data-i18n="btn-check-updates">Check for Updates</span>
+                    </a>
+                    <p style="margin-top: 1.5rem; color: var(--text-tertiary); font-size: 0.85rem;">&copy; 2026
+                      ClassSend Team</p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Stream Modal -->
+        <div id="video-modal" class="modal hidden">
+          <div class="modal-content video-modal-content">
+            <div class="popup-header">
+              <h3 id="stream-title" data-i18n="stream-title"><img src="/assets/screen-mirror-svgrepo-com.svg"
+                  class="icon-svg" alt="Stream" /> Teacher's Screen</h3>
+              <div class="video-header-controls">
+                <button id="btn-minimize-video" class="header-control-btn" title="Minimize"
+                  data-i18n-title="Minimize"><img src="/assets/minimize-square-3-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+                <button id="btn-close-video" class="close-btn" title="Close" data-i18n-title="btn-close"><img
+                    src="/assets/close-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+              </div>
+            </div>
+            <div class="video-container">
+              <video id="remote-video" autoplay playsinline muted></video>
+              <div id="video-status" class="video-status">Connecting...</div>
+              <!-- Video Controls -->
+              <div class="video-controls">
+                <button id="btn-zoom-out" class="video-control-btn" title="Zoom Out"
+                  data-i18n-title="btn-zoom-out-title"><img src="/assets/minus-circle-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+                <button id="btn-zoom-reset" class="video-control-btn" title="Reset Zoom"
+                  data-i18n-title="btn-zoom-reset-title">100%</button>
+                <button id="btn-zoom-in" class="video-control-btn" title="Zoom In"
+                  data-i18n-title="btn-zoom-in-title"><img src="/assets/plus-circle-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+                <button id="btn-fullscreen" class="video-control-btn" title="Fullscreen"
+                  data-i18n-title="btn-fullscreen-title"><img src="/assets/full-screen-square-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Online PDF Viewer Modal -->
+        <div id="pdf-viewer-modal" class="modal hidden">
+          <div class="modal-content pdf-modal-content">
+            <div class="popup-header">
+              <h3 id="pdf-title" data-i18n="pdf-title"><img src="/assets/files-svgrepo-com.svg" class="icon-svg"
+                  alt="PDF" /> PDF Viewer</h3>
+              <div class="video-header-controls">
+                <button id="btn-minimize-pdf" class="header-control-btn" title="Minimize"><img
+                    src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+                <button id="btn-close-pdf" class="close-btn" title="Close"><img
+                    src="/assets/close-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+              </div>
+            </div>
+            <div class="pdf-container">
+              <iframe id="pdf-frame" src="" frameborder="0"></iframe>
+              <!-- PDF Controls (Overlay) -->
+              <div class="video-controls">
+                <button id="btn-pdf-zoom-out" class="video-control-btn" title="Zoom Out"
+                  data-i18n-title="btn-zoom-out-title"><img src="/assets/minus-circle-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+                <button id="btn-pdf-zoom-reset" class="video-control-btn" title="Reset Zoom"
+                  data-i18n-title="btn-zoom-reset-title">100%</button>
+                <button id="btn-pdf-zoom-in" class="video-control-btn" title="Zoom In"
+                  data-i18n-title="btn-zoom-in-title"><img src="/assets/plus-circle-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Web Viewer Modal -->
+        <div id="web-viewer-modal" class="modal hidden">
+          <div class="modal-content web-modal-content">
+            <div class="popup-header">
+              <h3 id="web-title" data-i18n="web-title"><img src="/assets/connection-pattern-1104-svgrepo-com.svg"
+                  class="icon-svg" alt="Web" /> Web Viewer</h3>
+              <div class="video-header-controls">
+                <button id="btn-minimize-web" class="header-control-btn" title="Minimize"><img
+                    src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+                <button id="btn-close-web" class="close-btn" title="Close"><img
+                    src="/assets/close-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+              </div>
+            </div>
+            <div class="web-container">
+              <webview id="web-frame" src="about:blank" style="width:100%; height:100%; display:inline-flex;"
+                allowpopups></webview>
+              <!-- Web Controls (Overlay) -->
+              <div class="video-controls">
+                <button id="btn-web-back" class="video-control-btn" title="Back" data-i18n-title="btn-web-back"><img
+                    src="/assets/back-svgrepo-com (2).svg" class="icon-video-ctrl" /></button>
+                <button id="btn-web-refresh" class="video-control-btn" title="Refresh"
+                  data-i18n-title="btn-web-refresh"><img src="/assets/refresh-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+                <button id="btn-web-forward" class="video-control-btn" title="Forward"
+                  data-i18n-title="btn-web-forward"><img src="/assets/front-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- header-right removed -->
+      </header>
+
+      <!-- Document Viewer Modal (Generic for TXT, DOCX, XLSX, PPTX) -->
+      <div id="document-viewer-modal" class="modal hidden">
+        <div class="modal-content doc-modal-content">
+          <div class="popup-header">
+            <h3 id="doc-title" data-i18n="doc-title"><img src="/assets/files-svgrepo-com.svg" class="icon-svg"
+                alt="Doc" /> Document Viewer</h3>
+            <div class="video-header-controls">
+              <button id="btn-minimize-doc" class="header-control-btn" title="Minimize"><img
+                  src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+              <button id="btn-close-doc" class="close-btn" title="Close"><img src="/assets/close-square-svgrepo-com.svg"
+                  class="icon-video-ctrl" /></button>
+            </div>
+          </div>
+          <div class="doc-container" id="doc-container">
+            <div id="doc-content" class="doc-content"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Media Player Modal (Audio/Video) -->
+      <div id="media-player-modal" class="modal hidden">
+        <div class="modal-content media-modal-content">
+          <div class="popup-header">
+            <h3 id="media-player-title"><img src="/assets/play-circle-svgrepo-com.svg" class="icon-svg" alt="Media"
+                onerror="this.src='/assets/files-svgrepo-com.svg'" /> Media Player</h3>
+            <div class="video-header-controls">
+              <button id="btn-minimize-media-player" class="header-control-btn" title="Minimize"><img
+                  src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+              <button id="btn-close-media-player" class="close-btn" title="Close"><img
+                  src="/assets/close-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+            </div>
+          </div>
+          <div class="media-container" id="media-player-container">
+            <!-- Video/Audio element injected here -->
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Media Modal -->
+      <div id="media-popup" class="media-modal hidden">
+        <div class="modal-content">
+          <div class="popup-header">
+            <h3 data-i18n="library-title">Media Library</h3>
+            <div class="header-actions">
+              <button id="btn-download-all" class="download-all-btn" title="Download All Files">
+                <img src="/assets/download-twice-square-svgrepo-com.svg" class="icon-svg" alt="Download All" />
+                <span data-i18n="btn-download-all">Download All</span>
+              </button>
+              <button id="btn-clear-media" class="download-all-btn" title="Clear Library">
+                <img src="/assets/trash-bin.svg" class="icon-svg" alt="Clear" style="width: 16px; height: 16px;" />
+                <span data-i18n="btn-clear">Clear</span>
+              </button>
+            </div>
+            <button id="btn-close-media" class="close-btn">×</button>
+          </div>
+          <div id="media-list" class="media-list">
+            <div class="empty-media-state" data-i18n="library-empty">No media shared yet</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection Info Modal -->
+      <div id="connection-modal" class="modal hidden">
+        <div class="modal-content connection-modal-content">
+          <div class="popup-header">
+            <h3 data-i18n="modal-connection-title"><img src="/assets/connection-pattern-1104-svgrepo-com.svg"
+                class="icon-svg" alt="Connection" /> Connection Info</h3>
+            <button id="btn-close-connection" class="close-btn">×</button>
+          </div>
+          <div class="connection-body">
+            <p data-i18n="connection-hint">Students can connect at:</p>
+            <div class="url-display-container">
+              <code id="connection-url">http://...</code>
+              <button id="btn-copy-url" class="copy-btn" title="Copy URL" data-i18n-title="btn-copy-url-title"><img
+                  src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy"
+                  style="width: 16px; height: 16px;" /></button>
+            </div>
+
+            <!-- Manual Join (Smart IP) Extension -->
+            <div id="modal-manual-join" class="modal-manual-join">
+              <p class="manual-connect-hint" data-i18n="manual-connect-hint-modal"><img
+                  src="/assets/history-svgrepo-com.svg" class="icon-svg" alt="History"
+                  style="width: 14px; height: 14px;" /> Or connect to another server:</p>
+              <div class="smart-ip-group">
+                <span id="smart-ip-prefix-modal" class="smart-ip-prefix">...</span>
+                <input type="number" id="smart-ip-suffix-modal" class="smart-ip-suffix" placeholder="XX" min="0"
+                  max="255" data-i18n-placeholder="placeholder-ip-suffix">
+                <span class="smart-ip-port-display">:<span id="smart-ip-port-modal">...</span></span>
+                <button id="btn-manual-connect-modal" class="small-primary-btn" data-i18n="btn-connect">Connect</button>
+              </div>
+            </div>
+
+            <!-- History List (Connection Modal) -->
+            <div id="modal-manual-history-list" class="known-servers-list dialog-list hidden">
+              <!-- Dynamically populated -->
+            </div>
+
+            <div class="toggle-container">
+              <span class="toggle-label" data-i18n="label-standard-ip">Standard IP</span>
+              <label class="switch">
+                <input type="checkbox" id="hostname-toggle">
+                <span class="slider round"></span>
+              </label>
+              <span class="toggle-label" data-i18n="label-short-name">Short Name</span>
+            </div>
+            <p class="toggle-hint" data-i18n="connection-toggle-hint">Use "Short Name" for easier typing.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Blacklist Modal (Teacher Only) -->
+      <div id="blacklist-modal" class="modal hidden">
+        <div class="modal-content blacklist-modal-content">
+          <div class="popup-header">
+            <h3 class="popup-title-with-icon">
+              <img src="/assets/list-cross-svgrepo-com.svg" class="icon-svg" alt="Blacklist" />
+              <span data-i18n="modal-blacklist-title">Blacklist</span>
+            </h3>
+            <button id="btn-close-blacklist" class="close-btn">×</button>
+          </div>
+          <div class="blacklist-body">
+            <div class="blacklist-add-section">
+              <input type="text" id="blacklist-word-input" placeholder="Enter word to add..." autocomplete="off"
+                data-i18n-placeholder="placeholder-blacklist">
+              <button id="btn-add-word" class="add-word-btn">
+                <span data-i18n="btn-add">Add</span> <img src="/assets/plus-circle-svgrepo-com.svg" class="icon-svg"
+                  style="width: 16px; height: 16px; margin-left: 4px;" />
+              </button>
+            </div>
+            <div id="blacklist-word-list" class="blacklist-word-list">
+              <!-- Words will be dynamically added here -->
+              <div class="empty-blacklist-state" data-i18n="blacklist-empty">No custom words added yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Whitelist Modal (Good List) -->
+      <div id="whitelist-modal" class="modal hidden">
+        <div class="modal-content blacklist-modal-content" style="border-top: 5px solid #28a745;">
+          <div class="popup-header">
+            <h3 class="popup-title-with-icon">
+              <img src="/assets/list-heart-minimalistic-svgrepo-com.svg" class="icon-svg" alt="Whitelist" />
+              <span data-i18n="whitelist-title">Whitelist</span>
+            </h3>
+            <button id="btn-close-whitelist-modal" class="close-btn">×</button>
+          </div>
+          <div class="blacklist-body">
+            <div class="blacklist-add-section">
+              <input type="text" id="whitelist-word-input" placeholder="Enter safe word to add..." autocomplete="off"
+                data-i18n-placeholder="placeholder-whitelist">
+              <button id="btn-add-whitelist-word-modal" class="add-word-btn">
+                <span data-i18n="btn-add">Add</span> <img src="/assets/plus-circle-svgrepo-com.svg" class="icon-svg"
+                  style="width: 16px; height: 16px; margin-left: 4px;" />
+              </button>
+            </div>
+            <div id="whitelist-words-list-modal" class="blacklist-word-list">
+              <!-- Words will be dynamically added here -->
+              <div class="empty-blacklist-state" data-i18n="whitelist-empty">No safe words added yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Modal (IP History) -->
+      <div id="history-modal" class="modal hidden">
+        <div class="modal-content blacklist-modal-content" style="border-top: 5px solid #4db8ff;">
+          <div class="popup-header">
+            <h3 class="popup-title-with-icon">
+              <img src="/assets/history-svgrepo-com.svg" class="icon-svg" alt="History" />
+              <span data-i18n="modal-history-title">Connection History</span>
+            </h3>
+            <button id="btn-close-history-modal" class="close-btn">×</button>
+          </div>
+          <div class="blacklist-body">
+            <div id="settings-known-servers-list" class="blacklist-word-list">
+              <!-- History items will be dynamically added here -->
+              <div class="empty-blacklist-state" data-i18n="history-empty">No connection history yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text Selection Popup (for adding words from chat) -->
+      <div id="text-selection-popup" class="text-selection-popup hidden">
+        <button id="btn-add-selection-to-blacklist">
+          <span data-i18n="text-selection-popup-add">Add to forbidden words</span> <img
+            src="/assets/plus-circle-svgrepo-com.svg" class="icon-svg"
+            style="width: 16px; height: 16px; margin-left: 4px;" />
+        </button>
+        <button id="btn-report-selection" class="hidden">
+          <span data-i18n="text-selection-popup-report">Report</span> <img
+            src="/assets/warning-triangle-svgrepo-com.svg" class="icon-svg"
+            style="width: 16px; height: 16px; margin-left: 4px;" />
+        </button>
+      </div>
+
+      <!-- AI Loading Modal -->
+      <div id="ai-loading-modal" class="modal hidden">
+        <div class="ai-loading-content">
+          <div class="ai-loading-spinner">🧠</div>
+          <h3 data-i18n="ai-loading-title">Loading AI Model...</h3>
+          <p id="ai-loading-status" data-i18n="ai-loading-downloading">Downloading model (0%)</p>
+          <div class="ai-loading-bar">
+            <div id="ai-loading-progress" class="ai-loading-progress"></div>
+          </div>
+          <p class="ai-loading-hint" data-i18n="ai-loading-hint">First load requires ~300MB download. Subsequent loads
+            are instant.</p>
+        </div>
+      </div>
+
+
+      <!-- File Progress Modal -->
+      <!-- File Progress Modal (Removed) -->
+
+
+      <!-- Main Content -->
+      <div class="chat-main">
+        <!-- Mobile Sidebar Overlay -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <!-- Left Sidebar - Classes & Users -->
+        <aside id="sidebar-left" class="sidebar-left">
+
+
+          <div class="sidebar-header">
+            <h3 data-i18n="header-classes">Classes</h3>
+          </div>
+          <div class="classes-list">
+            <!-- Classes will be dynamically added here -->
+          </div>
+
+          <div class="sidebar-header" id="users-header-container">
+            <h3 data-i18n="header-users">Users</h3>
+            <span id="user-count" class="user-count">0</span>
+
+          </div>
+          <div id="users-list" class="users-list">
+            <!-- Users will be dynamically added here -->
+          </div>
+
+
+        </aside>
+
+        <!-- Center - Messages -->
+        <main class="chat-area">
+          <div id="messages-container" class="messages-container">
+            <!-- Messages will be dynamically added here -->
+          </div>
+
+          <!-- Lobby / Searching Overlay -->
+          <div id="searching-overlay" class="searching-overlay hidden">
+            <div class="searching-content">
+              <div class="searching-spinner"></div>
+              <h2 data-i18n="searching-title">Searching for Class...</h2>
+              <p data-i18n="searching-subtitle">Please wait while we connect you to an active class.</p>
+            </div>
+          </div>
+          <div class="message-input-area">
+            <div id="filter-warning" class="filter-warning hidden">
+              <img src="/assets/warning-triangle-svgrepo-com.svg" class="icon-svg" alt="Warning"> <span
+                data-i18n="filter-warning">Inappropriate content detected</span>
+            </div>
+            <div class="input-actions-left">
+              <button id="btn-attach-file" class="attach-btn" title="Attach file"
+                data-i18n-title="btn-attach-file"></button>
+              <button id="btn-emoji" class="emoji-btn" title="Insert Emoji" data-i18n-title="btn-insert-emoji">
+                <img src="/assets/emoji-funny-square-svgrepo-com.svg" class="icon-svg" alt="Emoji" />
+              </button>
+              <div id="teacher-tools-section" class="teacher-tools-section hidden">
+                <div id="tools-menu" class="tools-menu">
+                  <button id="btn-tool-share-screen" class="tool-menu-btn" title="Share Screen"
+                    data-i18n-title="btn-share-screen">
+                    <img src="/assets/screen-mirror-svgrepo-com.svg" class="icon-svg" alt="Share" />
+                    <span data-i18n="btn-share-screen" class="btn-label">Share Screen</span>
+                  </button>
+                  <button id="btn-tool-hands-down" class="tool-menu-btn" title="Lower Hands"
+                    data-i18n-title="btn-hands-down">
+                    <img src="/assets/hands-Down.svg" class="icon-svg" alt="Hands Down" />
+                    <span data-i18n="btn-hands-down">Hands Down</span>
+                  </button>
+                  <button id="btn-tool-block-messages" class="tool-menu-btn" title="Block Messages"
+                    data-i18n-title="btn-block-all">
+                    <img src="/assets/block-1-svgrepo-com.svg" class="icon-svg" alt="Block" />
+                    <span data-i18n="label-block-all">Block Messages</span>
+                  </button>
+                  <button id="btn-tool-allow-hands" class="tool-menu-btn" title="Allow Hands"
+                    data-i18n-title="btn-raise-hand">
+                    <img src="/assets/Allow-Hands-Up.svg" class="icon-svg" alt="Allow Hands" />
+                    <span data-i18n="btn-raise-hand">Allow Hands</span>
+                  </button>
+                </div>
+                <button id="btn-tools-toggle" class="btn-tools-toggle" title="Teacher Tools"
+                  data-i18n-title="btn-teacher-tools-title">
+                  <img src="/assets/menu-navigation-Grid.svg" class="icon-svg" alt="Tools" />
+                </button>
+              </div>
+              <button id="btn-report-toggle" class="report-toggle-btn hidden" title="Word Reports"
+                data-i18n-title="btn-reports-title">
+                <img src="/assets/report-svgrepo-com.svg" class="icon-svg" alt="Reports" />
+                <span class="report-badge hidden">0</span>
+              </button>
+              <button id="btn-raise-hand" class="raise-hand-btn" title="Raise Hand" data-i18n-title="btn-raise-hand">
+                <img src="/assets/hand-shake-svgrepo-com.svg" class="icon-svg" alt="Raise Hand" />
+              </button>
+              <button id="btn-view-stream" class="view-stream-btn hidden" title="View Stream"
+                data-i18n-title="btn-view-stream">
+                <img src="/assets/screen-svgrepo-com.svg" class="icon-svg" alt="View Stream" />
+              </button>
+              <button id="btn-restore-file" class="file-restore-btn hidden" title="Restore File">
+                <img src="/assets/files-svgrepo-com.svg" class="icon-svg" alt="Restore File" />
+              </button>
+              <div id="emoji-picker" class="emoji-picker hidden">
+                <!-- Emojis will be injected here -->
+              </div>
+              <!-- Report Panel (Teacher Only, like emoji picker) -->
+              <div id="report-panel" class="report-panel hidden">
+                <div class="report-panel-header">
+                  <span class="report-panel-title-wrapper">
+                    <img src="/assets/warning-triangle-svgrepo-com.svg" class="icon-svg" alt="Reports" />
+                    <span data-i18n="modal-reports-title">Reported Words</span>
+                  </span>
+                </div>
+                <!-- Training Notification -->
+                <div id="training-notification" class="training-notification hidden">
+                  <div class="training-content">
+                    <span class="spinner">↻</span>
+                    <span>Consolidating AI Model...</span>
+                  </div>
+                </div>
+                <div id="report-list" class="report-list">
+                  <div class="empty-report-state" data-i18n="reports-empty">No pending reports</div>
+                </div>
+              </div>
+            </div>
+            <input type="file" id="file-input" class="hidden">
+            <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off"
+              data-i18n-placeholder="placeholder-message">
+            <button id="btn-send-message" class="send-btn" title="Send Message"
+              data-i18n-title="btn-send-message-title"></button>
+          </div>
+        </main>
+      </div>
+
+      <!-- Image Viewer Modal -->
+      <!-- Image Viewer Modal (Enhanced) -->
+      <div id="image-viewer-modal" class="modal hidden">
+        <div class="modal-content image-modal-content">
+          <div class="popup-header">
+            <h3 id="image-title" data-i18n="image-title">🖼️ Image Viewer</h3>
+            <div class="video-header-controls">
+              <button id="btn-minimize-image" class="header-control-btn" title="Minimize"><img
+                  src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+              <button id="btn-close-image-modal" class="close-btn" title="Close"><img
+                  src="/assets/close-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+            </div>
+          </div>
+          <div class="image-container-enhanced">
+            <img class="modal-image-enhanced" id="full-image">
+            <!-- Image Controls (Overlay) -->
+            <div class="video-controls">
+              <button id="btn-image-zoom-out" class="video-control-btn" title="Zoom Out"
+                data-i18n-title="btn-zoom-out-title"><img src="/assets/minus-circle-svgrepo-com.svg"
+                  class="icon-video-ctrl" /></button>
+              <button id="btn-image-zoom-reset" class="video-control-btn" title="Reset Zoom"
+                data-i18n-title="btn-zoom-reset-title">100%</button>
+              <button id="btn-image-zoom-in" class="video-control-btn" title="Zoom In"
+                data-i18n-title="btn-zoom-in-title"><img src="/assets/plus-circle-svgrepo-com.svg"
+                  class="icon-video-ctrl" /></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  </div>
+  <script type="module" src="/main.js?v=9.0.0"></script>
+</body>
+
+</html>

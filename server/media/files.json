@@ -1,0 +1,102 @@
+[
+  {
+    "id": "ec65af3a8d5862eac2b28519132dbd5a",
+    "name": "IMG_20260219_112800.jpg",
+    "size": 7026663,
+    "type": "image/jpeg",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\ec65af3a8d5862eac2b28519132dbd5a.jpg",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Δαμάσκηνο",
+    "timestamp": 1771569000624
+  },
+  {
+    "id": "8f4ba7e44853d07299124cd519b8e9b2",
+    "name": "IMG_20260219_114855.jpg",
+    "size": 8946018,
+    "type": "image/jpeg",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\8f4ba7e44853d07299124cd519b8e9b2.jpg",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Δαμάσκηνο",
+    "timestamp": 1771571208175
+  },
+  {
+    "id": "2ff6af30482a49a572c9193e8ec8c45e",
+    "name": "ΕΧΑΜ_DPSYC 604_2Β.pdf",
+    "size": 274811,
+    "type": "application/pdf",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\2ff6af30482a49a572c9193e8ec8c45e.pdf",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Δαμάσκηνο",
+    "timestamp": 1771571218341
+  },
+  {
+    "id": "ee034e3a69640d4131e22a127e21d09f",
+    "name": "Προσωπικότιτα2.mp3",
+    "size": 2646872,
+    "type": "audio/mpeg",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\ee034e3a69640d4131e22a127e21d09f.mp3",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Δαμάσκηνο",
+    "timestamp": 1771571228434
+  },
+  {
+    "id": "7c4f5a4c326c2146724ee221bcd5183b",
+    "name": "IMG_20260219_112800.jpg",
+    "size": 7026663,
+    "type": "image/jpeg",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\7c4f5a4c326c2146724ee221bcd5183b.jpg",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Δαμάσκηνο",
+    "timestamp": 1771572076561
+  },
+  {
+    "id": "fbb00e7b3491a01dcd7e453d8e0480cd",
+    "name": "IMG_20260219_112835.jpg",
+    "size": 4012337,
+    "type": "image/jpeg",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\fbb00e7b3491a01dcd7e453d8e0480cd.jpg",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Δαμάσκηνο",
+    "timestamp": 1771572114778
+  },
+  {
+    "id": "ff3a25c9f08bf741f931e59999752f29",
+    "name": "θεματα 604.docx",
+    "size": 5121832,
+    "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\ff3a25c9f08bf741f931e59999752f29.docx",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Δαμάσκηνο",
+    "timestamp": 1771572189590
+  },
+  {
+    "id": "a71811949e1634f40aada5116057df53",
+    "name": "θεματα 604.docx",
+    "size": 5121832,
+    "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\a71811949e1634f40aada5116057df53.docx",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Δαμάσκηνο",
+    "timestamp": 1771572825688
+  },
+  {
+    "id": "f6e710ae16e9619c5decb0120f04e799",
+    "name": "604_ΚΑΛΟΤΡΑΠΕΖΗΣ ΘΕΟΛΟΓΟΣ.docx",
+    "size": 29727,
+    "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\f6e710ae16e9619c5decb0120f04e799.docx",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Δαμάσκηνο",
+    "timestamp": 1771572869683
+  },
+  {
+    "id": "8f712eafb8d6a5d0d54901a2e2fdaa95",
+    "name": "Μελέτες_Περίπτωσης_Θεωρίες_Προσωπικότητας.md.pdf",
+    "size": 108004,
+    "type": "application/pdf",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\8f712eafb8d6a5d0d54901a2e2fdaa95.pdf",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Δαμάσκηνο",
+    "timestamp": 1771572894047
+  }
+]

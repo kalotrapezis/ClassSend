@@ -1,4 +1,4 @@
-﻿import { io } from "socket.io-client";
+import { io } from "socket.io-client";
 import * as mammoth from "mammoth";
 import * as XLSX from "xlsx";
 import { translations } from "./translations.js";
@@ -122,7 +122,7 @@ function connectToServer(serverUrl) {
 let savedRole = localStorage.getItem('classsend-role'); // Persistent role
 let currentRole = savedRole; // 'teacher' or 'student'
 let userName = localStorage.getItem('classsend-userName');
-let currentClassId = localStorage.getItem('classsend-classId'); // Restore saved class ID
+let currentClassId = (() => { const _raw = localStorage.getItem('classsend-classId'); return (_raw && _raw !== 'undefined' && _raw !== 'null') ? _raw : null; })(); // Restore saved class ID (sanitized)
 let joinedClasses = new Map(); // classId -> { messages: [], users: [], teacherName: string }
 let availableClasses = []; // [{ id, teacherName }]
 let customWhitelistedWords = [];
@@ -1080,7 +1080,9 @@ function handleAutoFlow() {
     if (savedRole === 'student' && autoFlowTriggered && (!currentClassId || currentClassId === 'Lobby') && !window.joiningInProgress) {
 
         const allClasses = getAllAvailableClasses();
-        const savedTargetId = localStorage.getItem('classsend-classId');
+        // Sanitize savedTargetId – localStorage may store the literal string 'undefined' or 'null'
+        const _rawTargetId = localStorage.getItem('classsend-classId');
+        const savedTargetId = (_rawTargetId && _rawTargetId !== 'undefined' && _rawTargetId !== 'null') ? _rawTargetId : null;
 
         // Priority 1: If we have a saved target AND it's in the list -> AUTO-JOIN
         const targetedClass = savedTargetId ? allClasses.find(c => c.id === savedTargetId) : null;
@@ -1693,6 +1695,17 @@ function switchClass(id) {
         }
     }
 
+    // Show/hide Media Library teacher-only buttons
+    const btnDownloadAll = document.getElementById("btn-download-all");
+    const btnClearMedia = document.getElementById("btn-clear-media");
+    if (currentRole === 'teacher') {
+        if (btnDownloadAll) btnDownloadAll.style.display = '';
+        if (btnClearMedia) btnClearMedia.style.display = '';
+    } else {
+        if (btnDownloadAll) btnDownloadAll.style.display = 'none';
+        if (btnClearMedia) btnClearMedia.style.display = 'none';
+    }
+
     // Load pinned messages for this class
     const classData = joinedClasses.get(id);
     if (classData) {
@@ -2221,10 +2234,32 @@ function uploadFileXHR(file) {
     formData.append('socketId', socket.id);
     formData.append('role', currentRole);
 
+    // Notify the entire class that a file upload is starting
+    socket.emit('file-transfer-start', {
+        classId: currentClassId,
+        fileName: file.name,
+        fileSize: file.size
+    });
+
     const xhr = new XMLHttpRequest();
+
+    // Update sender's own progress bar as bytes arrive at the server
+    xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable) return;
+        const pct = Math.round((event.loaded / event.total) * 100);
+        // Update our own progress bar (keyed by our socket ID)
+        const bar = document.getElementById(`upload-bar-${socket.id}`);
+        const pctEl = document.getElementById(`upload-pct-${socket.id}`);
+        const label = document.getElementById(`upload-label-${socket.id}`);
+        if (bar) bar.style.width = pct + '%';
+        if (pctEl) pctEl.textContent = pct + '%';
+        if (label) label.textContent = `📤 ${t('uploading-file') || 'Uploading file'}…`;
+    };
 
     // Load/Error/Abort Events
     xhr.onload = () => {
+        // Remove our own progress message (receiver's will be replaced by new-message event)
+        removeFileTransferIndicator(socket.id);
         if (xhr.status === 200) {
             try {
                 const result = JSON.parse(xhr.responseText);
@@ -2234,18 +2269,82 @@ function uploadFileXHR(file) {
             }
         } else {
             console.error('Upload failed:', xhr.statusText);
-            alert(`Upload failed: ${xhr.statusText}`);
+            showToast(`Upload failed: ${xhr.statusText}`, 'error');
+            socket.emit('file-transfer-cancel', { classId: currentClassId, senderId: socket.id });
         }
     };
 
     xhr.onerror = () => {
+        removeFileTransferIndicator(socket.id);
         console.error('Upload error');
-        alert('Upload failed due to network error');
+        showToast('Upload failed due to network error', 'error');
+        socket.emit('file-transfer-cancel', { classId: currentClassId, senderId: socket.id });
+    };
+
+    xhr.onabort = () => {
+        removeFileTransferIndicator(socket.id);
+        socket.emit('file-transfer-cancel', { classId: currentClassId, senderId: socket.id });
     };
 
     xhr.open('POST', '/api/upload', true);
     xhr.send(formData);
 }
+
+// ---- File Transfer Indicator Helpers ----
+
+function showFileTransferIndicator(senderId, fileName, isOwn) {
+    // Remove any existing indicator for this sender
+    removeFileTransferIndicator(senderId);
+
+    const el = document.createElement('div');
+    el.id = `file-transfer-${senderId}`;
+    el.className = 'message system-message file-transfer-indicator';
+    el.dataset.senderId = senderId;
+
+    const barId = `upload-bar-${senderId}`;
+    const pctId = `upload-pct-${senderId}`;
+    const labelId = `upload-label-${senderId}`;
+
+    const truncatedName = fileName.length > 40 ? fileName.substring(0, 37) + '…' : fileName;
+
+    el.innerHTML = `
+        <div class="file-transfer-content">
+            <span class="file-transfer-label" id="${labelId}">📤 ${isOwn ? (t('uploading-file') || 'Uploading file') : (t('file-incoming') || 'File incoming')}… <em>${truncatedName}</em></span>
+            <div class="file-transfer-bar-wrap">
+                <div class="file-transfer-bar ${isOwn ? '' : 'indeterminate'}" id="${barId}"></div>
+            </div>
+            ${isOwn ? `<span class="file-transfer-pct" id="${pctId}">0%</span>` : ''}
+        </div>
+    `;
+    messagesContainer.appendChild(el);
+    scrollToBottom();
+}
+
+function removeFileTransferIndicator(senderId) {
+    const el = document.getElementById(`file-transfer-${senderId}`);
+    if (el) el.remove();
+}
+
+// Listen for file-transfer-start from other class members (server broadcasts to whole room)
+socket.on('file-transfer-start', ({ senderId, classId, fileName, fileSize }) => {
+    if (classId !== currentClassId) return;
+    const isOwn = (senderId === socket.id);
+    showFileTransferIndicator(senderId, fileName, isOwn);
+});
+
+// Listen for transfer cancel (error/abort)
+socket.on('file-transfer-cancel', ({ senderId }) => {
+    removeFileTransferIndicator(senderId);
+});
+
+// When new-message arrives (file upload complete), remove the indicator for that sender
+const _origSocketOnNewMessage_ft = socket.listeners('new-message');
+// We hook into the existing new-message flow by patching:
+socket.on('new-message', (message) => {
+    if (message && message.type === 'file' && message.classId === currentClassId) {
+        removeFileTransferIndicator(message.senderId);
+    }
+});
 
 
 // Hand-Raising Buttons
@@ -2406,6 +2505,8 @@ function renderMessage(message) {
             fileIconSrc = '/assets/video-frame-play-horizontal-svgrepo-com.svg';
         }
 
+        const t = (key) => translations[currentLanguage][key] || key;
+
         messageDiv.innerHTML = `
       <div class="message-header">
         <span class="message-sender ${message.senderRole}">${escapeHtml(message.senderName)}</span>
@@ -2417,14 +2518,14 @@ function renderMessage(message) {
           <div class="file-name">${escapeHtml(message.fileData.name)}</div>
           <div class="file-size">${formatFileSize(message.fileData.size)}</div>
           <div class="message-actions">
-            ${isImage ? '<button class="action-btn open-btn" title="View Image"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /></button>' : ''}
-            ${isPDF ? '<button class="action-btn open-pdf-btn" title="Open PDF"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Open" /></button>' : ''}
-            ${isDoc ? '<button class="action-btn open-doc-btn" title="View Document"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /></button>' : ''}
-            ${isXls ? '<button class="action-btn open-xls-btn" title="View Spreadsheet"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /></button>' : ''}
-            ${isTxt ? '<button class="action-btn open-txt-btn" title="View Text"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /></button>' : ''}
-            ${isVideo ? '<button class="action-btn open-video-btn" title="Play Video"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Play" /></button>' : ''}
-            ${isAudio ? '<button class="action-btn open-audio-btn" title="Play Audio"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Play" /></button>' : ''}
-            <button class="action-btn download-btn" title="Download"><img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" /></button>
+            ${isImage ? `<button class="action-btn open-btn" title="${t('btn-view-img-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="View" /><span class="btn-label">${t('btn-view-img-label')}</span></button>` : ''}
+            ${isPDF ? `<button class="action-btn open-pdf-btn" title="${t('btn-open-pdf-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Open" /><span class="btn-label">${t('btn-open-pdf-label')}</span></button>` : ''}
+            ${isDoc ? `<button class="action-btn open-doc-btn" title="${t('btn-open-doc-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Open" /><span class="btn-label">${t('btn-open-doc-label')}</span></button>` : ''}
+            ${isXls ? `<button class="action-btn open-xls-btn" title="${t('btn-open-doc-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Open" /><span class="btn-label">${t('btn-open-doc-label')}</span></button>` : ''}
+            ${isTxt ? `<button class="action-btn open-txt-btn" title="${t('btn-open-doc-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Open" /><span class="btn-label">${t('btn-open-doc-label')}</span></button>` : ''}
+            ${isVideo ? `<button class="action-btn open-video-btn" title="${t('btn-play-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Play" /><span class="btn-label">${t('btn-play-label')}</span></button>` : ''}
+            ${isAudio ? `<button class="action-btn open-audio-btn" title="${t('btn-play-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Play" /><span class="btn-label">${t('btn-play-label')}</span></button>` : ''}
+            <button class="action-btn download-btn" title="${t('btn-download-label')}"><img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" /><span class="btn-label">${t('btn-download-label')}</span></button>
           </div>
         </div>
       </div>
@@ -2436,11 +2537,13 @@ function renderMessage(message) {
             downloadBtn.addEventListener('click', () => downloadFile(message.fileData.id || message.fileData.data, message.fileData.name));
         }
 
+        const fileExt = message.fileData.name.substring(message.fileData.name.lastIndexOf('.'));
+
         if (isImage) {
             const openBtn = messageDiv.querySelector('.open-btn');
             if (openBtn) {
                 openBtn.addEventListener('click', () => {
-                    const imageUrl = `/api/download/${message.fileData.id}?inline=true`;
+                    const imageUrl = `/media/${message.fileData.id}${fileExt}`;
                     openImageViewer(imageUrl);
                 });
             }
@@ -2450,7 +2553,7 @@ function renderMessage(message) {
             const pdfBtn = messageDiv.querySelector('.open-pdf-btn');
             if (pdfBtn) {
                 pdfBtn.addEventListener('click', () => {
-                    const pdfUrl = `/api/download/${message.fileData.id}?inline=true`;
+                    const pdfUrl = `/media/${message.fileData.id}${fileExt}`;
                     openPdfViewer(pdfUrl);
                 });
             }
@@ -2461,7 +2564,7 @@ function renderMessage(message) {
             const btn = messageDiv.querySelector(cls);
             if (btn) {
                 btn.addEventListener('click', () => {
-                    const url = `/api/download/${message.fileData.id}?inline=true`;
+                    const url = `/media/${message.fileData.id}${fileExt}`;
                     viewerFn(url, message.fileData.name, typeArg);
                 });
             }
@@ -2718,7 +2821,8 @@ function renderMediaHistory() {
             viewButton.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const fId = msg.fileData.id || msg.id;
-                const url = `/api/download/${fId}?inline=true`;
+                const fileExt = fileName.substring(fileName.lastIndexOf('.'));
+                const url = `/media/${fId}${fileExt}`;
 
                 if (isPdf) {
                     openPdfViewer(url);
@@ -2767,7 +2871,11 @@ function highlightMentions(text) {
     return escaped;
 }
 
+let isChatFrozen = false;
+let chatFreezeTimeout = null;
+
 function scrollToBottom() {
+    if (isChatFrozen) return;
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
@@ -3611,16 +3719,18 @@ function renderPinnedMessages() {
 
         return `
                 <div class="pinned-message" data-message-id="${msg.id}">
-                    <div class="pinned-message-header">
-                        <span class="pinned-sender">${escapeHtml(msg.senderName)}:</span>
-                        <span class="pinned-text">${escapeHtml(translations[currentLanguage][msg.content] || t(msg.content) || msg.content)}</span>
+                    <div class="pinned-content-wrapper">
+                        <div class="pinned-message-header">
+                            <span class="pinned-sender">${escapeHtml(msg.senderName)}:</span>
+                            <span class="pinned-text">${escapeHtml(translations[currentLanguage][msg.content] || t(msg.content) || msg.content)}</span>
+                        </div>
                     </div>
                     <div class="pinned-message-actions">
-                        <button class="action-btn copy-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Copy">📋</button>
-                        ${hasEmail ? `<button class="action-btn mailto-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Email">✉️</button>` : ''}
-                        ${hasUrl ? `<button class="action-btn url-btn-pinned" data-content="${escapeHtml(msg.content)}" title="Open Link">🔗</button>` : ''}
-                        ${msg.action === 'join-stream' ? `<button class="action-btn join-stream-btn-pinned" title="Join Stream">${t('btn-join-stream')}</button>` : ''}
-                        ${currentRole === 'teacher' ? `<button class="action-btn unpin-btn" data-message-id="${msg.id}" title="Unpin">❌</button>` : ''}
+                        <button class="action-btn copy-btn-pinned" data-content="${escapeHtml(msg.content)}" title="${t('btn-copy-label')}"><img src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-copy-label')}</span></button>
+                        ${hasEmail ? `<button class="action-btn mailto-btn-pinned" data-content="${escapeHtml(msg.content)}" title="${t('btn-email-label')}"><img src="/assets/email-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-email-label')}</span></button>` : ''}
+                        ${hasUrl ? `<button class="action-btn url-btn-pinned" data-content="${escapeHtml(msg.content)}" title="${t('btn-open-link-label')}"><img src="/assets/link-circle.svg" class="icon-svg" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-open-link-label')}</span></button>` : ''}
+                        ${msg.action === 'join-stream' ? `<button class="action-btn join-stream-btn-pinned" title="${t('btn-join-stream')}"><img src="/assets/screen-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-join-stream')}</span></button>` : ''}
+                        ${currentRole === 'teacher' ? `<button class="action-btn unpin-btn" data-message-id="${msg.id}" title="${t('btn-unpin-label') || 'Unpin'}"><img src="/assets/delete-left-svgrepo-com.svg" class="icon-svg" alt="Unpin" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-unpin-label') || 'Unpin'}</span></button>` : ''}
                     </div>
                 </div>
             `}).join('')}
@@ -3632,7 +3742,8 @@ function renderPinnedMessages() {
 
     // Join Stream buttons
     pinnedContainer.querySelectorAll('.join-stream-btn-pinned').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // prevent clicking the message
             videoModal.classList.remove("hidden");
             videoStatus.textContent = "Connecting to stream...";
             // If we already have a connection, it might just show up.
@@ -3644,21 +3755,26 @@ function renderPinnedMessages() {
 
     // Copy buttons
     pinnedContainer.querySelectorAll('.copy-btn-pinned').forEach(btn => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // prevent clicking the message
             const content = btn.dataset.content;
-            try {
-                await navigator.clipboard.writeText(content);
-                btn.textContent = '✅';
-                setTimeout(() => btn.textContent = '📋', 1500);
-            } catch (err) {
-                alert('Failed to copy');
-            }
+            copyToClipboard(
+                content,
+                () => {
+                    btn.innerHTML = `<img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-copy-label')}</span>`;
+                    setTimeout(() => btn.innerHTML = `<img src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-copy-label')}</span>`, 1500);
+                },
+                () => {
+                    alert('Failed to copy');
+                }
+            );
         });
     });
 
     // Email buttons
     pinnedContainer.querySelectorAll('.mailto-btn-pinned').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // prevent clicking the message
             const content = btn.dataset.content;
             const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
             const emails = content.match(emailRegex);
@@ -3668,19 +3784,53 @@ function renderPinnedMessages() {
 
     // URL buttons
     pinnedContainer.querySelectorAll('.url-btn-pinned').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // prevent clicking the message
             const content = btn.dataset.content;
             const urlRegex = /(https?:\/\/[^\s]+)/gi;
             const urls = content.match(urlRegex);
-            if (urls) window.open(urls[0], '_blank');
+            if (urls) openWebViewer(urls[0]);
         });
     });
 
     // Unpin buttons
     pinnedContainer.querySelectorAll('.unpin-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // prevent clicking the message
             const messageId = parseFloat(btn.dataset.messageId);
             unpinMessage(messageId);
+        });
+    });
+
+    // Click to scroll to original message
+    pinnedContainer.querySelectorAll('.pinned-message').forEach(msgDiv => {
+        msgDiv.addEventListener('click', (e) => {
+            // If the element has been removed from the DOM (like when innerHTML updates the copy button), ignore it
+            if (!document.body.contains(e.target)) return;
+            
+            // Ignore if clicked on an action button
+            if (e.target.closest('.pinned-message-actions') || e.target.closest('.action-btn')) return;
+
+            const msgId = msgDiv.dataset.messageId;
+            const originalMsg = messagesContainer.querySelector(`[data-id="${msgId}"]`);
+            if (originalMsg) {
+                // Freeze chat
+                isChatFrozen = true;
+                if (chatFreezeTimeout) clearTimeout(chatFreezeTimeout);
+
+                // Scroll to message
+                originalMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // Highlight message
+                originalMsg.classList.remove('highlight-flash');
+                void originalMsg.offsetWidth; // trigger reflow
+                originalMsg.classList.add('highlight-flash');
+
+                // Unfreeze after 5 seconds
+                chatFreezeTimeout = setTimeout(() => {
+                    isChatFrozen = false;
+                }, 5000);
+            }
         });
     });
 }
@@ -4984,17 +5134,20 @@ if (btnDownloadLogs) {
 }
 
 if (btnCopyLogs) {
-    btnCopyLogs.addEventListener("click", async () => {
+    btnCopyLogs.addEventListener("click", () => {
         const logText = capturedLogs.join('\n');
-        try {
-            await navigator.clipboard.writeText(logText);
-            const originalText = btnCopyLogs.textContent;
-            btnCopyLogs.textContent = "✅";
-            setTimeout(() => btnCopyLogs.textContent = originalText, 1500);
-        } catch (err) {
-            console.error("Failed to copy logs:", err);
-            btnCopyLogs.textContent = "❌";
-        }
+        const originalText = btnCopyLogs.textContent;
+        copyToClipboard(
+            logText,
+            () => {
+                btnCopyLogs.textContent = "✅";
+                setTimeout(() => btnCopyLogs.textContent = originalText, 1500);
+            },
+            () => {
+                console.error("Failed to copy logs");
+                btnCopyLogs.textContent = "❌";
+            }
+        );
     });
 }
 
@@ -6109,7 +6262,7 @@ async function openDocumentViewer(url, filename, type) {
                     const wrapper = document.createElement('div');
                     wrapper.className = 'document-content-wrapper';
                     // Styling to make it look like a document (white page)
-                    wrapper.style.cssText = "background: white; color: black; padding: 2rem; overflow-y: auto; height: 100%; border-radius: 4px; box-shadow: 0 0 10px rgba(0,0,0,0.5); max-width: 800px; margin: 0 auto;";
+                    wrapper.style.cssText = "background: white; color: black; padding: 1.5rem; width: 100%; border-radius: 4px;";
                     wrapper.innerHTML = result.value;
                     docContent.appendChild(wrapper);
 
@@ -6257,6 +6410,7 @@ const btnMinimizeWeb = document.getElementById("btn-minimize-web");
 const btnWebBack = document.getElementById("btn-web-back");
 const btnWebForward = document.getElementById("btn-web-forward");
 const btnWebRefresh = document.getElementById("btn-web-refresh");
+const btnWebFullscreen = document.getElementById("btn-web-fullscreen");
 
 function openWebViewer(url) {
     if (!url) return;
@@ -6378,6 +6532,21 @@ if (btnWebRefresh) {
         }
     });
 }
+
+if (btnWebFullscreen) {
+    btnWebFullscreen.addEventListener("click", () => {
+        if (webViewerModal) {
+            webViewerModal.classList.toggle("fullscreen");
+        }
+    });
+}
+
+// Exit web viewer fullscreen on Escape
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && webViewerModal && webViewerModal.classList.contains("fullscreen")) {
+        webViewerModal.classList.remove("fullscreen");
+    }
+});
 
 // SAFETY UI UNLOCK
 setTimeout(() => {
