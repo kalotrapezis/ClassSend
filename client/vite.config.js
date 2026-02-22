@@ -16,7 +16,8 @@ export default defineConfig({
     },
     build: {
         outDir: '../server/public',
-        emptyOutDir: true
+        emptyOutDir: true,
+        chunkSizeWarningLimit: 2048 // Electron loads from disk, no network penalty
     },
     define: {
         '__APP_VERSION__': JSON.stringify(process.env.npm_package_version)

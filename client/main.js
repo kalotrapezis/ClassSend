@@ -1,4 +1,4 @@
-import { io } from "socket.io-client";
+﻿import { io } from "socket.io-client";
 import * as mammoth from "mammoth";
 import * as XLSX from "xlsx";
 import { translations } from "./translations.js";
@@ -2292,29 +2292,59 @@ function uploadFileXHR(file) {
 
 // ---- File Transfer Indicator Helpers ----
 
-function showFileTransferIndicator(senderId, fileName, isOwn) {
-    // Remove any existing indicator for this sender
-    removeFileTransferIndicator(senderId);
+function showFileTransferIndicator(id, fileName, type) {
+    // Remove any existing indicator for this sender/id
+    removeFileTransferIndicator(id);
 
     const el = document.createElement('div');
-    el.id = `file-transfer-${senderId}`;
-    el.className = 'message system-message file-transfer-indicator';
-    el.dataset.senderId = senderId;
+    el.id = `file-transfer-${id}`;
+    el.className = 'system-message-pill';
+    el.dataset.senderId = id;
 
-    const barId = `upload-bar-${senderId}`;
-    const pctId = `upload-pct-${senderId}`;
-    const labelId = `upload-label-${senderId}`;
+    // Fallback translations if not found
+    const tUpload = t('uploading-file') || 'Uploading file';
+    const tIncoming = t('file-incoming') || 'File incoming';
+    const tDownload = t('downloading-file') || 'Downloading file';
+
+    let labelText = '';
+    let isIndeterminate = false;
+    let showPct = true;
+
+    if (type === 'upload') {
+        labelText = tUpload;
+    } else if (type === 'incoming') {
+        labelText = tIncoming;
+        isIndeterminate = true;
+        showPct = false;
+    } else if (type === 'download') {
+        labelText = tDownload;
+    } else {
+        // Fallback for older boolean calls
+        if (type === true) {
+            labelText = tUpload;
+        } else {
+            labelText = tIncoming;
+            isIndeterminate = true;
+            showPct = false;
+        }
+    }
+
+    const barId = `upload-bar-${id}`;
+    const pctId = `upload-pct-${id}`;
+    const labelId = `upload-label-${id}`;
 
     const truncatedName = fileName.length > 40 ? fileName.substring(0, 37) + '…' : fileName;
+    const actionIcon = '/assets/progress.svg';
 
     el.innerHTML = `
-        <div class="file-transfer-content">
-            <span class="file-transfer-label" id="${labelId}">📤 ${isOwn ? (t('uploading-file') || 'Uploading file') : (t('file-incoming') || 'File incoming')}… <em>${truncatedName}</em></span>
-            <div class="file-transfer-bar-wrap">
-                <div class="file-transfer-bar ${isOwn ? '' : 'indeterminate'}" id="${barId}"></div>
-            </div>
-            ${isOwn ? `<span class="file-transfer-pct" id="${pctId}">0%</span>` : ''}
+      <div class="system-message-pill-content">
+        <img src="${actionIcon}" class="icon-svg icon-spin" style="width: 16px; height: 16px;">
+        <span id="${labelId}">${labelText}… <em>${truncatedName}</em></span>
+        <div class="file-transfer-bar-wrap" style="width: 100px; margin-left: auto;">
+            <div class="file-transfer-bar ${isIndeterminate ? 'indeterminate' : ''}" id="${barId}"></div>
         </div>
+        ${showPct ? `<span class="file-transfer-pct" id="${pctId}">0%</span>` : ''}
+      </div>
     `;
     messagesContainer.appendChild(el);
     scrollToBottom();
@@ -2328,8 +2358,8 @@ function removeFileTransferIndicator(senderId) {
 // Listen for file-transfer-start from other class members (server broadcasts to whole room)
 socket.on('file-transfer-start', ({ senderId, classId, fileName, fileSize }) => {
     if (classId !== currentClassId) return;
-    const isOwn = (senderId === socket.id);
-    showFileTransferIndicator(senderId, fileName, isOwn);
+    const type = (senderId === socket.id) ? 'upload' : 'incoming';
+    showFileTransferIndicator(senderId, fileName, type);
 });
 
 // Listen for transfer cancel (error/abort)
@@ -2480,6 +2510,7 @@ function renderMessage(message) {
         const lowerName = message.fileData.name.toLowerCase();
         const isDoc = lowerName.endsWith('.docx');
         const isXls = lowerName.endsWith('.xlsx');
+        const isPpt = lowerName.endsWith('.ppt') || lowerName.endsWith('.pptx');
         const isTxt = lowerName.endsWith('.txt');
         const isVideo = message.fileData.type && message.fileData.type.startsWith('video/');
         const isAudio = message.fileData.type && message.fileData.type.startsWith('audio/');
@@ -2523,6 +2554,7 @@ function renderMessage(message) {
             ${isDoc ? `<button class="action-btn open-doc-btn" title="${t('btn-open-doc-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Open" /><span class="btn-label">${t('btn-open-doc-label')}</span></button>` : ''}
             ${isXls ? `<button class="action-btn open-xls-btn" title="${t('btn-open-doc-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Open" /><span class="btn-label">${t('btn-open-doc-label')}</span></button>` : ''}
             ${isTxt ? `<button class="action-btn open-txt-btn" title="${t('btn-open-doc-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Open" /><span class="btn-label">${t('btn-open-doc-label')}</span></button>` : ''}
+            ${isPpt ? `<button class="action-btn open-ppt-btn" title="${t('btn-open-doc-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Open" /><span class="btn-label">${t('btn-open-doc-label')}</span></button>` : ''}
             ${isVideo ? `<button class="action-btn open-video-btn" title="${t('btn-play-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Play" /><span class="btn-label">${t('btn-play-label')}</span></button>` : ''}
             ${isAudio ? `<button class="action-btn open-audio-btn" title="${t('btn-play-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Play" /><span class="btn-label">${t('btn-play-label')}</span></button>` : ''}
             <button class="action-btn download-btn" title="${t('btn-download-label')}"><img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" /><span class="btn-label">${t('btn-download-label')}</span></button>
@@ -2573,10 +2605,21 @@ function renderMessage(message) {
         if (isDoc) attachViewerListener('.open-doc-btn', openDocumentViewer, 'docx');
         if (isXls) attachViewerListener('.open-xls-btn', openDocumentViewer, 'xlsx');
         if (isTxt) attachViewerListener('.open-txt-btn', openDocumentViewer, 'txt');
+        if (isPpt) attachViewerListener('.open-ppt-btn', openDocumentViewer, 'pptx');
         if (isVideo) attachViewerListener('.open-video-btn', openMediaPlayer, message.fileData.type);
         if (isAudio) attachViewerListener('.open-audio-btn', openMediaPlayer, message.fileData.type);
 
 
+    } else if (message.senderRole === 'system') {
+        // --- Redesigned System Message (Pill Style) ---
+        messageDiv.className = "system-message-pill pill-enter";
+        // Default system messages just have a blue/purple tint, we'll use a generic icon
+        messageDiv.innerHTML = `
+            <div class="system-message-pill-content">
+                <span style="font-size: 1.1em;">ℹ️</span>
+                <span>${escapeHtml(message.content)}</span>
+            </div>
+        `;
     } else {
         messageDiv.classList.add("text-message");
         const contentWithMentions = highlightMentions(message.content);
@@ -2775,11 +2818,12 @@ function renderMediaHistory() {
         const isPdf = fileType === 'application/pdf' || fileName.endsWith('.pdf');
         const isDoc = fileName.endsWith('.docx');
         const isXls = fileName.endsWith('.xlsx');
+        const isPpt = fileName.endsWith('.ppt') || fileName.endsWith('.pptx');
         const isTxt = fileName.endsWith('.txt');
         const isVideo = fileType.startsWith('video/') || /\.(mp4|avi|mov|mkv|webm)$/i.test(fileName);
         const isAudio = fileType.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|flac)$/i.test(fileName);
 
-        const isViewable = isImage || isPdf || isDoc || isXls || isTxt || isVideo || isAudio;
+        const isViewable = isImage || isPdf || isDoc || isXls || isPpt || isTxt || isVideo || isAudio;
 
         const item = document.createElement("div");
         item.classList.add("media-item");
@@ -2832,6 +2876,8 @@ function renderMediaHistory() {
                     openDocumentViewer(url, msg.fileData.name, 'docx');
                 } else if (isXls) {
                     openDocumentViewer(url, msg.fileData.name, 'xlsx');
+                } else if (isPpt) {
+                    openDocumentViewer(url, msg.fileData.name, 'pptx');
                 } else if (isTxt) {
                     openDocumentViewer(url, msg.fileData.name, 'txt');
                 } else if (isVideo) {
@@ -3205,30 +3251,15 @@ window.downloadFile = function (fileIdOrData, fileName) {
     const url = `/api/download/${fileIdOrData}`;
     console.log(`[Download] Requesting URL: ${url}`);
 
-    // Show Progress Modal
-    const progressModal = document.getElementById('progress-modal');
-    const progressTitle = document.getElementById('progress-title');
-    const progressBar = document.getElementById('progress-fill');
-    const progressText = document.getElementById('progress-text');
-    const btnCancel = document.getElementById('btn-cancel-progress');
-
-    if (progressTitle) progressTitle.textContent = `Downloading ${fileName}...`;
-    if (progressBar) progressBar.style.width = '0%';
-    if (progressText) progressText.textContent = '0%';
-    if (progressModal) progressModal.classList.remove('hidden');
-
-    // Cancel Button
-    if (btnCancel) {
-        btnCancel.onclick = () => {
-            console.log('[Download] Cancelled by user');
-            xhr.abort();
-            if (progressModal) progressModal.classList.add('hidden');
-        };
-    }
+    // Show Progress Indicator using the new UI system
+    const indicatorId = 'dl_' + fileIdOrData;
+    showFileTransferIndicator(indicatorId, fileName, 'download');
 
     xhr.responseType = 'blob'; // Important for binary files
 
     xhr.onprogress = (event) => {
+        const progressBar = document.getElementById(`upload-bar-${indicatorId}`);
+        const progressText = document.getElementById(`upload-pct-${indicatorId}`);
         if (event.lengthComputable) {
             const percentComplete = Math.round((event.loaded / event.total) * 100);
             if (progressBar) progressBar.style.width = percentComplete + '%';
@@ -3239,12 +3270,12 @@ window.downloadFile = function (fileIdOrData, fileName) {
                 progressBar.style.width = '100%';
                 progressBar.classList.add('indeterminate');
             }
-            if (progressText) progressText.textContent = 'Downloading...';
+            if (progressText) progressText.textContent = '...';
         }
     };
 
     xhr.onload = () => {
-        if (progressModal) progressModal.classList.add('hidden');
+        removeFileTransferIndicator(indicatorId);
         if (xhr.status === 200) {
             console.log(`[Download] Download successful (Status 200). Processing blob...`);
             const blob = xhr.response;
@@ -3268,9 +3299,14 @@ window.downloadFile = function (fileIdOrData, fileName) {
     };
 
     xhr.onerror = () => {
-        if (progressModal) progressModal.classList.add('hidden');
+        removeFileTransferIndicator(indicatorId);
         console.error('[Download] Network error occurred during download request');
         alert('Download failed due to network error');
+    };
+
+    xhr.onabort = () => {
+        removeFileTransferIndicator(indicatorId);
+        console.error('[Download] Cancelled by user');
     };
 
     xhr.open('GET', url, true);
@@ -3807,7 +3843,7 @@ function renderPinnedMessages() {
         msgDiv.addEventListener('click', (e) => {
             // If the element has been removed from the DOM (like when innerHTML updates the copy button), ignore it
             if (!document.body.contains(e.target)) return;
-            
+
             // Ignore if clicked on an action button
             if (e.target.closest('.pinned-message-actions') || e.target.closest('.action-btn')) return;
 
@@ -5783,54 +5819,31 @@ socket.on('deep-learning-progress', (progress) => {
     }
 });
 
-// Toast Notification Helper
+// Toast Notification Helper (Pill Style)
 function showToast(message, type = 'info', duration = 4000) {
-    // Create toast container if it doesn't exist
-    let container = document.getElementById('toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'toast-container';
-        container.style.cssText = 'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: center; pointer-events: none;';
-        document.body.appendChild(container);
-    }
+    // Determine the icon string based on type
+    const iconStr = type === 'error' ? '🚫' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
 
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.style.cssText = `
-        background: ${type === 'error' ? '#ef4444' : type === 'success' ? '#22c55e' : type === 'warning' ? '#eab308' : '#3b82f6'};
-        color: white;
-        padding: 10px 20px;
-        border-radius: 20px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        font-family: system-ui, -apple-system, sans-serif;
-        font-size: 14px;
-        font-weight: 500;
-        opacity: 0;
-        transform: translateY(20px);
-        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        pointer-events: auto;
+    // Create a new pill div
+    const pill = document.createElement('div');
+    pill.className = `system-message-pill toast-pill-${type} pill-enter`;
+    pill.innerHTML = `
+        <div class="system-message-pill-content">
+            <span style="font-size: 1.1em;">${iconStr}</span>
+            <span>${message}</span>
+        </div>
     `;
 
-    // Add icon based on type
-    const icon = type === 'error' ? '🚫' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
-    toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+    // Append directly to the messages container like normal system messages
+    messagesContainer.appendChild(pill);
+    scrollToBottom();
 
-    container.appendChild(toast);
-
-    // Animate in
-    requestAnimationFrame(() => {
-        toast.style.opacity = '1';
-        toast.style.transform = 'translateY(0)';
-    });
-
-    // Remove after duration
+    // Auto-remove after duration
     setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(20px)';
-        setTimeout(() => toast.remove(), 300);
+        pill.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+        pill.style.opacity = "0";
+        pill.style.transform = "translateY(10px) scale(0.95)";
+        setTimeout(() => pill.remove(), 400);
     }, duration);
 }
 
@@ -6396,12 +6409,73 @@ if (aboutAppIcon) {
             const btnViewLogs = document.getElementById("btn-view-logs");
             if (btnViewLogs) btnViewLogs.classList.remove("hidden");
 
+            // Show development tools section
+            const devSection = document.getElementById("development-section");
+            if (devSection) devSection.classList.remove("hidden");
+
             // Show toast
             showToast(translations[currentLanguage]["toast-debug-unlocked"], "success");
             console.log("Debug mode unlocked by user (global flag set).");
         }
     });
 }
+
+// Development UI Simulation Logic
+document.getElementById('btn-dev-sim-upload')?.addEventListener('click', () => {
+    const id = 'dev_up_' + Date.now();
+    showFileTransferIndicator(id, 'simulated_upload.pdf', 'upload');
+    // Simulate progress
+    let pct = 0;
+    const interval = setInterval(() => {
+        pct += 10;
+        const b = document.getElementById(`ftb_${id}`);
+        const p = document.getElementById(`ftp_${id}`);
+        if (b) b.style.width = `${pct}%`;
+        if (p) p.innerText = `${pct}%`;
+        if (pct >= 100) {
+            clearInterval(interval);
+            setTimeout(() => removeFileTransferIndicator(id), 500);
+        }
+    }, 500);
+});
+
+document.getElementById('btn-dev-sim-incoming')?.addEventListener('click', () => {
+    const id = 'dev_in_' + Date.now();
+    showFileTransferIndicator(id, 'simulated_incoming.zip', 'incoming');
+    // Usually infinite until file payload arrives, we clear it after 5 sec
+    setTimeout(() => {
+        removeFileTransferIndicator(id);
+    }, 5000);
+});
+
+document.getElementById('btn-dev-sim-download')?.addEventListener('click', () => {
+    const id = 'dev_dl_' + Date.now();
+    showFileTransferIndicator(id, 'simulated_download.docx', 'download');
+    // Simulate progress
+    let pct = 0;
+    const interval = setInterval(() => {
+        pct += 5;
+        const b = document.getElementById(`ftb_${id}`);
+        const p = document.getElementById(`ftp_${id}`);
+        if (b) b.style.width = `${pct}%`;
+        if (p) p.innerText = `${pct}%`;
+        if (pct >= 100) {
+            clearInterval(interval);
+            setTimeout(() => removeFileTransferIndicator(id), 500);
+        }
+    }, 300);
+});
+
+document.getElementById('btn-dev-sim-coldstart')?.addEventListener('click', () => {
+    // Show the searching overlay to simulate cold start
+    const searchingOverlay = document.getElementById('searching-overlay');
+    if (searchingOverlay) {
+        searchingOverlay.classList.remove('hidden');
+        setTimeout(() => {
+            searchingOverlay.classList.add('hidden');
+        }, 3000);
+    }
+});
 // --- Web Viewer Functions ---
 const webViewerModal = document.getElementById("web-viewer-modal");
 // const webFrame = document.getElementById("web-frame"); // Removed to support dynamic creation

@@ -98,5 +98,55 @@
     "classId": "Class-01",
     "uploadedBy": "Περήφανο Δαμάσκηνο",
     "timestamp": 1771572894047
+  },
+  {
+    "id": "26cb2aeee1caf8d3c570f9d144bad24b",
+    "name": "Έγγραφο Πληροφοριών Επέκτασης Εγγύησης Μικρών Συσκευών SDA +3 έτη.pdf",
+    "size": 264668,
+    "type": "application/pdf",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend-Legacy\\server\\media\\26cb2aeee1caf8d3c570f9d144bad24b.pdf",
+    "classId": "Class-01",
+    "uploadedBy": "Swift Papaya",
+    "timestamp": 1771776667518
+  },
+  {
+    "id": "884ec14e974d235ad9d7eb834fe7f61a",
+    "name": "developer-board-svgrepo-com.svg",
+    "size": 3789,
+    "type": "image/svg+xml",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend-Legacy\\server\\media\\884ec14e974d235ad9d7eb834fe7f61a.svg",
+    "classId": "Class-01",
+    "uploadedBy": "Swift Papaya",
+    "timestamp": 1771776673114
+  },
+  {
+    "id": "9c5463cee6339c68cd4d7052364d59b8",
+    "name": "ElevenLabs_2026-02-13T17_03_24_Rachel_pre_sp100_s34_sb48_se48_b_m2.mp3",
+    "size": 5644893,
+    "type": "audio/mpeg",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend-Legacy\\server\\media\\9c5463cee6339c68cd4d7052364d59b8.mp3",
+    "classId": "Class-01",
+    "uploadedBy": "Swift Papaya",
+    "timestamp": 1771776687823
+  },
+  {
+    "id": "99165cf55c37e9b5e70952178b188b37",
+    "name": "Screenshot_2026-02-21-13-04-03-458_com.android.settings.jpg",
+    "size": 364434,
+    "type": "image/jpeg",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\99165cf55c37e9b5e70952178b188b37.jpg",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Αχλάδι",
+    "timestamp": 1771790934030
+  },
+  {
+    "id": "55d63324667b6dcfc6b143b1218fbc5b",
+    "name": "ClassSend-9.3.2.Setup.exe",
+    "size": 316168704,
+    "type": "application/x-msdownload",
+    "path": "C:\\Users\\Teo\\.gemini\\antigravity\\scratch\\ClassSend\\server\\media\\55d63324667b6dcfc6b143b1218fbc5b.exe",
+    "classId": "Class-01",
+    "uploadedBy": "Περήφανο Αχλάδι",
+    "timestamp": 1771790951273
   }
 ]
