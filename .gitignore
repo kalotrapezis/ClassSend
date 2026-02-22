@@ -47,4 +47,4 @@ uploads/
 
 # Exclude large models
 server/models/
-server/media/*
+server/media/
