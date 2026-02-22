@@ -1,5 +1,5 @@
-# ClassSend 9.3.7
-![Version](https://img.shields.io/badge/version-v9.3.7-blue)
+# ClassSend 9.4.0
+![Version](https://img.shields.io/badge/version-v9.4.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -33,10 +33,10 @@
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Linux AppImage**: `ClassSend-9.3.7-x64.AppImage`
-- **Linux Zip**: `ClassSend-linux-x64-9.3.7.zip`
-- **Windows Installer (64-bit)**: `ClassSend-9.3.7 Setup.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-9.3.7.zip`
+- **Linux AppImage**: `ClassSend-9.4.0-x64.AppImage`
+- **Linux Zip**: `ClassSend-linux-x64-9.4.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-9.4.0 Setup.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-9.4.0.zip`
 
 ## 🧠 Offline AI Setup (Required for Deep Learning)
 The "Deep Learning" filter requires the `toxic-bert` model, which is excluded from this repository due to size limits.

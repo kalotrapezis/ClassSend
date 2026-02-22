@@ -1,7 +1,13 @@
 # Release Notes
 
-## [9.3.7] - 2026-02-20
+## [9.4.0] - 2026-02-21
 ### Added
+- **System Messaging Redesign**: Completely overhauled the appearance of internal system messages (e.g. "User joined", "User left") to be contained within modern, centered pill designs. 
+- **Dynamic Toasts**: Replaced bottom-floating, screen-blocking toasts with inline, color-coded notification pills that insert smoothly directly into the chat stream sequence.
+- **File Transfer Progress Integration**: Unified the file upload and download indicator progress bars with the new "pill" design, creating a wholly consistent notification experience across the application.
+- **Development Tools**: Added a hidden developer tools menu (Click the app logo in "About" 5 times) to simulate various UI components without needing multiple active device connections.
+
+## [9.3.7] - 2026-02-20
 - **Persisted Log Settings**: Log settings are now persisted across application restarts.
 - **Persistent Media Library**: The media library is now saved to a "media" folder in the teacher's installation directory. Students mirror the teacher's media library, and all file transfers correspond directly with this folder.
 - **Media Management**: The Media Library now features "Delete-Clear" and "Download All" buttons (available to teachers only).

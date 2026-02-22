@@ -193,7 +193,8 @@ export const translations = {
         "label-auto-export": "Automatic Report Export",
         "auto-export-description": "Automatically save logs to disk (Overwrite on Startup).",
         "uploading-file": "Uploading file",
-        "file-incoming": "File incoming"
+        "file-incoming": "File incoming",
+        "downloading-file": "Downloading file"
     },
 
     el: {
@@ -389,6 +390,7 @@ export const translations = {
         "label-auto-export": "Αυτόματη Εξαγωγή Αναφοράς",
         "auto-export-description": "Αυτόματη αποθήκευση καταγραφών στο δίσκο (Αντικατάσταση στην εκκίνηση).",
         "uploading-file": "Μεταφόρτωση αρχείου",
-        "file-incoming": "Αρχείο σε μεταφόρτωση"
+        "file-incoming": "Αρχείο σε μεταφόρτωση",
+        "downloading-file": "Λήψη αρχείου"
     }
 };

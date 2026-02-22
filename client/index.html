@@ -12,8 +12,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Raleway:wght@100;200;300;400;500;600&display=swap"
+    <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=9.3.6">
+  <link rel="stylesheet" href="./style.css?v=9.4.0">
 </head>
 
 <body>
@@ -532,6 +534,32 @@
                     </div>
                     <pre id="logs-content" class="logs-content"></pre>
                   </div>
+
+                  <!-- Hidden Development Section (Unlocked via 5 clicks on App Icon) -->
+                  <div id="development-section" class="setting-item hidden"
+                    style="border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1.5rem;">
+                    <label><img src="/assets/developer-board.svg" class="icon-svg" /> Development Tools</label>
+                    <p class="setting-description">UI simulation buttons for testing layouts without active connections.
+                    </p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+                      <button id="btn-dev-sim-upload" class="secondary-btn"
+                        style="flex: 1; min-width: 150px; font-size: 0.8rem;">
+                        Simulate Upload UI
+                      </button>
+                      <button id="btn-dev-sim-incoming" class="secondary-btn"
+                        style="flex: 1; min-width: 150px; font-size: 0.8rem;">
+                        Simulate Incoming UI
+                      </button>
+                      <button id="btn-dev-sim-download" class="secondary-btn"
+                        style="flex: 1; min-width: 150px; font-size: 0.8rem;">
+                        Simulate Download UI
+                      </button>
+                      <button id="btn-dev-sim-coldstart" class="secondary-btn"
+                        style="flex: 1; min-width: 150px; font-size: 0.8rem; border-color: var(--error); color: var(--error);">
+                        Simulate App Start
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- About Page -->
@@ -543,7 +571,7 @@
                     </div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
                     <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
-                        id="app-version-display">9.3.7</span></p>
+                        id="app-version-display">9.4.0</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
@@ -551,6 +579,8 @@
                         data-i18n="recent-improvements">
                         Recent Improvements:</h4>
                       <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.4;">
+                        <li>System Notifications & Toasts Redesign</li>
+                        <li>File Transfer Dashboard UI Updates</li>
                         <li data-i18n="imp-svg-icons">SVG File Icons & Media Types</li>
                         <li data-i18n="imp-tablet-fix">Tablet Image Viewer Fixes</li>
                         <li data-i18n="imp-teacher-menu">Teacher Tools Menu</li>
@@ -695,8 +725,8 @@
       <div id="media-player-modal" class="modal hidden">
         <div class="modal-content media-modal-content">
           <div class="popup-header">
-            <h3 id="media-player-title"><img src="/assets/play-circle-svgrepo-com.svg" class="icon-svg" alt="Media"
-                onerror="this.src='/assets/files-svgrepo-com.svg'" /> Media Player</h3>
+            <h3 id="media-player-title"><img src="/assets/video-frame-play-horizontal-svgrepo-com.svg" class="icon-svg"
+                alt="Media" /> Media Player</h3>
             <div class="video-header-controls">
               <button id="btn-minimize-media-player" class="header-control-btn" title="Minimize"><img
                   src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
