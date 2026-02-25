@@ -1196,6 +1196,42 @@ body {
   transform: scale(1.05);
 }
 
+.media-delete-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--error);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.media-delete-btn:hover {
+  background: #ff5252;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(255, 82, 82, 0.4);
+}
+
+.media-delete-btn:active {
+  transform: scale(1.05);
+}
+
+/* Disabled upload button styling */
+.attach-btn.disabled-upload {
+  opacity: 0.5;
+  filter: blur(1px) grayscale(100%);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+
 /* Pinned Media Items */
 .media-item.pinned {
   border-color: var(--accent-primary);
@@ -2595,31 +2631,56 @@ body {
   transform: scale(0.95);
 }
 
-/* System Message Pill (File Transfers) */
+/* System Message Pill (Refactored for centering and better fit) */
 .system-message-pill {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(98, 100, 167, 0.15);
-  border: 1px solid rgba(98, 100, 167, 0.3);
+  background: rgba(244, 157, 63, 0.1);
+  /* Subtle orange/warning background */
+  border: 1px solid rgba(244, 157, 63, 0.3);
   border-radius: 50px;
-  padding: 8px 16px;
-  color: var(--accent-primary);
+  padding: 6px 16px;
+  color: #f49d3f;
   font-size: 0.9rem;
   font-weight: 500;
   margin: 12px auto;
-  min-width: 250px;
-  max-width: fit-content;
+  width: fit-content;
+  max-width: 90%;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  flex-direction: column;
+  align-self: center;
+  /* Critical for centering in flex containers */
+  gap: 10px;
+  transition: all 0.3s ease;
 }
 
 .system-message-pill-content {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  white-space: nowrap;
 }
+
+/* Specific styling for the action button inside the pill */
+.system-message-pill .action-btn.join-stream-btn {
+  background: #f49d3f !important;
+  color: #000 !important;
+  border: none !important;
+  padding: 4px 12px !important;
+  border-radius: 20px !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  height: auto !important;
+  width: auto !important;
+  min-width: unset !important;
+  margin-left: 4px;
+}
+
+.system-message-pill .action-btn.join-stream-btn:hover {
+  background: #ffb159 !important;
+  transform: scale(1.05);
+}
+
 
 /* Toast Pill Variants */
 .toast-pill-success {
@@ -5446,8 +5507,13 @@ input:checked+.slider:before {
   /* Account for header */
 }
 
-/* Web Viewer Fullscreen (matches screen-sharing behavior) */
-#web-viewer-modal.fullscreen {
+/* Viewer Fullscreen (matches screen-sharing behavior) */
+#web-viewer-modal.fullscreen,
+#pdf-viewer-modal.fullscreen,
+#document-viewer-modal.fullscreen,
+#media-player-modal.fullscreen,
+#image-viewer-modal.fullscreen,
+#video-modal.fullscreen {
   position: fixed !important;
   inset: 0 !important;
   z-index: 10000 !important;
@@ -5457,7 +5523,12 @@ input:checked+.slider:before {
   justify-content: center;
 }
 
-#web-viewer-modal.fullscreen .modal-content {
+#web-viewer-modal.fullscreen .modal-content,
+#pdf-viewer-modal.fullscreen .modal-content,
+#document-viewer-modal.fullscreen .modal-content,
+#media-player-modal.fullscreen .modal-content,
+#image-viewer-modal.fullscreen .modal-content,
+#video-modal.fullscreen .modal-content {
   width: 100vw !important;
   height: 100vh !important;
   max-width: none !important;
@@ -5466,7 +5537,12 @@ input:checked+.slider:before {
   margin: 0 !important;
 }
 
-#web-viewer-modal.fullscreen .web-container {
+#web-viewer-modal.fullscreen .web-container,
+#pdf-viewer-modal.fullscreen .pdf-container,
+#document-viewer-modal.fullscreen .doc-container,
+#media-player-modal.fullscreen .media-container,
+#image-viewer-modal.fullscreen .image-container-enhanced,
+#video-modal.fullscreen .video-container {
   flex: 1;
   height: calc(100vh - 50px);
 }

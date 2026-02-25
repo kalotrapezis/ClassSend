@@ -95,10 +95,21 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
-  const { classId, userName, socketId, role } = req.body;
+  const { classId, userName, socketId } = req.body;
+  const role = req.body.role || 'student';
+
   if (!classId) {
     fs.unlinkSync(req.file.path);
     return res.status(400).json({ error: 'Class ID required' });
+  }
+
+  // Check upload blocking for students
+  if (activeClasses.has(classId) && role === 'student') {
+    const classData = activeClasses.get(classId);
+    if (classData.blockUploadsActive) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(403).json({ error: 'File uploads are currently blocked by the teacher.' });
+    }
   }
 
   // Fix Greek/UTF-8 filename encoding (multer uses Latin-1 by default)
@@ -221,7 +232,7 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '9.4.0', // Should match package.json
+    version: '9.5.0', // Should match package.json
     classes: classes
   });
 });
@@ -655,6 +666,38 @@ io.on('connection', (socket) => {
   // File Transfer Cancel: Client emits this on XHR error/abort
   socket.on('file-transfer-cancel', ({ classId, senderId }) => {
     io.to(classId).emit('file-transfer-cancel', { senderId: senderId || socket.id });
+  });
+
+  // Handle Delete Single Media Item
+  socket.on('delete-media-item', ({ classId, fileId, fileName }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+
+    // Check if the user is the teacher
+    if (classData.teacherId !== socket.id) return;
+
+    console.log(`🗑️ Teacher requested to delete media item: ${fileId} in class ${classId}`);
+
+    // Delete physical file
+    fileStorage.deleteFile(fileId);
+
+    // Remove from classData.sharedMedia
+    if (classData.sharedMedia) {
+      classData.sharedMedia = classData.sharedMedia.filter(m => {
+        const mId = m.fileData ? (m.fileData.id || m.id) : null;
+        return mId !== fileId;
+      });
+    }
+
+    // Remove from classData.messages
+    if (classData.messages) {
+      classData.messages = classData.messages.filter(msg => {
+        return !(msg.type === 'file' && (msg.fileData.id || msg.id || msg.fileData.data) === fileId);
+      });
+    }
+
+    // Notify clients
+    io.to(classId).emit('media-item-deleted', { fileId, classId });
   });
 
   // Handle Clear Media Library Request (Specific)
@@ -1110,6 +1153,7 @@ io.on('connection', (socket) => {
       success: true,
       blocked: classData.blockedUsers && classData.blockedUsers.has(socket.id),
       blockAllActive: classData.blockAllActive || false,
+      blockUploadsActive: classData.blockUploadsActive || false,
       allowHandsUp: classData.allowHandsUp !== undefined ? classData.allowHandsUp : true,
       messages: classData.messages,
       users: classData.users,
@@ -1701,6 +1745,16 @@ io.on('connection', (socket) => {
     classData.blockAllActive = enabled;
     io.to(classId).emit('block-all-messages-updated', { enabled, classId });
     console.log(`Block all messages set to ${enabled} in class ${classId}`);
+  });
+
+  socket.on('toggle-block-uploads', ({ classId, enabled }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+
+    classData.blockUploadsActive = enabled;
+    io.to(classId).emit('block-uploads-updated', { enabled, classId });
+    console.log(`Block file uploads set to ${enabled} in class ${classId}`);
   });
 
   socket.on('toggle-allow-hands-up', ({ classId, enabled }) => {

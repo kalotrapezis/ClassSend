@@ -1,5 +1,12 @@
 # Release Notes
 
+## [9.5.0] - 2026-02-25
+### Added
+- **Teacher Control**: Added ability to block student file uploads via teacher tools.
+- **Media Library**: Teachers can now delete individual files from the shared media history.
+- **Fullscreen Access**: Implemented fullscreen mode for all file viewers including Video, PDF, Word, Excel, and Images.
+- **Maintenance**: General code cleanup, performance optimizations, and lazy loading implementation.
+
 ## [9.4.0] - 2026-02-21
 ### Added
 - **System Messaging Redesign**: Completely overhauled the appearance of internal system messages (e.g. "User joined", "User left") to be contained within modern, centered pill designs. 

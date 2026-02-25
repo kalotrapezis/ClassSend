@@ -1,5 +1,5 @@
-# ClassSend 9.4.0
-![Version](https://img.shields.io/badge/version-v9.4.0-blue)
+# ClassSend 9.5.0
+![Version](https://img.shields.io/badge/version-v9.5.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -17,7 +17,7 @@
 - **� Instant Start**: New students skip the setup screens and go straight to finding a class.
 - **✨ Visual Polish**: Progress bars for sending/receiving files, and system messages that auto-delete with a sleek visual timer.
 - **🌍 Enhanced Localization**: Full Greek translations for Themes, Connection Status, and interactive buttons.
-- **🧠 Enhanced AI (N-gram)**: Upgraded Naive Bayes classifier with N-gram tokenization and a bundled offline Deep Learning model (`toxic-bert`).
+- **🧠 Enhanced AI (N-gram)**: Upgraded Naive Bayes classifier with N-gram tokenization.
 - **📋 List Management**: Full control over Blacklist (Forbidden words) and Whitelist (Good list) with Import/Export capabilities.
 
 ## 📖 How to Use
@@ -33,18 +33,12 @@
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Linux AppImage**: `ClassSend-9.4.0-x64.AppImage`
-- **Linux Zip**: `ClassSend-linux-x64-9.4.0.zip`
-- **Windows Installer (64-bit)**: `ClassSend-9.4.0 Setup.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-9.4.0.zip`
+- **Linux AppImage**: `ClassSend-9.5.0-x64.AppImage`
+- **Linux Zip**: `ClassSend-linux-x64-9.5.0.zip`
+- **Windows Installer (64-bit)**: `ClassSend-9.5.0 Setup.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-9.5.0.zip`
 
-## 🧠 Offline AI Setup (Required for Deep Learning)
-The "Deep Learning" filter requires the `toxic-bert` model, which is excluded from this repository due to size limits.
 
-To enable it:
-1.  Download the **Xenova/toxic-bert** model (ONNX quantized) from Hugging Face.
-2.  Place the files in: `server/models/Xenova/toxic-bert/onnx/`
-3.  Ensure `model_quantized.onnx` is present in that folder.
 
 
 ## 🛠️ Troubleshooting Connection Issues
@@ -109,7 +103,6 @@ We use Electron to bundle the Node.js server *inside* the application. This mean
 
 ## 🙏 Credits & Technologies
 ClassSend wouldn't be possible without these amazing open-source projects:
-- **[@xenova/transformers](https://huggingface.co/docs/transformers.js)**: Powering our Deep Learning filters with `toxic-bert`.
 - **[bayes](https://github.com/ttezel/bayes)**: Providing our adaptable Naive Bayes classification layer.
 - **[bad-words](https://github.com/web-mech/badwords)**: The foundation of our legacy quick-fiter.
 - **[Socket.IO](https://socket.io/)**: Real-time bidirectional event-based communication.

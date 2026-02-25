@@ -1,6 +1,5 @@
 ﻿import { io } from "socket.io-client";
-import * as mammoth from "mammoth";
-import * as XLSX from "xlsx";
+// mammoth and xlsx are now dynamically imported
 import { translations } from "./translations.js";
 import { generateRandomName } from "./name-generator.js";
 
@@ -565,6 +564,7 @@ const btnToolShareScreen = document.getElementById("btn-tool-share-screen");
 const btnToolHandsDown = document.getElementById("btn-tool-hands-down");
 
 const btnToolBlockMessages = document.getElementById("btn-tool-block-messages");
+const btnToolBlockUploads = document.getElementById("btn-tool-block-uploads");
 const btnToolAllowHands = document.getElementById("btn-tool-allow-hands");
 
 let serverInfo = null; // { ip, port, hostname }
@@ -794,8 +794,14 @@ if (btnToolBlockMessages) {
         const classData = joinedClasses.get(currentClassId);
         const newState = !classData.blockAllActive;
         socket.emit("toggle-block-all-messages", { classId: currentClassId, enabled: newState });
-        // toolsMenu.classList.remove("active"); // Removed to keep menu open
-        // btnToolsToggle.classList.remove("active");
+    });
+}
+
+if (btnToolBlockUploads) {
+    btnToolBlockUploads.addEventListener("click", () => {
+        const classData = joinedClasses.get(currentClassId);
+        const newState = !classData.blockUploadsActive;
+        socket.emit("toggle-block-uploads", { classId: currentClassId, enabled: newState });
     });
 }
 
@@ -1263,6 +1269,16 @@ function updateChatDisabledState() {
             btnSendMessage.style.opacity = '1';
         }
     }
+
+    if (classData && currentRole === 'student' && classData.blockUploadsActive) {
+        btnAttachFile.classList.add("disabled-upload");
+        btnAttachFile.disabled = true;
+        btnAttachFile.title = "File uploads blocked by teacher";
+    } else {
+        btnAttachFile.classList.remove("disabled-upload");
+        btnAttachFile.disabled = false;
+        btnAttachFile.title = "Attach file";
+    }
 }
 
 // Auto-flow helper: Show waiting screen for students
@@ -1347,6 +1363,37 @@ socket.on("block-all-messages-updated", (data) => {
                 translations[lang]['toast-block-enabled'] :
                 translations[lang]['toast-block-disabled'];
             showToast(msg, data.enabled ? "warning" : "success");
+        }
+    }
+});
+
+socket.on("block-uploads-updated", (data) => {
+    const classData = joinedClasses.get(data.classId);
+    if (classData) {
+        classData.blockUploadsActive = data.enabled;
+        if (data.classId === currentClassId) {
+            updateChatDisabledState();
+            updateToolStates();
+            const lang = currentLanguage;
+            const t = translations[lang] || translations['en'];
+            const msg = data.enabled ?
+                (t['toast-block-enabled'] || "Uploads blocked") :
+                (t['toast-block-disabled'] || "Uploads allowed");
+            showToast(msg, data.enabled ? "warning" : "success");
+        }
+    }
+});
+
+socket.on("media-item-deleted", ({ fileId, classId }) => {
+    if (joinedClasses.has(classId)) {
+        const classData = joinedClasses.get(classId);
+        // Remove from messages list 
+        classData.messages = classData.messages.filter(msg => {
+            return !(msg.type === 'file' && (msg.fileData.id || msg.id || msg.fileData.data) === fileId);
+        });
+        if (currentClassId === classId) {
+            renderMessages();
+            renderMediaHistory();
         }
     }
 });
@@ -1616,6 +1663,7 @@ function joinClass(classIdToJoin, nameToUse, isAutoJoin = false) {
                 blockedUsers: new Set(response.blockedUsers || []),
                 hasTeacher: hasTeacher,
                 blockAllActive: response.blockAllActive || false,
+                blockUploadsActive: response.blockUploadsActive || false,
                 allowHandsUp: response.allowHandsUp !== undefined ? response.allowHandsUp : true
             });
 
@@ -2202,6 +2250,7 @@ messageInput.addEventListener("keypress", (e) => {
 
 // File Attachment
 btnAttachFile.addEventListener("click", () => {
+    if (btnAttachFile.disabled) return;
     fileInput.click();
 });
 
@@ -2209,6 +2258,15 @@ fileInput.addEventListener("change", async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     if (!currentClassId) return;
+
+    if (currentRole === 'student') {
+        const classData = joinedClasses.get(currentClassId);
+        if (classData && classData.blockUploadsActive) {
+            alert(translations[currentLanguage]['toast-block-enabled'] || "File uploads are blocked by the teacher.");
+            fileInput.value = "";
+            return;
+        }
+    }
 
     // Warn for files > 500MB
     const MAX_RECOMMENDED_SIZE = 500 * 1024 * 1024; // 500MB
@@ -2508,7 +2566,7 @@ function renderMessage(message) {
 
         // New Supported Types
         const lowerName = message.fileData.name.toLowerCase();
-        const isDoc = lowerName.endsWith('.docx');
+        const isDoc = lowerName.endsWith('.docx') || lowerName.endsWith('.doc');
         const isXls = lowerName.endsWith('.xlsx');
         const isPpt = lowerName.endsWith('.ppt') || lowerName.endsWith('.pptx');
         const isTxt = lowerName.endsWith('.txt');
@@ -2816,7 +2874,7 @@ function renderMediaHistory() {
 
         const isImage = fileType.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
         const isPdf = fileType === 'application/pdf' || fileName.endsWith('.pdf');
-        const isDoc = fileName.endsWith('.docx');
+        const isDoc = fileName.endsWith('.docx') || fileName.endsWith('.doc');
         const isXls = fileName.endsWith('.xlsx');
         const isPpt = fileName.endsWith('.ppt') || fileName.endsWith('.pptx');
         const isTxt = fileName.endsWith('.txt');
@@ -2841,6 +2899,12 @@ function renderMediaHistory() {
             </button>
         ` : '';
 
+        const deleteBtn = currentRole === 'teacher' ? `
+            <button class="media-delete-btn" title="${translations[currentLanguage]['btn-delete-media'] || 'Delete'}" data-file-id="${fileId}">
+                <img src="/assets/close-square-svgrepo-com.svg" class="icon-svg" alt="Delete" />
+            </button>
+        ` : '';
+
         item.innerHTML = `
             <div class="media-icon">${isPinned ? '<img src="/assets/pin-svgrepo-com.svg" class="icon-svg" />' : '<img src="/assets/files-svgrepo-com.svg" class="icon-svg" />'}</div>
             <div class="media-info">
@@ -2856,6 +2920,7 @@ function renderMediaHistory() {
                 <button class="media-download-btn" title="Download" onclick="downloadFile('${msg.fileData.id || msg.fileData.data}', '${escapeHtml(msg.fileData.name)}')">
                     <img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" />
                 </button>
+                ${deleteBtn}
             </div>
         `;
 
@@ -2873,6 +2938,7 @@ function renderMediaHistory() {
                 } else if (isImage) {
                     openImageViewer(url);
                 } else if (isDoc) {
+                    // Always try to load .doc and .docx files in docx viewer - this may have limited .doc support depending on the library
                     openDocumentViewer(url, msg.fileData.name, 'docx');
                 } else if (isXls) {
                     openDocumentViewer(url, msg.fileData.name, 'xlsx');
@@ -4968,19 +5034,9 @@ if (btnFullscreen) {
     btnFullscreen.addEventListener("click", () => {
         if (videoModal) {
             videoModal.classList.toggle("fullscreen");
-            btnFullscreen.textContent = videoModal.classList.contains("fullscreen") ? "❌" : "⛶";
-            btnFullscreen.title = videoModal.classList.contains("fullscreen") ? "Exit Fullscreen" : "Fullscreen";
         }
     });
 }
-
-// Exit fullscreen on Escape
-document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && videoModal && videoModal.classList.contains("fullscreen")) {
-        videoModal.classList.remove("fullscreen");
-        if (btnFullscreen) btnFullscreen.textContent = "⛶";
-    }
-});
 
 // Minimize Video
 if (btnMinimizeVideo) {
@@ -5492,6 +5548,11 @@ function updateToolStates() {
     // Messaging Block Status
     if (btnToolBlockMessages) {
         btnToolBlockMessages.classList.toggle("active", classData.blockAllActive);
+    }
+
+    // Uploads Block Status
+    if (btnToolBlockUploads) {
+        btnToolBlockUploads.classList.toggle("active", classData.blockUploadsActive);
     }
 
     // Allow Hands Status
@@ -6165,6 +6226,13 @@ if (btnPdfZoomReset) {
     });
 }
 
+const btnPdfFullscreen = document.getElementById("btn-pdf-fullscreen");
+if (btnPdfFullscreen) {
+    btnPdfFullscreen.addEventListener("click", () => {
+        if (pdfViewerModal) pdfViewerModal.classList.toggle("fullscreen");
+    });
+}
+
 // --- Image Handlers ---
 if (btnCloseImage) {
     btnCloseImage.addEventListener("click", closeAllViewers);
@@ -6204,6 +6272,13 @@ if (btnImageZoomReset) {
         imageTranslateX = 0;
         imageTranslateY = 0;
         updateImageTransform();
+    });
+}
+
+const btnImageFullscreen = document.getElementById("btn-image-fullscreen");
+if (btnImageFullscreen) {
+    btnImageFullscreen.addEventListener("click", () => {
+        if (imageViewerModal) imageViewerModal.classList.toggle("fullscreen");
     });
 }
 
@@ -6270,7 +6345,8 @@ async function openDocumentViewer(url, filename, type) {
                 docContent.innerHTML = ''; // Clear loader
 
                 if (type === 'docx' || filename.toLowerCase().endsWith('.docx')) {
-                    // Render DOCX with Mammoth
+                    // Render DOCX with Mammoth (lazy load)
+                    const mammoth = await import("mammoth");
                     const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
                     const wrapper = document.createElement('div');
                     wrapper.className = 'document-content-wrapper';
@@ -6280,7 +6356,8 @@ async function openDocumentViewer(url, filename, type) {
                     docContent.appendChild(wrapper);
 
                 } else if (type === 'xlsx' || filename.toLowerCase().endsWith('.xlsx')) {
-                    // Render Excel with XLSX
+                    // Render Excel with XLSX (lazy load)
+                    const XLSX = await import("xlsx");
                     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                     const html = XLSX.utils.sheet_to_html(firstSheet);
@@ -6334,6 +6411,13 @@ if (btnMinimizeDoc) btnMinimizeDoc.addEventListener("click", () => {
     }
 });
 
+const btnDocFullscreen = document.getElementById("btn-doc-fullscreen");
+if (btnDocFullscreen) {
+    btnDocFullscreen.addEventListener("click", () => {
+        if (documentViewerModal) documentViewerModal.classList.toggle("fullscreen");
+    });
+}
+
 // --- Media Player Functions ---
 function openMediaPlayer(url, filename, type) {
     closeAllViewers();
@@ -6375,6 +6459,13 @@ if (btnMinimizeMediaPlayer) btnMinimizeMediaPlayer.addEventListener("click", () 
     }
 });
 
+const btnMediaFullscreen = document.getElementById("btn-media-fullscreen");
+if (btnMediaFullscreen) {
+    btnMediaFullscreen.addEventListener("click", () => {
+        if (mediaPlayerModal) mediaPlayerModal.classList.toggle("fullscreen");
+    });
+}
+
 // Debug Unlock Feature (5x Clicks on About Icon)
 const aboutAppIcon = document.getElementById("about-app-icon");
 let debugClickCount = 0;
@@ -6409,10 +6500,79 @@ if (aboutAppIcon) {
             const btnViewLogs = document.getElementById("btn-view-logs");
             if (btnViewLogs) btnViewLogs.classList.remove("hidden");
 
-            // Show development tools section
-            const devSection = document.getElementById("development-section");
-            if (devSection) devSection.classList.remove("hidden");
+            // Dynamically inject development tools section
+            let devSection = document.getElementById("development-section");
+            if (!devSection) {
+                devSection = document.createElement("div");
+                devSection.id = "development-section";
+                devSection.className = "setting-item";
+                devSection.style.cssText = "border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1.5rem;";
+                devSection.innerHTML = `
+                    <label><img src="/assets/developer-board.svg" class="icon-svg" /> Development Tools</label>
+                    <p class="setting-description">UI simulation buttons for testing layouts without active connections.</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+                      <button id="btn-dev-sim-upload" class="secondary-btn" style="flex: 1; min-width: 150px; font-size: 0.8rem;">Simulate Upload UI</button>
+                      <button id="btn-dev-sim-incoming" class="secondary-btn" style="flex: 1; min-width: 150px; font-size: 0.8rem;">Simulate Incoming UI</button>
+                      <button id="btn-dev-sim-download" class="secondary-btn" style="flex: 1; min-width: 150px; font-size: 0.8rem;">Simulate Download UI</button>
+                      <button id="btn-dev-sim-coldstart" class="secondary-btn" style="flex: 1; min-width: 150px; font-size: 0.8rem; border-color: var(--error); color: var(--error);">Simulate App Start</button>
+                    </div>
+                `;
+                const systemPage = document.getElementById("settings-page-system");
+                if (systemPage) systemPage.appendChild(devSection);
 
+                // Attach event listeners dynamically
+                document.getElementById('btn-dev-sim-upload')?.addEventListener('click', () => {
+                    if (typeof showFileTransferIndicator === 'function') {
+                        const id = 'dev_up_' + Date.now();
+                        showFileTransferIndicator(id, 'simulated_upload.pdf', 'upload');
+                        let pct = 0;
+                        const interval = setInterval(() => {
+                            pct += 10;
+                            const b = document.getElementById(`ftb_${id}`);
+                            const p = document.getElementById(`ftp_${id}`);
+                            if (b) b.style.width = `${pct}%`;
+                            if (p) p.innerText = `${pct}%`;
+                            if (pct >= 100) {
+                                clearInterval(interval);
+                                setTimeout(() => { if (typeof removeFileTransferIndicator === 'function') removeFileTransferIndicator(id); }, 500);
+                            }
+                        }, 500);
+                    }
+                });
+
+                document.getElementById('btn-dev-sim-incoming')?.addEventListener('click', () => {
+                    if (typeof showFileTransferIndicator === 'function') {
+                        const id = 'dev_in_' + Date.now();
+                        showFileTransferIndicator(id, 'simulated_incoming.zip', 'incoming');
+                        setTimeout(() => { if (typeof removeFileTransferIndicator === 'function') removeFileTransferIndicator(id); }, 5000);
+                    }
+                });
+
+                document.getElementById('btn-dev-sim-download')?.addEventListener('click', () => {
+                    if (typeof showFileTransferIndicator === 'function') {
+                        const id = 'dev_dl_' + Date.now();
+                        showFileTransferIndicator(id, 'simulated_download.docx', 'download');
+                        let pct = 0;
+                        const interval = setInterval(() => {
+                            pct += 5;
+                            const b = document.getElementById(`ftb_${id}`);
+                            const p = document.getElementById(`ftp_${id}`);
+                            if (b) b.style.width = `${pct}%`;
+                            if (p) p.innerText = `${pct}%`;
+                            if (pct >= 100) {
+                                clearInterval(interval);
+                                setTimeout(() => { if (typeof removeFileTransferIndicator === 'function') removeFileTransferIndicator(id); }, 500);
+                            }
+                        }, 250);
+                    }
+                });
+
+                document.getElementById('btn-dev-sim-coldstart')?.addEventListener('click', () => {
+                    window.location.reload();
+                });
+            } else {
+                devSection.classList.remove("hidden");
+            }
             // Show toast
             showToast(translations[currentLanguage]["toast-debug-unlocked"], "success");
             console.log("Debug mode unlocked by user (global flag set).");
@@ -6420,62 +6580,7 @@ if (aboutAppIcon) {
     });
 }
 
-// Development UI Simulation Logic
-document.getElementById('btn-dev-sim-upload')?.addEventListener('click', () => {
-    const id = 'dev_up_' + Date.now();
-    showFileTransferIndicator(id, 'simulated_upload.pdf', 'upload');
-    // Simulate progress
-    let pct = 0;
-    const interval = setInterval(() => {
-        pct += 10;
-        const b = document.getElementById(`ftb_${id}`);
-        const p = document.getElementById(`ftp_${id}`);
-        if (b) b.style.width = `${pct}%`;
-        if (p) p.innerText = `${pct}%`;
-        if (pct >= 100) {
-            clearInterval(interval);
-            setTimeout(() => removeFileTransferIndicator(id), 500);
-        }
-    }, 500);
-});
 
-document.getElementById('btn-dev-sim-incoming')?.addEventListener('click', () => {
-    const id = 'dev_in_' + Date.now();
-    showFileTransferIndicator(id, 'simulated_incoming.zip', 'incoming');
-    // Usually infinite until file payload arrives, we clear it after 5 sec
-    setTimeout(() => {
-        removeFileTransferIndicator(id);
-    }, 5000);
-});
-
-document.getElementById('btn-dev-sim-download')?.addEventListener('click', () => {
-    const id = 'dev_dl_' + Date.now();
-    showFileTransferIndicator(id, 'simulated_download.docx', 'download');
-    // Simulate progress
-    let pct = 0;
-    const interval = setInterval(() => {
-        pct += 5;
-        const b = document.getElementById(`ftb_${id}`);
-        const p = document.getElementById(`ftp_${id}`);
-        if (b) b.style.width = `${pct}%`;
-        if (p) p.innerText = `${pct}%`;
-        if (pct >= 100) {
-            clearInterval(interval);
-            setTimeout(() => removeFileTransferIndicator(id), 500);
-        }
-    }, 300);
-});
-
-document.getElementById('btn-dev-sim-coldstart')?.addEventListener('click', () => {
-    // Show the searching overlay to simulate cold start
-    const searchingOverlay = document.getElementById('searching-overlay');
-    if (searchingOverlay) {
-        searchingOverlay.classList.remove('hidden');
-        setTimeout(() => {
-            searchingOverlay.classList.add('hidden');
-        }, 3000);
-    }
-});
 // --- Web Viewer Functions ---
 const webViewerModal = document.getElementById("web-viewer-modal");
 // const webFrame = document.getElementById("web-frame"); // Removed to support dynamic creation
@@ -6615,10 +6720,10 @@ if (btnWebFullscreen) {
     });
 }
 
-// Exit web viewer fullscreen on Escape
+// Exit web viewer and all other fullscreen modals on Escape
 document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && webViewerModal && webViewerModal.classList.contains("fullscreen")) {
-        webViewerModal.classList.remove("fullscreen");
+    if (e.key === "Escape") {
+        document.querySelectorAll('.modal.fullscreen').forEach(m => m.classList.remove('fullscreen'));
     }
 });
 

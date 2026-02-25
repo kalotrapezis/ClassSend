@@ -1,6 +1,6 @@
 {
     "name": "classsend",
-    "version": "9.4.0",
+    "version": "9.5.0",
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
@@ -34,9 +34,7 @@
                 "asar": {
                     "unpack": "**/*.{node,dll}"
                 },
-                "extraResource": [
-                    "./models"
-                ],
+                "extraResource": [],
                 "arch": [
                     "ia32"
                 ]
@@ -55,7 +53,7 @@
                     "config": {
                         "name": "ClassSend",
                         "setupIcon": "./assets/icon.ico",
-                        "setupExe": "ClassSend-9.4.0 Setup.exe",
+                        "setupExe": "ClassSend-9.5.0 Setup.exe",
                         "loadingGif": "./assets/loadingGif.gif"
                     }
                 },

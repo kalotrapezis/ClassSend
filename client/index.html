@@ -12,8 +12,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Raleway:wght@100;200;300;400;500;600&display=swap"
-    <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="./style.css?v=9.4.0">
 </head>
@@ -534,33 +534,8 @@
                     </div>
                     <pre id="logs-content" class="logs-content"></pre>
                   </div>
+                </div> <!-- End of settings-page-system -->
 
-                  <!-- Hidden Development Section (Unlocked via 5 clicks on App Icon) -->
-                  <div id="development-section" class="setting-item hidden"
-                    style="border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1.5rem;">
-                    <label><img src="/assets/developer-board.svg" class="icon-svg" /> Development Tools</label>
-                    <p class="setting-description">UI simulation buttons for testing layouts without active connections.
-                    </p>
-                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
-                      <button id="btn-dev-sim-upload" class="secondary-btn"
-                        style="flex: 1; min-width: 150px; font-size: 0.8rem;">
-                        Simulate Upload UI
-                      </button>
-                      <button id="btn-dev-sim-incoming" class="secondary-btn"
-                        style="flex: 1; min-width: 150px; font-size: 0.8rem;">
-                        Simulate Incoming UI
-                      </button>
-                      <button id="btn-dev-sim-download" class="secondary-btn"
-                        style="flex: 1; min-width: 150px; font-size: 0.8rem;">
-                        Simulate Download UI
-                      </button>
-                      <button id="btn-dev-sim-coldstart" class="secondary-btn"
-                        style="flex: 1; min-width: 150px; font-size: 0.8rem; border-color: var(--error); color: var(--error);">
-                        Simulate App Start
-                      </button>
-                    </div>
-                  </div>
-                </div>
 
                 <!-- About Page -->
                 <div id="settings-page-about" class="settings-page hidden">
@@ -571,7 +546,7 @@
                     </div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
                     <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
-                        id="app-version-display">9.4.0</span></p>
+                        id="app-version-display">9.5.0</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
@@ -662,6 +637,9 @@
                 <button id="btn-pdf-zoom-in" class="video-control-btn" title="Zoom In"
                   data-i18n-title="btn-zoom-in-title"><img src="/assets/plus-circle-svgrepo-com.svg"
                     class="icon-video-ctrl" /></button>
+                <button id="btn-pdf-fullscreen" class="video-control-btn" title="Fullscreen"
+                  data-i18n-title="btn-fullscreen-title"><img src="/assets/full-screen-square-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
               </div>
             </div>
           </div>
@@ -709,6 +687,8 @@
             <h3 id="doc-title"><img src="/assets/files-svgrepo-com.svg" class="icon-svg" alt="Doc" /> <span
                 data-i18n="doc-title">Document Viewer</span></h3>
             <div class="video-header-controls">
+              <button id="btn-doc-fullscreen" class="header-control-btn" title="Fullscreen"><img
+                  src="/assets/full-screen-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
               <button id="btn-minimize-doc" class="header-control-btn" title="Minimize"><img
                   src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
               <button id="btn-close-doc" class="close-btn" title="Close"><img src="/assets/close-square-svgrepo-com.svg"
@@ -728,6 +708,8 @@
             <h3 id="media-player-title"><img src="/assets/video-frame-play-horizontal-svgrepo-com.svg" class="icon-svg"
                 alt="Media" /> Media Player</h3>
             <div class="video-header-controls">
+              <button id="btn-media-fullscreen" class="header-control-btn" title="Fullscreen"><img
+                  src="/assets/full-screen-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
               <button id="btn-minimize-media-player" class="header-control-btn" title="Minimize"><img
                   src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
               <button id="btn-close-media-player" class="close-btn" title="Close"><img
@@ -990,6 +972,11 @@
                     <img src="/assets/block-1-svgrepo-com.svg" class="icon-svg" alt="Block" />
                     <span data-i18n="label-block-all">Block Messages</span>
                   </button>
+                  <button id="btn-tool-block-uploads" class="tool-menu-btn" title="Block Uploads"
+                    data-i18n-title="btn-block-uploads">
+                    <img src="/assets/files-svgrepo-com.svg" class="icon-svg" alt="Block Uploads" />
+                    <span data-i18n="label-block-uploads">Block Uploads</span>
+                  </button>
                   <button id="btn-tool-allow-hands" class="tool-menu-btn" title="Allow Hands"
                     data-i18n-title="btn-raise-hand">
                     <img src="/assets/Allow-Hands-Up.svg" class="icon-svg" alt="Allow Hands" />
@@ -1076,6 +1063,9 @@
               <button id="btn-image-zoom-in" class="video-control-btn" title="Zoom In"
                 data-i18n-title="btn-zoom-in-title"><img src="/assets/plus-circle-svgrepo-com.svg"
                   class="icon-video-ctrl" /></button>
+              <button id="btn-image-fullscreen" class="video-control-btn" title="Fullscreen"
+                data-i18n-title="btn-fullscreen-title"><img src="/assets/full-screen-square-svgrepo-com.svg"
+                  class="icon-video-ctrl" /></button>
             </div>
           </div>
         </div>
@@ -1084,7 +1074,7 @@
     </div>
   </div>
   </div>
-  <script type="module" src="/main.js?v=9.3.7"></script>
+  <script type="module" src="/main.js?v=9.5.0"></script>
 </body>
 
 </html>
