@@ -1,5 +1,11 @@
 # Release Notes
 
+## [9.5.1] - 2026-02-25
+### Added
+- **Media Library Deletion**: Implemented both individual and library-wide media deletion with physical file removal.
+- **Chat Sync**: Enhanced socket listeners to ensure file messages are removed from the chat UI immediately upon deletion.
+- **Server Cleanup**: Updated server-side handlers to proactively clean up metadata and file-type messages when the library is cleared.
+
 ## [9.5.0] - 2026-02-25
 ### Added
 - **Teacher Control**: Added ability to block student file uploads via teacher tools.

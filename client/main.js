@@ -890,6 +890,19 @@ socket.on("media-library-cleared", () => {
     if (mediaList) {
         mediaList.innerHTML = `<div class="empty-media-state" data-i18n="library-empty">No media shared yet</div>`;
     }
+
+    // Clear file-type messages from all joined classes locally
+    for (const [classId, classData] of joinedClasses.entries()) {
+        if (classData.messages) {
+            classData.messages = classData.messages.filter(msg => msg.type !== 'file');
+        }
+    }
+
+    // Re-render current class messages if needed
+    if (currentClassId) {
+        renderMessages();
+    }
+
     showToast("Media Library cleared", "success");
 
     // Check if we need to hide the clear button based on role (though it should be handled by role switches)
@@ -2969,6 +2982,22 @@ function renderMediaHistory() {
                     pinnedFiles.add(fId);
                 }
                 renderMediaHistory();
+            });
+        }
+
+        // Add delete button listener
+        const deleteTaskButton = item.querySelector('.media-delete-btn');
+        if (deleteTaskButton) {
+            deleteTaskButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const fId = deleteTaskButton.dataset.fileId;
+                if (confirm(`Are you sure you want to delete "${msg.fileData.name}"? This will remove it for everyone.`)) {
+                    socket.emit('delete-media-item', {
+                        classId: currentClassId,
+                        fileId: fId,
+                        fileName: msg.fileData.name
+                    });
+                }
             });
         }
 

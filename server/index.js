@@ -232,7 +232,7 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '9.5.0', // Should match package.json
+    version: '9.5.1', // Should match package.json
     classes: classes
   });
 });
@@ -703,9 +703,30 @@ io.on('connection', (socket) => {
   // Handle Clear Media Library Request (Specific)
   socket.on('clear-media-library', () => {
     console.log(`🗑️ User ${socket.id} requested Clear Media Library`);
+
+    // 1. Delete all physical files and save metadata
     fileStorage.clearAllFiles();
+
+    // 2. Clear file messages and sharedMedia from all active classes
+    for (const [classId, classData] of activeClasses.entries()) {
+      // Remove all file-type messages
+      if (classData.messages) {
+        classData.messages = classData.messages.filter(msg => msg.type !== 'file');
+      }
+
+      // Clear sharedMedia array if it exists
+      if (classData.sharedMedia) {
+        classData.sharedMedia = [];
+      }
+
+      // Notify the class members that media was cleared (if needed, though io.emit('media-library-cleared') handles it globally)
+      // io.to(classId).emit('media-library-cleared'); // Redundant with global emit below but more specific
+    }
+
+    // 3. Notify all clients globally to reset their local media list and chat
     io.emit('media-library-cleared');
-    console.log("✅ Media Library cleared.");
+
+    console.log("✅ Media Library cleared and class history updated.");
   });
 
   // Settings Management

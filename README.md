@@ -1,5 +1,5 @@
-# ClassSend 9.5.0
-![Version](https://img.shields.io/badge/version-v9.5.0-blue)
+# ClassSend 9.5.1
+![Version](https://img.shields.io/badge/version-v9.5.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -33,10 +33,10 @@
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Linux AppImage**: `ClassSend-9.5.0-x64.AppImage`
-- **Linux Zip**: `ClassSend-linux-x64-9.5.0.zip`
-- **Windows Installer (64-bit)**: `ClassSend-9.5.0 Setup.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-9.5.0.zip`
+- **Linux AppImage**: `ClassSend-9.5.1-x64.AppImage`
+- **Linux Zip**: `ClassSend-linux-x64-9.5.1.zip`
+- **Windows Installer (64-bit)**: `ClassSend-9.5.1 Setup.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-9.5.1.zip`
 
 
 
