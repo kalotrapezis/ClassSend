@@ -166,6 +166,12 @@ export const translations = {
         "btn-fullscreen-title": "Fullscreen",
         "btn-copy-url-title": "Copy URL",
         "btn-teacher-tools-title": "Teacher Tools",
+        "btn-tool-class-status": "Class Status",
+        "monitoring-header": "Monitoring",
+        "monitoring-warning": "Warning: This feature may burden the network/computers",
+        "monitoring-enable": "Enable Monitoring",
+        "monitoring-refresh-rate": "Refresh Rate",
+        "student-monitoring-notice": "You are being monitored by the teacher.",
         "btn-send-message-title": "Send Message",
         "ai-consolidating": "Consolidating AI Model...",
         "status-connecting": "Connecting...",
@@ -197,7 +203,16 @@ export const translations = {
         "auto-export-description": "Automatically save logs to disk (Overwrite on Startup).",
         "uploading-file": "Uploading file",
         "file-incoming": "File incoming",
-        "downloading-file": "Downloading file"
+        "downloading-file": "Downloading file",
+        "label-auto-download": "Automatic Downloads",
+        "auto-download-description": "Automatically download all incoming files without prompting.",
+        "placeholder-download-path": "Custom download path (optional)",
+        "confirm-lock-screen": "Lock all student screens?",
+        "confirm-shutdown-pc": "WARNING: Shut down all student PCs immediately?",
+        "btn-focus": "Focus Window",
+        "btn-path-desktop": "Desktop",
+        "btn-path-documents": "Documents",
+        "btn-path-downloads": "Downloads"
     },
 
     el: {
@@ -367,6 +382,12 @@ export const translations = {
         "btn-fullscreen-title": "Πλήρης Οθόνη",
         "btn-copy-url-title": "Αντιγραφή URL",
         "btn-teacher-tools-title": "Εργαλεία Δασκάλου",
+        "btn-tool-class-status": "Κατάσταση Τάξης",
+        "monitoring-header": "Παρακολούθηση",
+        "monitoring-warning": "Προειδοποίηση: Μπορεί να επιβαρύνει το δίκτυο ή/και τους υπολογιστές",
+        "monitoring-enable": "Ενεργοποίηση Παρακολούθησης",
+        "monitoring-refresh-rate": "Ρυθμός Ανανέωσης",
+        "student-monitoring-notice": "Παρακολουθείστε από τον δάσκαλο.",
         "btn-send-message-title": "Αποστολή Μηνύματος",
         "ai-consolidating": "Ενοποίηση Μοντέλου AI...",
         "status-connecting": "Σύνδεση...",
@@ -397,6 +418,15 @@ export const translations = {
         "auto-export-description": "Αυτόματη αποθήκευση καταγραφών στο δίσκο (Αντικατάσταση στην εκκίνηση).",
         "uploading-file": "Μεταφόρτωση αρχείου",
         "file-incoming": "Αρχείο σε μεταφόρτωση",
-        "downloading-file": "Λήψη αρχείου"
+        "downloading-file": "Λήψη αρχείου",
+        "label-auto-download": "Αυτόματες Λήψεις",
+        "auto-download-description": "Αυτόματη λήψη όλων των εισερχόμενων αρχείων χωρίς ερώτηση.",
+        "placeholder-download-path": "Προσαρμοσμένη διαδρομή λήψης (προαιρετικό)",
+        "confirm-lock-screen": "Κλείδωμα οθονών όλων των μαθητών;",
+        "confirm-shutdown-pc": "ΠΡΟΕΙΔΟΠΟΙΗΣΗ: Τερματισμός όλων των υπολογιστών των μαθητών αμέσως;",
+        "btn-focus": "Εστίαση Παραθύρου",
+        "btn-path-desktop": "Επιφάνεια Εργασίας",
+        "btn-path-documents": "Έγγραφα",
+        "btn-path-downloads": "Λήψεις"
     }
 };

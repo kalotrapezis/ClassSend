@@ -878,10 +878,7 @@ io.on('connection', (socket) => {
         reportThreshold: 10
       },
       blockAllActive: false,
-      blockUploadsActive: false, // New
-      allowHandsUp: true,
-      autoDownloadEnabled: false, // New
-      autoDownloadPath: '' // New
+      allowHandsUp: true
     });
     socket.join(finalClassId);
     console.log(`Auto-created class: ${finalClassId} by ${userName} (${socket.id})`);
@@ -1011,10 +1008,7 @@ io.on('connection', (socket) => {
           reportThreshold: 10
         },
         blockAllActive: false,
-        blockUploadsActive: false, // New
-        allowHandsUp: true,
-        autoDownloadEnabled: false, // New
-        autoDownloadPath: '' // New
+        allowHandsUp: true
       });
       console.log(`Lobby created by student ${userName}`);
       broadcastActiveClasses();
@@ -1042,12 +1036,7 @@ io.on('connection', (socket) => {
       messages: classData.messages,
       users: classData.users,
       teacherName: classData.teacherName,
-      hasTeacher: hasTeacher,
-      blockAllActive: classData.blockAllActive || false, // New
-      blockUploadsActive: classData.blockUploadsActive || false, // New
-      allowHandsUp: classData.allowHandsUp !== undefined ? classData.allowHandsUp : true, // New
-      autoDownloadEnabled: classData.autoDownloadEnabled || false, // New
-      autoDownloadPath: classData.autoDownloadPath || '' // New
+      hasTeacher: hasTeacher
     });
 
     console.log(`Student ${userName} joined Lobby (hasTeacher: ${hasTeacher})`);
@@ -1073,10 +1062,7 @@ io.on('connection', (socket) => {
           reportThreshold: 10
         },
         blockAllActive: false,
-        blockUploadsActive: false, // New
-        allowHandsUp: true,
-        autoDownloadEnabled: false, // New
-        autoDownloadPath: '' // New
+        allowHandsUp: true
       });
       socket.join(lobbyId);
       console.log(`Lobby created and taken over by teacher ${userName}`);
@@ -1086,12 +1072,7 @@ io.on('connection', (socket) => {
         success: true,
         classId: lobbyId,
         messages: [],
-        users: [{ id: socket.id, name: userName, role: 'teacher' }],
-        blockAllActive: false, // New
-        blockUploadsActive: false, // New
-        allowHandsUp: true, // New
-        autoDownloadEnabled: false, // New
-        autoDownloadPath: '' // New
+        users: [{ id: socket.id, name: userName, role: 'teacher' }]
       });
       return;
     }
@@ -1134,12 +1115,7 @@ io.on('connection', (socket) => {
       success: true,
       classId: lobbyId,
       messages: classData.messages,
-      users: classData.users,
-      blockAllActive: classData.blockAllActive || false, // New
-      blockUploadsActive: classData.blockUploadsActive || false, // New
-      allowHandsUp: classData.allowHandsUp !== undefined ? classData.allowHandsUp : true, // New
-      autoDownloadEnabled: classData.autoDownloadEnabled || false, // New
-      autoDownloadPath: classData.autoDownloadPath || '' // New
+      users: classData.users
     });
 
     console.log(`Teacher ${userName} took over Lobby`);
@@ -1221,25 +1197,13 @@ io.on('connection', (socket) => {
 
     console.log(`User ${userName} (${socket.id}) joined class ${classId} as ${role}`);
 
-    // Determine if user is blocked and why
-    let blockedReason = null;
-    if (classData.blockedUsers && classData.blockedUsers.has(socket.id)) {
-      blockedReason = 'teacher-blocked';
-    } else if (classData.blockAllActive && role === 'student') {
-      blockedReason = 'block-all-active';
-    }
-
     // Send history and user list to joiner
     if (typeof callback === 'function') callback({
       success: true,
       blocked: classData.blockedUsers && classData.blockedUsers.has(socket.id),
       blockAllActive: classData.blockAllActive || false,
       blockUploadsActive: classData.blockUploadsActive || false,
-      blocked: !!blockedReason,
-      blockedReason,
       allowHandsUp: classData.allowHandsUp !== undefined ? classData.allowHandsUp : true,
-      autoDownloadEnabled: classData.autoDownloadEnabled || false,
-      autoDownloadPath: classData.autoDownloadPath || '',
       messages: classData.messages,
       users: classData.users,
       pinnedMessages: classData.pinnedMessages || []
@@ -1464,88 +1428,6 @@ io.on('connection', (socket) => {
     // Broadcast to all participants in the class
     io.to(classId).emit('user-was-flagged', { userId, userName });
     console.log(`User ${userName} (${userId}) flagged in class ${classId}`);
-  });
-
-  // Windows Feature Triggers
-  socket.on('trigger-lock-screen', ({ classId, targetSocketId }) => {
-    if (activeClasses.has(classId)) {
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId === socket.id) {
-        io.to(targetSocketId).emit('execute-lock-screen');
-      }
-    }
-  });
-
-  socket.on('trigger-shutdown', ({ classId, targetSocketId }) => {
-    if (activeClasses.has(classId)) {
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId === socket.id) {
-        io.to(targetSocketId).emit('execute-shutdown');
-      }
-    }
-  });
-
-  socket.on('trigger-focus', ({ classId, targetSocketId }) => {
-    if (activeClasses.has(classId)) {
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId === socket.id) {
-        io.to(targetSocketId).emit('execute-focus');
-      }
-    }
-  });
-
-  // Request system path
-  socket.on('request-system-path', ({ folderType, classId }, callback) => {
-    try {
-      if (!activeClasses.has(classId)) {
-        if (typeof callback === 'function') callback({ success: false, message: 'Class not found' });
-        return;
-      }
-
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId !== socket.id) {
-        if (typeof callback === 'function') callback({ success: false, message: 'Unauthorized' });
-        return;
-      }
-
-      let systemPath = '';
-      const homeDir = os.homedir();
-
-      switch (folderType) {
-        case 'desktop':
-          systemPath = path.join(homeDir, 'Desktop');
-          break;
-        case 'documents':
-          systemPath = path.join(homeDir, 'Documents');
-          break;
-        case 'downloads':
-          systemPath = path.join(homeDir, 'Downloads');
-          break;
-        default:
-          systemPath = homeDir;
-      }
-
-      if (typeof callback === 'function') {
-        callback({ success: true, path: systemPath });
-      }
-    } catch (error) {
-      console.error('Error resolving system path:', error);
-      if (typeof callback === 'function') {
-        callback({ success: false, message: 'Failed to resolve path' });
-      }
-    }
-  });
-
-  // Auto-download settings
-  socket.on('update-auto-download', ({ classId, autoDownloadEnabled, autoDownloadPath }) => {
-    if (activeClasses.has(classId)) {
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId === socket.id) {
-        classData.autoDownloadEnabled = autoDownloadEnabled;
-        classData.autoDownloadPath = autoDownloadPath;
-        io.to(classId).emit('auto-download-updated', { autoDownloadEnabled, autoDownloadPath });
-      }
-    }
   });
 
   // Pin message (Teacher only)

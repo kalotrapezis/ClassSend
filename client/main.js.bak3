@@ -3387,34 +3387,6 @@ window.downloadFile = function (fileIdOrData, fileName) {
     const url = `/api/download/${fileIdOrData}`;
     console.log(`[Download] Requesting URL: ${url}`);
 
-    // ----- AUTO DOWNLOAD LOGIC -----
-    // Check if auto-downloads are enabled and we are in Electron
-    if (currentClassId && joinedClasses.has(currentClassId) && window.electron) {
-        const classData = joinedClasses.get(currentClassId);
-        if (classData.autoDownloadEnabled) {
-            console.log(`[Auto-Download] Enabled. Path: ${classData.autoDownloadPath}`);
-            const fullUrl = window.location.origin + url;
-
-            // Show brief toast
-            showToast(`Downloading: ${fileName}`, 'info');
-
-            window.electron.ipcRenderer.invoke('auto-download', {
-                url: fullUrl,
-                filename: fileName,
-                customPath: classData.autoDownloadPath
-            }).then(result => {
-                if (result.success) {
-                    showToast(`Saved to ${result.path}`, 'success');
-                } else {
-                    console.error("Auto-download failed:", result.error);
-                    showToast(`Auto-download failed: ${result.error}`, 'error');
-                }
-            });
-            return; // Skip normal browser download
-        }
-    }
-    // -------------------------------
-
     // Show Progress Indicator using the new UI system
     const indicatorId = 'dl_' + fileIdOrData;
     showFileTransferIndicator(indicatorId, fileName, 'download');
@@ -3679,136 +3651,6 @@ if (btnClearData) {
         }
     });
 }
-
-// Windows Remote Features (Teacher Tools)
-const btnToolLockScreen = document.getElementById('btn-tool-lock-screen');
-const btnToolShutdownPc = document.getElementById('btn-tool-shutdown-pc');
-const btnToolFocusApp = document.getElementById('btn-tool-focus-app');
-
-if (btnToolLockScreen) {
-    btnToolLockScreen.addEventListener('click', () => {
-        if (currentClassId && currentRole === 'teacher') {
-            if (confirm(t('confirm-lock-screen') || "Lock all student screens?")) {
-                showToast("Lock Screen command sent.", "info");
-                socket.emit('trigger-lock-screen', { classId: currentClassId });
-                toolsMenu.classList.add('hidden');
-            }
-        }
-    });
-}
-
-if (btnToolShutdownPc) {
-    btnToolShutdownPc.addEventListener('click', () => {
-        if (currentClassId && currentRole === 'teacher') {
-            if (confirm(t('confirm-shutdown-pc') || "WARNING: Shut down all student PCs immediately?")) {
-                showToast("Shutdown command sent.", "warning");
-                socket.emit('trigger-shutdown', { classId: currentClassId });
-                toolsMenu.classList.add('hidden');
-            }
-        }
-    });
-}
-
-if (btnToolFocusApp) {
-    btnToolFocusApp.addEventListener('click', () => {
-        if (currentClassId && currentRole === 'teacher') {
-            showToast("Focus App command sent.", "info");
-            socket.emit('trigger-focus', { classId: currentClassId });
-            toolsMenu.classList.add('hidden');
-        }
-    });
-}
-
-// Auto Download Toggle (Teacher Settings)
-const toggleAutoDownload = document.getElementById('toggle-auto-download');
-const autoDownloadPathInput = document.getElementById('auto-download-path');
-const btnPathDesktop = document.getElementById('btn-path-desktop');
-const btnPathDocuments = document.getElementById('btn-path-documents');
-const btnPathDownloads = document.getElementById('btn-path-downloads');
-
-if (toggleAutoDownload) {
-    toggleAutoDownload.addEventListener('change', (e) => {
-        if (currentClassId && currentRole === 'teacher') {
-            const enabled = e.target.checked;
-            const path = autoDownloadPathInput ? autoDownloadPathInput.value.trim() : '';
-            socket.emit('update-auto-download', {
-                classId: currentClassId,
-                enabled: enabled,
-                path: path
-            });
-            showToast(enabled ? "Auto-download enabled." : "Auto-download disabled.", "info");
-        }
-    });
-}
-
-if (autoDownloadPathInput) {
-    autoDownloadPathInput.addEventListener('change', (e) => {
-        if (currentClassId && currentRole === 'teacher' && toggleAutoDownload.checked) {
-            socket.emit('update-auto-download', {
-                classId: currentClassId,
-                enabled: true,
-                path: e.target.value.trim()
-            });
-        }
-    });
-}
-
-// Let Electron open a directory picker if we want
-// Handle Quick Path Buttons
-const handleQuickPath = (folderType) => {
-    if (currentClassId && currentRole === 'teacher') {
-        socket.emit('request-system-path', { folderType, classId: currentClassId }, (response) => {
-            if (response && response.success && response.path) {
-                if (autoDownloadPathInput) {
-                    autoDownloadPathInput.value = response.path;
-                    // Trigger the change event to save it
-                    autoDownloadPathInput.dispatchEvent(new Event('change'));
-                }
-            } else {
-                showToast("Could not determine path.", "error");
-            }
-        });
-    }
-};
-
-if (btnPathDesktop) btnPathDesktop.addEventListener('click', () => handleQuickPath('desktop'));
-if (btnPathDocuments) btnPathDocuments.addEventListener('click', () => handleQuickPath('documents'));
-if (btnPathDownloads) btnPathDownloads.addEventListener('click', () => handleQuickPath('downloads'));
-
-// Windows Features Listeners (Electron)
-socket.on('execute-lock-screen', () => {
-    if (window.electron) {
-        window.electron.ipcRenderer.invoke('lock-screen');
-    }
-});
-
-socket.on('execute-shutdown', () => {
-    if (window.electron) {
-        window.electron.ipcRenderer.invoke('shutdown-pc');
-    }
-});
-
-socket.on('execute-focus', () => {
-    if (window.electron) {
-        window.electron.ipcRenderer.invoke('focus-window');
-    }
-});
-
-socket.on('auto-download-updated', ({ autoDownloadEnabled, autoDownloadPath }) => {
-    if (currentClassId && joinedClasses.has(currentClassId)) {
-        const classData = joinedClasses.get(currentClassId);
-        classData.autoDownloadEnabled = autoDownloadEnabled;
-        classData.autoDownloadPath = autoDownloadPath;
-
-        // Sync UI for teacher
-        if (currentRole === 'teacher') {
-            const toggle = document.getElementById('toggle-auto-download');
-            const pathInput = document.getElementById('auto-download-path');
-            if (toggle) toggle.checked = autoDownloadEnabled;
-            if (pathInput) pathInput.value = autoDownloadPath || '';
-        }
-    }
-});
 
 // Handle Data Cleared Event
 socket.on('data-cleared', () => {
@@ -6167,17 +6009,17 @@ function updateToolStates() {
 
     // Messaging Block Status
     if (btnToolBlockMessages) {
-        btnToolBlockMessages.classList.toggle("active", classData.blockAllActive === true);
+        btnToolBlockMessages.classList.toggle("active", !!classData.blockAllActive);
     }
 
     // Uploads Block Status
     if (btnToolBlockUploads) {
-        btnToolBlockUploads.classList.toggle("active", classData.blockUploadsActive === true);
+        btnToolBlockUploads.classList.toggle("active", !!classData.blockUploadsActive);
     }
 
-    // Allow Hands Status - Glow only if feature is explicitly enabled
+    // Allow Hands Status
     if (btnToolAllowHands) {
-        btnToolAllowHands.classList.toggle("active", classData.allowHandsUp === true);
+        btnToolAllowHands.classList.toggle("active", !!classData.allowHandsUp);
     }
 }
 

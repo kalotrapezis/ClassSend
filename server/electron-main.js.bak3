@@ -9,8 +9,6 @@ if (require('electron-squirrel-startup')) {
 }
 
 const fs = require('fs');
-const os = require('os');
-const { exec } = require('child_process');
 
 // Set USER_DATA_PATH for the server to use (Must be before requiring index.js)
 // This ensures we write to a writable location (e.g. ~/.config/...) instead of the read-only AppImage mount
@@ -303,93 +301,6 @@ function createWindow() {
         } catch (err) {
             console.error('Error getting display sources:', err);
             callback(null);
-        }
-    });
-
-    // Windows Lock Screen
-    ipcMain.handle('lock-screen', async () => {
-        return new Promise((resolve) => {
-            exec('rundll32.exe user32.dll,LockWorkStation', (error) => {
-                if (error) {
-                    console.error('Failed to lock screen:', error);
-                    resolve({ success: false, error: error.message });
-                } else {
-                    resolve({ success: true });
-                }
-            });
-        });
-    });
-
-    // Windows End of Day Shutdown
-    ipcMain.handle('shutdown-pc', async () => {
-        return new Promise((resolve) => {
-            // Shutdown immediately
-            exec('shutdown /s /t 0', (error) => {
-                if (error) {
-                    console.error('Failed to shutdown PC:', error);
-                    resolve({ success: false, error: error.message });
-                } else {
-                    resolve({ success: true });
-                }
-            });
-        });
-    });
-
-    // Bring Window to Focus
-    ipcMain.handle('focus-window', () => {
-        if (mainWindow) {
-            if (mainWindow.isMinimized()) mainWindow.restore();
-            mainWindow.show();
-            mainWindow.focus();
-            mainWindow.setAlwaysOnTop(true);
-            setTimeout(() => {
-                mainWindow.setAlwaysOnTop(false);
-            }, 1000);
-            return { success: true };
-        }
-        return { success: false, error: "Window not found" };
-    });
-
-    // Auto-download file creation
-    ipcMain.handle('auto-download', async (event, { url, filename, customPath }) => {
-        try {
-            const https = require('https');
-            const http = require('http');
-
-            let destFolder = path.join(os.homedir(), 'Downloads');
-            if (customPath && customPath.trim() !== '') {
-                // Resolve custom path relative to home dir if it doesn't look absolute
-                if (!path.isAbsolute(customPath)) {
-                    destFolder = path.join(os.homedir(), customPath);
-                } else {
-                    destFolder = customPath;
-                }
-            }
-
-            // Ensure destination folder exists recursively
-            if (!fs.existsSync(destFolder)) {
-                fs.mkdirSync(destFolder, { recursive: true });
-            }
-
-            const destPath = path.join(destFolder, filename);
-            const fileStream = fs.createWriteStream(destPath);
-            const protocol = url.startsWith('https') ? https : http;
-
-            return new Promise((resolve) => {
-                protocol.get(url, (response) => {
-                    response.pipe(fileStream);
-                    fileStream.on('finish', () => {
-                        fileStream.close();
-                        resolve({ success: true, path: destPath });
-                    });
-                }).on('error', (err) => {
-                    fs.unlink(destPath, () => { }); // delete partial
-                    resolve({ success: false, error: err.message });
-                });
-            });
-        } catch (err) {
-            console.error('Auto-download failed:', err);
-            return { success: false, error: err.message };
         }
     });
 

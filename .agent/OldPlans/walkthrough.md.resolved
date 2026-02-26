@@ -1,0 +1,24 @@
+# Automatic Downloads Implementation
+
+The Application now supports silently downloading files sent by the teacher directly to a specific folder on the student's PC, bypassing the "Save As" dialog entirely.
+
+## Changes Made
+- **client/index.html**: Added the Automatic Downloads toggle and path configuration input inside the Administration Settings panel, located right below the *Start on Login* switch.
+- **client/main.js**: 
+  - Hooked up event listeners for the new toggle and path input, sending updates via a new `update-auto-download` websocket event.
+  - Injected auto download state initialization within [joinClass](file:///c:/Users/Teo/.gemini/antigravity/scratch/ClassSend/client/main.js#1813-1887) using data provided by the server. 
+  - Modified the top-level [downloadFile](file:///c:/Users/Teo/.gemini/antigravity/scratch/ClassSend/client/main.js#3528-3641) function. If auto-download is turned on, it uses `window.electron.ipcRenderer.invoke('auto-download')` to trigger the silent download.
+- **server/index.js**:
+  - Implemented the `update-auto-download` websocket endpoint. 
+  - Attached auto download settings to backend's class data object. 
+  - Embedded the active auto download variables into the payload sent down to the `join-class` event callback.
+- **server/electron-main.js**:
+  - Registered the `auto-download` IPC handle in the Node backend.
+  - Implemented logic substituting standard browser downloading using `http/https` protocols and `fs.createWriteStream`. It intelligently creates missing nested directories and saves the file directly to the specified custom path inside the User's Home folder. By default, it falls back to `Downloads/` if the custom string is malformed or missing.
+
+## Testing Strategy
+- You can manually test this by doing the following:
+  1. Login as the teacher and enable "Automatic Downloads", setting the relative path to something like `Downloads/ClassSend` or simply `Desktop`.
+  2. Join the session as a student on a separate app instance.
+  3. Attach and share any file via the teacher chat.
+  4. The frontend will notify the student briefly to confirm reception, and you should find the file instantly popped in the specified directory on the PC, skipping the native windows Explorer prompt.

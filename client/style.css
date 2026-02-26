@@ -5620,3 +5620,71 @@ input:checked+.slider:before {
   font-weight: 600;
   text-align: right;
 }
+
+/* Monitoring Modal */
+.monitoring-modal-content {
+  width: 95%;
+  max-width: 1200px;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.monitoring-grid-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.monitoring-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* Class Monitoring Disabled State Overlay */
+.monitoring-disabled-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  /* Dark semi-transparent background */
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border-radius: 8px;
+  /* Match modal content radius if applicable */
+}
+
+.monitoring-disabled-overlay .disabled-content {
+  background: var(--bg-secondary);
+  padding: 30px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 400px;
+}
+
+.monitoring-disabled-overlay h4 {
+  margin: 0 0 10px 0;
+  color: var(--text-primary);
+  font-size: 1.2rem;
+}
+
+.monitoring-disabled-overlay.hidden {
+  display: none !important;
+}
+
+.monitoring-placeholder {
+  transition: opacity 0.3s ease;
+}

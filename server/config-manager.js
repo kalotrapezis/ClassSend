@@ -1,10 +1,22 @@
 const fs = require('fs');
 const path = require('path');
-const { app } = require('electron');
+let app = null;
+try {
+    app = require('electron').app;
+} catch (e) {
+    // Not electron
+}
 
 class ConfigManager {
     constructor() {
-        this.userDataPath = app.getPath('userData');
+        if (app) {
+            this.userDataPath = app.getPath('userData');
+        } else {
+            this.userDataPath = path.join(__dirname, '..', 'data');
+            if (!fs.existsSync(this.userDataPath)) {
+                fs.mkdirSync(this.userDataPath, { recursive: true });
+            }
+        }
         this.configPath = path.join(this.userDataPath, 'config.json');
         this.config = this.loadConfig();
     }

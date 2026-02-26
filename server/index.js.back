@@ -492,22 +492,22 @@ async function trainClassifier() {
       // In this specific task, the user pointed to: C:\Users\Teo\Downloads/classsend-data-2026-02-02.json
       // We should probably copy this file to our data directory or read it if it exists.
       let specificDataPath = 'C:\\Users\\Teo\\Downloads\\classsend-data-2026-02-02.json';
-      let trainingData = { blacklist: [], whitelist: [], clean: [], profane: [] };
+      let trainingData = { blacklist: [], whitelist: [] };
 
       if (fs.existsSync(specificDataPath)) {
         console.log(`🧠 Found specific training data at: ${specificDataPath}`);
         const raw = fs.readFileSync(specificDataPath, 'utf-8');
-        trainingData = { ...trainingData, ...JSON.parse(raw) };
+        trainingData = JSON.parse(raw);
       } else {
         // Fallback to internal data if specific file missing
         console.log('🧠 Specific data file not found, looking for internal defaults...');
-        const internalDataPath = path.join(__dirname, 'public', 'training-data.json');
+        const internalDataPath = path.join(__dirname, 'public', 'classsend-data.json'); // Hypothetical
         if (fs.existsSync(internalDataPath)) {
-          trainingData = { ...trainingData, ...JSON.parse(fs.readFileSync(internalDataPath, 'utf-8')) };
+          trainingData = JSON.parse(fs.readFileSync(internalDataPath, 'utf-8'));
         }
       }
 
-      // Train Blacklist / Profane
+      // Train Blacklist
       if (trainingData.blacklist && Array.isArray(trainingData.blacklist)) {
         console.log(`🧠 Training ${trainingData.blacklist.length} blacklist items...`);
         for (const item of trainingData.blacklist) {
@@ -516,29 +516,13 @@ async function trainClassifier() {
           }
         }
       }
-      if (trainingData.profane && Array.isArray(trainingData.profane)) {
-        console.log(`🧠 Training ${trainingData.profane.length} profane items...`);
-        for (const word of trainingData.profane) {
-          if (typeof word === 'string') {
-            await classifier.learn(word, 'profane');
-          }
-        }
-      }
 
-      // Train Whitelist / Clean
+      // Train Whitelist
       if (trainingData.whitelist && Array.isArray(trainingData.whitelist)) {
         console.log(`🧠 Training ${trainingData.whitelist.length} whitelist items...`);
         for (const item of trainingData.whitelist) {
           if (item && item.word) {
             await classifier.learn(item.word, 'clean');
-          }
-        }
-      }
-      if (trainingData.clean && Array.isArray(trainingData.clean)) {
-        console.log(`🧠 Training ${trainingData.clean.length} clean items...`);
-        for (const word of trainingData.clean) {
-          if (typeof word === 'string') {
-            await classifier.learn(word, 'clean');
           }
         }
       }
@@ -562,25 +546,13 @@ async function trainClassifier() {
       }
       console.log(`🧠 Added ${MILD_BAD_WORDS.length} mild bad words`);
 
-      // 3.5 Train with mild good words to ensure 'clean' category exists
-      // and has a realistic baseline
-      const MILD_GOOD_WORDS = [
-        'καλημέρα', 'καλησπέρα', 'ναι', 'όχι', 'ευχαριστώ', 'παρακαλώ',
-        'γεια', 'hello', 'yes', 'no', 'thanks', 'please', 'good', 'ok',
-        'εντάξει', 'τέλεια', 'μπράβο', 'σωστά'
-      ];
-      for (const word of MILD_GOOD_WORDS) {
-        await classifier.learn(word, 'clean');
-      }
-      console.log(`🧠 Added ${MILD_GOOD_WORDS.length} mild good words`);
-
       // 4. Custom User Words (Append to training)
-      for (const item of customForbiddenWords) {
+      customForbiddenWords.forEach(async item => {
         await classifier.learn(item.word, 'profane');
-      }
-      for (const item of customWhitelistedWords) {
+      });
+      customWhitelistedWords.forEach(async item => {
         await classifier.learn(item.word, 'clean');
-      }
+      });
 
       // Save the model
       saveClassifierModel();
@@ -878,10 +850,7 @@ io.on('connection', (socket) => {
         reportThreshold: 10
       },
       blockAllActive: false,
-      blockUploadsActive: false, // New
-      allowHandsUp: true,
-      autoDownloadEnabled: false, // New
-      autoDownloadPath: '' // New
+      allowHandsUp: true
     });
     socket.join(finalClassId);
     console.log(`Auto-created class: ${finalClassId} by ${userName} (${socket.id})`);
@@ -1011,10 +980,7 @@ io.on('connection', (socket) => {
           reportThreshold: 10
         },
         blockAllActive: false,
-        blockUploadsActive: false, // New
-        allowHandsUp: true,
-        autoDownloadEnabled: false, // New
-        autoDownloadPath: '' // New
+        allowHandsUp: true
       });
       console.log(`Lobby created by student ${userName}`);
       broadcastActiveClasses();
@@ -1042,12 +1008,7 @@ io.on('connection', (socket) => {
       messages: classData.messages,
       users: classData.users,
       teacherName: classData.teacherName,
-      hasTeacher: hasTeacher,
-      blockAllActive: classData.blockAllActive || false, // New
-      blockUploadsActive: classData.blockUploadsActive || false, // New
-      allowHandsUp: classData.allowHandsUp !== undefined ? classData.allowHandsUp : true, // New
-      autoDownloadEnabled: classData.autoDownloadEnabled || false, // New
-      autoDownloadPath: classData.autoDownloadPath || '' // New
+      hasTeacher: hasTeacher
     });
 
     console.log(`Student ${userName} joined Lobby (hasTeacher: ${hasTeacher})`);
@@ -1073,10 +1034,7 @@ io.on('connection', (socket) => {
           reportThreshold: 10
         },
         blockAllActive: false,
-        blockUploadsActive: false, // New
-        allowHandsUp: true,
-        autoDownloadEnabled: false, // New
-        autoDownloadPath: '' // New
+        allowHandsUp: true
       });
       socket.join(lobbyId);
       console.log(`Lobby created and taken over by teacher ${userName}`);
@@ -1086,12 +1044,7 @@ io.on('connection', (socket) => {
         success: true,
         classId: lobbyId,
         messages: [],
-        users: [{ id: socket.id, name: userName, role: 'teacher' }],
-        blockAllActive: false, // New
-        blockUploadsActive: false, // New
-        allowHandsUp: true, // New
-        autoDownloadEnabled: false, // New
-        autoDownloadPath: '' // New
+        users: [{ id: socket.id, name: userName, role: 'teacher' }]
       });
       return;
     }
@@ -1134,12 +1087,7 @@ io.on('connection', (socket) => {
       success: true,
       classId: lobbyId,
       messages: classData.messages,
-      users: classData.users,
-      blockAllActive: classData.blockAllActive || false, // New
-      blockUploadsActive: classData.blockUploadsActive || false, // New
-      allowHandsUp: classData.allowHandsUp !== undefined ? classData.allowHandsUp : true, // New
-      autoDownloadEnabled: classData.autoDownloadEnabled || false, // New
-      autoDownloadPath: classData.autoDownloadPath || '' // New
+      users: classData.users
     });
 
     console.log(`Teacher ${userName} took over Lobby`);
@@ -1221,25 +1169,13 @@ io.on('connection', (socket) => {
 
     console.log(`User ${userName} (${socket.id}) joined class ${classId} as ${role}`);
 
-    // Determine if user is blocked and why
-    let blockedReason = null;
-    if (classData.blockedUsers && classData.blockedUsers.has(socket.id)) {
-      blockedReason = 'teacher-blocked';
-    } else if (classData.blockAllActive && role === 'student') {
-      blockedReason = 'block-all-active';
-    }
-
     // Send history and user list to joiner
     if (typeof callback === 'function') callback({
       success: true,
       blocked: classData.blockedUsers && classData.blockedUsers.has(socket.id),
       blockAllActive: classData.blockAllActive || false,
       blockUploadsActive: classData.blockUploadsActive || false,
-      blocked: !!blockedReason,
-      blockedReason,
       allowHandsUp: classData.allowHandsUp !== undefined ? classData.allowHandsUp : true,
-      autoDownloadEnabled: classData.autoDownloadEnabled || false,
-      autoDownloadPath: classData.autoDownloadPath || '',
       messages: classData.messages,
       users: classData.users,
       pinnedMessages: classData.pinnedMessages || []
@@ -1326,7 +1262,7 @@ io.on('connection', (socket) => {
           blockEnabled: true,
           blockThreshold: 50,
           reportEnabled: true,
-          reportThreshold: 70
+          reportThreshold: 30
         };
 
         // 0. Check against Whitelist first (Global Priority)
@@ -1466,88 +1402,6 @@ io.on('connection', (socket) => {
     console.log(`User ${userName} (${userId}) flagged in class ${classId}`);
   });
 
-  // Windows Feature Triggers
-  socket.on('trigger-lock-screen', ({ classId, targetSocketId }) => {
-    if (activeClasses.has(classId)) {
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId === socket.id) {
-        io.to(targetSocketId).emit('execute-lock-screen');
-      }
-    }
-  });
-
-  socket.on('trigger-shutdown', ({ classId, targetSocketId }) => {
-    if (activeClasses.has(classId)) {
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId === socket.id) {
-        io.to(targetSocketId).emit('execute-shutdown');
-      }
-    }
-  });
-
-  socket.on('trigger-focus', ({ classId, targetSocketId }) => {
-    if (activeClasses.has(classId)) {
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId === socket.id) {
-        io.to(targetSocketId).emit('execute-focus');
-      }
-    }
-  });
-
-  // Request system path
-  socket.on('request-system-path', ({ folderType, classId }, callback) => {
-    try {
-      if (!activeClasses.has(classId)) {
-        if (typeof callback === 'function') callback({ success: false, message: 'Class not found' });
-        return;
-      }
-
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId !== socket.id) {
-        if (typeof callback === 'function') callback({ success: false, message: 'Unauthorized' });
-        return;
-      }
-
-      let systemPath = '';
-      const homeDir = os.homedir();
-
-      switch (folderType) {
-        case 'desktop':
-          systemPath = path.join(homeDir, 'Desktop');
-          break;
-        case 'documents':
-          systemPath = path.join(homeDir, 'Documents');
-          break;
-        case 'downloads':
-          systemPath = path.join(homeDir, 'Downloads');
-          break;
-        default:
-          systemPath = homeDir;
-      }
-
-      if (typeof callback === 'function') {
-        callback({ success: true, path: systemPath });
-      }
-    } catch (error) {
-      console.error('Error resolving system path:', error);
-      if (typeof callback === 'function') {
-        callback({ success: false, message: 'Failed to resolve path' });
-      }
-    }
-  });
-
-  // Auto-download settings
-  socket.on('update-auto-download', ({ classId, autoDownloadEnabled, autoDownloadPath }) => {
-    if (activeClasses.has(classId)) {
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId === socket.id) {
-        classData.autoDownloadEnabled = autoDownloadEnabled;
-        classData.autoDownloadPath = autoDownloadPath;
-        io.to(classId).emit('auto-download-updated', { autoDownloadEnabled, autoDownloadPath });
-      }
-    }
-  });
-
   // Pin message (Teacher only)
   socket.on('pin-message', ({ classId, messageId }, callback) => {
     if (!activeClasses.has(classId)) {
@@ -1630,15 +1484,9 @@ io.on('connection', (socket) => {
     // Only teacher
     if (classData.teacherId !== socket.id) return;
 
-    // Sanitize and bound thresholds (10-90% to avoid extreme 0% blocking everything or 100% blocking nothing)
-    const blockThreshold = Math.max(10, Math.min(90, settings.blockThreshold !== undefined ? settings.blockThreshold : 50));
-    const reportThreshold = Math.max(10, Math.min(90, settings.reportThreshold !== undefined ? settings.reportThreshold : 30));
-
     classData.advancedSettings = {
       ...classData.advancedSettings,
-      ...settings,
-      blockThreshold,
-      reportThreshold
+      ...settings
     };
 
     console.log(`Advanced settings updated for class ${classId}:`, classData.advancedSettings);

@@ -488,37 +488,6 @@
                     </div>
                   </div>
 
-                  <!-- Auto Download Settings -->
-                  <div class="setting-item">
-                    <div class="setting-header-row">
-                      <div>
-                        <label for="toggle-auto-download" class="setting-label-tight"
-                          data-i18n="label-auto-download">Automatic Downloads</label>
-                        <p class="setting-description" data-i18n="auto-download-description">Automatically download all
-                          incoming files without prompting.</p>
-                      </div>
-                      <label class="switch">
-                        <input type="checkbox" id="toggle-auto-download">
-                        <span class="slider round"></span>
-                      </label>
-                    </div>
-                    <div class="input-with-button" style="margin-top: 10px;">
-                      <input type="text" id="auto-download-path" class="setting-input"
-                        placeholder="Custom download path (optional)" data-i18n-placeholder="placeholder-download-path">
-                    </div>
-                    <div class="path-pill-buttons" style="margin-top: 5px; display: flex; gap: 8px;">
-                      <button id="btn-path-desktop" class="small-secondary-btn"
-                        style="border-radius: 12px; padding: 4px 10px; font-size: 0.8em;"
-                        data-i18n="btn-path-desktop">Desktop</button>
-                      <button id="btn-path-documents" class="small-secondary-btn"
-                        style="border-radius: 12px; padding: 4px 10px; font-size: 0.8em;"
-                        data-i18n="btn-path-documents">Documents</button>
-                      <button id="btn-path-downloads" class="small-secondary-btn"
-                        style="border-radius: 12px; padding: 4px 10px; font-size: 0.8em;"
-                        data-i18n="btn-path-downloads">Downloads</button>
-                    </div>
-                  </div>
-
                   <div class="setting-item">
                     <label data-i18n="label-clear-data">Clear All Data</label>
                     <button id="btn-clear-data" class="secondary-btn">
@@ -1041,24 +1010,6 @@
                     data-i18n-title="btn-raise-hand">
                     <img src="/assets/Allow-Hands-Up.svg" class="icon-svg" alt="Allow Hands" />
                     <span data-i18n="btn-raise-hand">Allow Hands</span>
-                  </button>
-                  <button id="btn-tool-lock-screen" class="tool-menu-btn" title="Lock Screen"
-                    data-i18n-title="btn-tool-lock-screen">
-                    <img src="/assets/lock-svgrepo-com.svg" class="icon-svg" onerror="this.src='/assets/lock.svg'"
-                      alt="Lock" />
-                    <span data-i18n="btn-tool-lock-screen">Lock Screen</span>
-                  </button>
-                  <button id="btn-tool-shutdown-pc" class="tool-menu-btn" title="Shutdown PC"
-                    data-i18n-title="btn-tool-shutdown-pc">
-                    <img src="/assets/shutdown.svg" class="icon-svg" onerror="this.src='/assets/power.svg'"
-                      alt="Shutdown" />
-                    <span data-i18n="btn-tool-shutdown-pc">Shutdown PC</span>
-                  </button>
-                  <button id="btn-tool-focus-app" class="tool-menu-btn" title="Focus App"
-                    data-i18n-title="btn-tool-focus-app">
-                    <img src="/assets/focus.svg" class="icon-svg"
-                      onerror="this.src='/assets/screen-mirror-svgrepo-com.svg'" alt="Focus App" />
-                    <span data-i18n="btn-focus">Focus Window</span>
                   </button>
                 </div>
                 <button id="btn-tools-toggle" class="btn-tools-toggle" title="Teacher Tools"

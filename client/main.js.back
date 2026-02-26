@@ -2521,19 +2521,8 @@ document.addEventListener('drop', async (e) => {
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
-    // Filter out SVG files to prevent UI buttons from being accidentally uploaded
-    const validFiles = files.filter(file => {
-        if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
-            console.warn('SVG drag and drop is disabled to prevent accidental UI element upload.');
-            return false;
-        }
-        return true;
-    });
-
-    if (validFiles.length === 0) return;
-
     // Send each file via HTTP
-    for (const file of validFiles) {
+    for (const file of files) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('classId', currentClassId);
@@ -3146,11 +3135,6 @@ socket.on("user-joined", ({ user, users: updatedUsers, classId }) => {
             // Update chat disabled state (enables chat when teacher joins)
             updateChatDisabledState();
 
-            // Add new student to monitoring grid if open
-            if (currentRole === 'teacher' && user.role === 'student' && classStatusModal && !classStatusModal.classList.contains('hidden')) {
-                createEmptyMonitoringCard(user.id, user.name);
-            }
-
             const systemMsg = {
                 senderName: "System",
                 senderRole: "system",
@@ -3171,12 +3155,6 @@ socket.on("user-left", ({ user, users: updatedUsers, classId }) => {
         joinedClasses.get(classId).users = updatedUsers;
         if (currentClassId === classId) {
             renderUsersList();
-
-            // Remove user from monitoring grid if open
-            if (user && user.id) {
-                const card = document.getElementById(`monitoring-card-${user.id}`);
-                if (card) card.remove();
-            }
 
             const systemMsg = {
                 senderName: "System",
@@ -3215,18 +3193,6 @@ socket.on("class-ended", ({ message, classId }) => {
         alert(message || `Class ${classId} has ended`);
         joinedClasses.delete(classId);
         if (currentClassId === classId) {
-            // Stop monitoring if active
-            if (captureIntervalId) {
-                clearInterval(captureIntervalId);
-                captureIntervalId = null;
-            }
-            if (browserMonitoringStream) {
-                browserMonitoringStream.getTracks().forEach(t => t.stop());
-                browserMonitoringStream = null;
-            }
-            const promptEl = document.getElementById('browser-monitoring-prompt');
-            if (promptEl) promptEl.remove();
-
             currentClassId = null;
             if (joinedClasses.size > 0) {
                 switchClass(joinedClasses.keys().next().value);
@@ -3386,34 +3352,6 @@ window.downloadFile = function (fileIdOrData, fileName) {
     const xhr = new XMLHttpRequest();
     const url = `/api/download/${fileIdOrData}`;
     console.log(`[Download] Requesting URL: ${url}`);
-
-    // ----- AUTO DOWNLOAD LOGIC -----
-    // Check if auto-downloads are enabled and we are in Electron
-    if (currentClassId && joinedClasses.has(currentClassId) && window.electron) {
-        const classData = joinedClasses.get(currentClassId);
-        if (classData.autoDownloadEnabled) {
-            console.log(`[Auto-Download] Enabled. Path: ${classData.autoDownloadPath}`);
-            const fullUrl = window.location.origin + url;
-
-            // Show brief toast
-            showToast(`Downloading: ${fileName}`, 'info');
-
-            window.electron.ipcRenderer.invoke('auto-download', {
-                url: fullUrl,
-                filename: fileName,
-                customPath: classData.autoDownloadPath
-            }).then(result => {
-                if (result.success) {
-                    showToast(`Saved to ${result.path}`, 'success');
-                } else {
-                    console.error("Auto-download failed:", result.error);
-                    showToast(`Auto-download failed: ${result.error}`, 'error');
-                }
-            });
-            return; // Skip normal browser download
-        }
-    }
-    // -------------------------------
 
     // Show Progress Indicator using the new UI system
     const indicatorId = 'dl_' + fileIdOrData;
@@ -3679,136 +3617,6 @@ if (btnClearData) {
         }
     });
 }
-
-// Windows Remote Features (Teacher Tools)
-const btnToolLockScreen = document.getElementById('btn-tool-lock-screen');
-const btnToolShutdownPc = document.getElementById('btn-tool-shutdown-pc');
-const btnToolFocusApp = document.getElementById('btn-tool-focus-app');
-
-if (btnToolLockScreen) {
-    btnToolLockScreen.addEventListener('click', () => {
-        if (currentClassId && currentRole === 'teacher') {
-            if (confirm(t('confirm-lock-screen') || "Lock all student screens?")) {
-                showToast("Lock Screen command sent.", "info");
-                socket.emit('trigger-lock-screen', { classId: currentClassId });
-                toolsMenu.classList.add('hidden');
-            }
-        }
-    });
-}
-
-if (btnToolShutdownPc) {
-    btnToolShutdownPc.addEventListener('click', () => {
-        if (currentClassId && currentRole === 'teacher') {
-            if (confirm(t('confirm-shutdown-pc') || "WARNING: Shut down all student PCs immediately?")) {
-                showToast("Shutdown command sent.", "warning");
-                socket.emit('trigger-shutdown', { classId: currentClassId });
-                toolsMenu.classList.add('hidden');
-            }
-        }
-    });
-}
-
-if (btnToolFocusApp) {
-    btnToolFocusApp.addEventListener('click', () => {
-        if (currentClassId && currentRole === 'teacher') {
-            showToast("Focus App command sent.", "info");
-            socket.emit('trigger-focus', { classId: currentClassId });
-            toolsMenu.classList.add('hidden');
-        }
-    });
-}
-
-// Auto Download Toggle (Teacher Settings)
-const toggleAutoDownload = document.getElementById('toggle-auto-download');
-const autoDownloadPathInput = document.getElementById('auto-download-path');
-const btnPathDesktop = document.getElementById('btn-path-desktop');
-const btnPathDocuments = document.getElementById('btn-path-documents');
-const btnPathDownloads = document.getElementById('btn-path-downloads');
-
-if (toggleAutoDownload) {
-    toggleAutoDownload.addEventListener('change', (e) => {
-        if (currentClassId && currentRole === 'teacher') {
-            const enabled = e.target.checked;
-            const path = autoDownloadPathInput ? autoDownloadPathInput.value.trim() : '';
-            socket.emit('update-auto-download', {
-                classId: currentClassId,
-                enabled: enabled,
-                path: path
-            });
-            showToast(enabled ? "Auto-download enabled." : "Auto-download disabled.", "info");
-        }
-    });
-}
-
-if (autoDownloadPathInput) {
-    autoDownloadPathInput.addEventListener('change', (e) => {
-        if (currentClassId && currentRole === 'teacher' && toggleAutoDownload.checked) {
-            socket.emit('update-auto-download', {
-                classId: currentClassId,
-                enabled: true,
-                path: e.target.value.trim()
-            });
-        }
-    });
-}
-
-// Let Electron open a directory picker if we want
-// Handle Quick Path Buttons
-const handleQuickPath = (folderType) => {
-    if (currentClassId && currentRole === 'teacher') {
-        socket.emit('request-system-path', { folderType, classId: currentClassId }, (response) => {
-            if (response && response.success && response.path) {
-                if (autoDownloadPathInput) {
-                    autoDownloadPathInput.value = response.path;
-                    // Trigger the change event to save it
-                    autoDownloadPathInput.dispatchEvent(new Event('change'));
-                }
-            } else {
-                showToast("Could not determine path.", "error");
-            }
-        });
-    }
-};
-
-if (btnPathDesktop) btnPathDesktop.addEventListener('click', () => handleQuickPath('desktop'));
-if (btnPathDocuments) btnPathDocuments.addEventListener('click', () => handleQuickPath('documents'));
-if (btnPathDownloads) btnPathDownloads.addEventListener('click', () => handleQuickPath('downloads'));
-
-// Windows Features Listeners (Electron)
-socket.on('execute-lock-screen', () => {
-    if (window.electron) {
-        window.electron.ipcRenderer.invoke('lock-screen');
-    }
-});
-
-socket.on('execute-shutdown', () => {
-    if (window.electron) {
-        window.electron.ipcRenderer.invoke('shutdown-pc');
-    }
-});
-
-socket.on('execute-focus', () => {
-    if (window.electron) {
-        window.electron.ipcRenderer.invoke('focus-window');
-    }
-});
-
-socket.on('auto-download-updated', ({ autoDownloadEnabled, autoDownloadPath }) => {
-    if (currentClassId && joinedClasses.has(currentClassId)) {
-        const classData = joinedClasses.get(currentClassId);
-        classData.autoDownloadEnabled = autoDownloadEnabled;
-        classData.autoDownloadPath = autoDownloadPath;
-
-        // Sync UI for teacher
-        if (currentRole === 'teacher') {
-            const toggle = document.getElementById('toggle-auto-download');
-            const pathInput = document.getElementById('auto-download-path');
-            if (toggle) toggle.checked = autoDownloadEnabled;
-            if (pathInput) pathInput.value = autoDownloadPath || '';
-        }
-    }
-});
 
 // Handle Data Cleared Event
 socket.on('data-cleared', () => {
@@ -5202,7 +5010,7 @@ socket.on("user-joined", ({ user, classId }) => {
     // If we are teacher and monitoring is on, tell the new student to start
     if (currentRole === 'teacher' && isMonitoringEnabled) {
         // Direct it to the specific student instead of broadcasting to the whole class again
-        socket.emit('start-monitoring', { interval: monitoringInterval, targetUserId: user.id });
+        socket.emit('start-monitoring', { interval: monitoringInterval });
     }
 });
 
@@ -5335,77 +5143,9 @@ const classStatusModal = document.getElementById("class-status-modal");
 const btnCloseClassStatus = document.getElementById("btn-close-class-status");
 const monitoringGrid = document.getElementById("monitoring-grid");
 
-function initializeMonitoringGrid() {
-    if (currentRole !== 'teacher' || !monitoringGrid || !currentClassId) return;
-
-    // Clear existing grid
-    monitoringGrid.innerHTML = '';
-
-    // Get class participants
-    const classData = joinedClasses.get(currentClassId);
-    if (!classData || !classData.users) return;
-
-    // Filter to only include students (exclude the teacher itself
-    const students = classData.users.filter(u => u.id !== socket.id);
-
-    // Create an empty card for each student
-    students.forEach(student => {
-        createEmptyMonitoringCard(student.id, student.name);
-    });
-
-    // Handle Disabled State
-    let disabledOverlay = document.getElementById('monitoring-disabled-overlay');
-
-    if (!isMonitoringEnabled) {
-        if (!disabledOverlay) {
-            disabledOverlay = document.createElement('div');
-            disabledOverlay.id = 'monitoring-disabled-overlay';
-            disabledOverlay.className = 'monitoring-disabled-overlay';
-            disabledOverlay.innerHTML = `
-                <div class="disabled-content">
-                    <img src="/assets/monitoring.svg" class="icon-svg large-icon" style="width: 48px; height: 48px; opacity: 0.5; margin-bottom: 10px;" alt="Monitoring" />
-                    <h4>Monitoring is Disabled</h4>
-                    <p style="color: var(--text-secondary); margin-bottom: 15px; text-align: center; max-width: 300px;">
-                        Screen monitoring is currently turned off in your settings. Students' screens will not be transmitted.
-                    </p>
-                    <button id="btn-enable-monitoring-modal" class="primary-btn">Enable Monitoring</button>
-                </div>
-            `;
-
-            // Append to the container, not the grid itself
-            document.querySelector('.monitoring-grid-container').appendChild(disabledOverlay);
-
-            // Add event listener to the button
-            document.getElementById('btn-enable-monitoring-modal').addEventListener('click', () => {
-                isMonitoringEnabled = true;
-                localStorage.setItem('classsend-monitoring-enabled', true);
-
-                // Update settings toggle if it exists
-                if (monitoringToggle) monitoringToggle.checked = true;
-                if (monitoringIntervalSetting) monitoringIntervalSetting.classList.remove('hidden');
-
-                // Hide overlay
-                disabledOverlay.classList.add('hidden');
-
-                // Start monitoring immediately
-                socket.emit('start-monitoring', { interval: monitoringInterval });
-            });
-        } else {
-            disabledOverlay.classList.remove('hidden');
-        }
-    } else {
-        if (disabledOverlay) {
-            disabledOverlay.classList.add('hidden');
-        }
-    }
-}
-
 if (btnToolClassStatus) {
     btnToolClassStatus.addEventListener("click", () => {
-        if (classStatusModal) {
-            classStatusModal.classList.remove("hidden");
-            initializeMonitoringGrid();
-        }
+        if (classStatusModal) classStatusModal.classList.remove("hidden");
         // Ensure tools menu is closed
         if (toolsMenu) toolsMenu.classList.remove("active");
         if (btnToolsToggle) btnToolsToggle.classList.remove("active");
@@ -5419,10 +5159,7 @@ if (btnToolClassStatus) {
 
 if (btnToolMonitoring) {
     btnToolMonitoring.addEventListener("click", () => {
-        if (classStatusModal) {
-            classStatusModal.classList.remove("hidden");
-            initializeMonitoringGrid();
-        }
+        if (classStatusModal) classStatusModal.classList.remove("hidden");
         // Ensure tools menu is closed
         if (toolsMenu) toolsMenu.classList.remove("active");
         if (btnToolsToggle) btnToolsToggle.classList.remove("active");
@@ -5473,6 +5210,9 @@ if (btnViewStream) {
 // --- MONITORING FEATURE LOGIC ---
 
 let captureIntervalId = null;
+let browserMonitoringStream = null;
+let browserMonitoringVideo = null;
+let browserMonitoringCanvas = null;
 
 // Helper to check if we are in Electron
 function isElectronApp() {
@@ -5484,14 +5224,12 @@ function isElectronApp() {
 // Student: Start capturing screen
 socket.on('start-monitoring', async ({ interval }) => {
     // We do NOT check isMonitoringEnabled on the student side, we obey the teacher!
-    if (currentRole !== 'student') {
-        return;
-    }
+    if (currentRole !== 'student') return;
+
+    // Show notification
+    showNotification(t('student-monitoring-notice') || 'You are being monitored by the teacher.', 'warning');
 
     if (isElectronApp()) {
-        // Show notification
-        console.log(t('student-monitoring-notice') || 'You are being monitored by the teacher.');
-
         // Stop any existing interval
         if (captureIntervalId) clearInterval(captureIntervalId);
         // Start new interval
@@ -5499,15 +5237,80 @@ socket.on('start-monitoring', async ({ interval }) => {
         // Send one immediately
         captureAndSendScreen('low');
     } else {
-        console.log('Screen monitoring is only supported in the ClassSend desktop application.');
+        // Browser fallback: Requires user permission via button
+        if (!browserMonitoringStream) {
+            promptBrowserMonitoring(interval);
+        } else {
+            if (captureIntervalId) clearInterval(captureIntervalId);
+            captureIntervalId = setInterval(() => captureAndSendScreen('low'), interval);
+            captureAndSendScreen('low');
+        }
     }
 });
+
+function promptBrowserMonitoring(interval) {
+    let promptEl = document.getElementById('browser-monitoring-prompt');
+    if (!promptEl) {
+        promptEl = document.createElement('div');
+        promptEl.id = 'browser-monitoring-prompt';
+        promptEl.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:var(--primary-color, #c62828); color:white; padding:15px; border-radius:8px; z-index:99999; display:flex; align-items:center; gap:15px; box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+
+        const text = document.createElement('span');
+        text.textContent = t('monitoring-browser-prompt') || 'Teacher enabled monitoring. Please grant screen access.';
+
+        const btn = document.createElement('button');
+        btn.textContent = t('btn-allow') || 'Share Screen';
+        btn.style.cssText = 'padding:6px 12px; background:white; color:black; border:none; border-radius:4px; font-weight:bold; cursor:pointer;';
+
+        btn.onclick = async () => {
+            try {
+                browserMonitoringStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+
+                browserMonitoringVideo = document.createElement('video');
+                browserMonitoringVideo.autoplay = true;
+                browserMonitoringVideo.muted = true;
+                browserMonitoringVideo.playsInline = true;
+                browserMonitoringVideo.srcObject = browserMonitoringStream;
+                browserMonitoringVideo.onloadedmetadata = () => browserMonitoringVideo.play().catch(e => console.error(e));
+
+                browserMonitoringCanvas = document.createElement('canvas');
+
+                // Stop when user ends stream
+                browserMonitoringStream.getVideoTracks()[0].onended = () => {
+                    browserMonitoringStream = null;
+                    if (captureIntervalId) clearInterval(captureIntervalId);
+                };
+
+                promptEl.remove();
+
+                if (captureIntervalId) clearInterval(captureIntervalId);
+                captureIntervalId = setInterval(() => captureAndSendScreen('low'), interval);
+                captureAndSendScreen('low');
+            } catch (err) {
+                console.error("Browser monitoring permission denied", err);
+                showNotification("Screen sharing denied.", "error");
+            }
+        };
+
+        promptEl.appendChild(text);
+        promptEl.appendChild(btn);
+        document.body.appendChild(promptEl);
+    }
+}
 
 // Student: Stop capturing screen
 socket.on('stop-monitoring', () => {
     if (captureIntervalId) {
         clearInterval(captureIntervalId);
         captureIntervalId = null;
+    }
+    const promptEl = document.getElementById('browser-monitoring-prompt');
+    if (promptEl) promptEl.remove();
+
+    // Stop browser stream
+    if (browserMonitoringStream) {
+        browserMonitoringStream.getTracks().forEach(t => t.stop());
+        browserMonitoringStream = null;
     }
 });
 
@@ -5536,6 +5339,21 @@ async function captureAndSendScreen(quality = 'low') {
                     // Not in electron
                 }
             }
+        } else if (browserMonitoringStream && browserMonitoringVideo && browserMonitoringCanvas) {
+            // Browser Capture Fallback
+            const videoWidth = browserMonitoringVideo.videoWidth || 1920;
+            const videoHeight = browserMonitoringVideo.videoHeight || 1080;
+
+            if (videoWidth > 0 && videoHeight > 0) {
+                const scale = quality === 'low' ? 320 / videoWidth : 1;
+                browserMonitoringCanvas.width = videoWidth * scale;
+                browserMonitoringCanvas.height = videoHeight * scale;
+
+                const ctx = browserMonitoringCanvas.getContext('2d');
+                ctx.drawImage(browserMonitoringVideo, 0, 0, browserMonitoringCanvas.width, browserMonitoringCanvas.height);
+
+                frameDataUrl = browserMonitoringCanvas.toDataURL('image/jpeg', quality === 'low' ? 0.3 : 0.8);
+            }
         }
 
         if (frameDataUrl) {
@@ -5550,8 +5368,9 @@ async function captureAndSendScreen(quality = 'low') {
     }
 }
 
-function createEmptyMonitoringCard(userId, studentName) {
-    if (!monitoringGrid) return null;
+// Teacher: Receive frame and update UI
+socket.on('monitoring-frame', ({ frame, userId, userName: studentName }) => {
+    if (currentRole !== 'teacher' || !monitoringGrid) return;
 
     let studentCard = document.getElementById(`monitoring-card-${userId}`);
 
@@ -5560,22 +5379,16 @@ function createEmptyMonitoringCard(userId, studentName) {
         studentCard = document.createElement('div');
         studentCard.id = `monitoring-card-${userId}`;
         studentCard.className = 'media-item';
-        studentCard.style.cssText = 'position: relative; width: 100%; aspect-ratio: 16/9; background: #111; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; flex-direction: column; cursor: pointer; align-items: center; justify-content: center;';
+        studentCard.style.cssText = 'position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: flex; flex-direction: column; cursor: pointer;';
 
-        // Placeholder Icon (Visible when no image)
-        const placeholderIcon = document.createElement('img');
-        placeholderIcon.className = 'monitoring-placeholder';
-        placeholderIcon.src = '/assets/monitoring.svg';
-        placeholderIcon.style.cssText = 'width: 32px; height: 32px; opacity: 0.3; filter: invert(1); z-index: 1;';
-
-        // Image element (Initially hidden/empty)
+        // Image element
         const img = document.createElement('img');
         img.className = 'monitoring-img';
-        img.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; transition: opacity 0.2s ease; opacity: 0; z-index: 2;';
+        img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; background: #222; transition: transform 0.2s ease;';
 
         // Name overlay
         const nameOverlay = document.createElement('div');
-        nameOverlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 8px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; justify-content: center; align-items: center; gap: 8px; z-index: 3; border-radius: 0 0 8px 8px;';
+        nameOverlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; justify-content: space-between; align-items: center;';
 
         const nameText = document.createElement('span');
         nameText.textContent = studentName;
@@ -5589,11 +5402,6 @@ function createEmptyMonitoringCard(userId, studentName) {
 
         const openFullscreen = (e) => {
             e.stopPropagation();
-            if (!img.src || img.src.includes(window.location.host) || img.src === window.location.href) {
-                // Ignore fullscreen clicks if we don't have a frame yet
-                return;
-            }
-
             // Request high-res frame
             socket.emit('request-high-res-frame', { targetUserId: userId });
 
@@ -5640,41 +5448,15 @@ function createEmptyMonitoringCard(userId, studentName) {
         nameOverlay.appendChild(nameText);
         nameOverlay.appendChild(fsBtn);
 
-        studentCard.appendChild(placeholderIcon);
         studentCard.appendChild(img);
         studentCard.appendChild(nameOverlay);
         monitoringGrid.appendChild(studentCard);
     }
 
-    return studentCard;
-}
-
-// Teacher: Receive frame and update UI
-socket.on('monitoring-frame', ({ frame, userId, userName: studentName }) => {
-    if (currentRole !== 'teacher' || !monitoringGrid) return;
-
-    let studentCard = document.getElementById(`monitoring-card-${userId}`);
-
-    // Create new card if it doesn't exist
-    if (!studentCard) {
-        studentCard = createEmptyMonitoringCard(userId, studentName);
-    }
-
     // Update the image source
-    if (studentCard) {
-        const imgElement = studentCard.querySelector('.monitoring-img');
-        const placeholder = studentCard.querySelector('.monitoring-placeholder');
-
-        if (imgElement && frame) {
-            imgElement.src = frame;
-            imgElement.style.opacity = '1';
-            imgElement.style.background = '#000'; // Make background black once frame is loaded
-
-            // Hide placeholder softly
-            if (placeholder) {
-                placeholder.style.display = 'none';
-            }
-        }
+    const imgElement = studentCard.querySelector('.monitoring-img');
+    if (imgElement && frame) {
+        imgElement.src = frame;
     }
 });
 // --- END MONITORING FEATURE LOGIC ---
@@ -6167,17 +5949,17 @@ function updateToolStates() {
 
     // Messaging Block Status
     if (btnToolBlockMessages) {
-        btnToolBlockMessages.classList.toggle("active", classData.blockAllActive === true);
+        btnToolBlockMessages.classList.toggle("active", classData.blockAllActive);
     }
 
     // Uploads Block Status
     if (btnToolBlockUploads) {
-        btnToolBlockUploads.classList.toggle("active", classData.blockUploadsActive === true);
+        btnToolBlockUploads.classList.toggle("active", classData.blockUploadsActive);
     }
 
-    // Allow Hands Status - Glow only if feature is explicitly enabled
+    // Allow Hands Status
     if (btnToolAllowHands) {
-        btnToolAllowHands.classList.toggle("active", classData.allowHandsUp === true);
+        btnToolAllowHands.classList.toggle("active", classData.allowHandsUp);
     }
 }
 
@@ -6335,7 +6117,7 @@ const modelReportThreshold = document.getElementById('model-report-threshold');
 const modelReportVal = document.getElementById('model-report-val');
 
 function updateAdvancedModelPreferencesVisibility() {
-    if (filterMode === 'advanced' && currentRole === 'teacher') {
+    if (filterMode === 'deep-learning' && currentRole === 'teacher') {
         if (advancedModelPreferences) advancedModelPreferences.classList.remove('hidden');
     } else {
         if (advancedModelPreferences) advancedModelPreferences.classList.add('hidden');
@@ -6352,7 +6134,7 @@ function updateSettingsVisibility() {
         if (settingsStreamingSection) settingsStreamingSection.classList.remove('hidden');
         if (settingsDataSection) settingsDataSection.classList.remove('hidden');
         if (settingsFilterSection) settingsFilterSection.classList.remove('hidden');
-        if (advancedModelPreferences && (filterMode === 'advanced' || debugModeActive)) advancedModelPreferences.classList.remove('hidden');
+        if (advancedModelPreferences && (filterMode === 'deep-learning' || debugModeActive)) advancedModelPreferences.classList.remove('hidden');
         if (settingsAdvancedSection) settingsAdvancedSection.classList.remove('hidden');
 
         // Also show all sidebar tabs
@@ -6409,9 +6191,9 @@ function sendAdvancedSettingsUpdate() {
     if (!currentClassId || currentRole !== 'teacher') return;
 
     // Invert: Sensitivity (client) -> Threshold (server)
-    // High Sensitivity (90) = Low Threshold (10)
+    // High Sensitivity (100) = Low Threshold (0)
     const blockSensitivity = modelBlockThreshold ? parseInt(modelBlockThreshold.value) : 50;
-    const reportSensitivity = modelReportThreshold ? parseInt(modelReportThreshold.value) : 30;
+    const reportSensitivity = modelReportThreshold ? parseInt(modelReportThreshold.value) : 70;
 
     const settings = {
         blockEnabled: modelBlockToggle ? modelBlockToggle.checked : true,

@@ -15,8 +15,8 @@
     rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap"
     rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index-C8DU8qgx.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BFQLaemJ.css">
+  <script type="module" crossorigin src="/assets/index-DBjTGTMc.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-prLLygUI.css">
 </head>
 
 <body>
@@ -300,7 +300,7 @@
                           <span class="slider round"></span>
                         </label>
                       </div>
-                      <input type="range" id="model-block-threshold" min="0" max="100" value="10" class="slider-range">
+                      <input type="range" id="model-block-threshold" min="10" max="90" value="50" class="slider-range">
                       <div class="range-labels">
                         <span data-i18n="lenient">Lenient</span>
                         <span id="model-block-val">10%</span>
@@ -320,7 +320,7 @@
                           <span class="slider round"></span>
                         </label>
                       </div>
-                      <input type="range" id="model-report-threshold" min="0" max="100" value="90" class="slider-range">
+                      <input type="range" id="model-report-threshold" min="10" max="90" value="30" class="slider-range">
                       <div class="range-labels">
                         <span data-i18n="lenient">Lenient</span>
                         <span id="model-report-val">90%</span>
@@ -413,6 +413,30 @@
                       <option value="wifi" data-i18n="quality-wifi">WiFi (Slow)</option>
                     </select>
                   </div>
+
+                  <!-- Monitoring Section -->
+                  <div class="setting-item" style="margin-top: 20px;">
+                    <div class="setting-header-row">
+                      <label for="monitoring-toggle" data-i18n="monitoring-enable">Enable Monitoring</label>
+                      <label class="switch">
+                        <input type="checkbox" id="monitoring-toggle">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+                  <p class="setting-hint" data-i18n="monitoring-warning"
+                    style="margin-top: -10px; margin-bottom: 15px;">Warning: This feature may burden the
+                    network/computers</p>
+
+                  <div class="setting-item hidden" id="monitoring-interval-setting">
+                    <label for="monitoring-interval" data-i18n="monitoring-refresh-rate">Refresh Rate</label>
+                    <select id="monitoring-interval" class="setting-select">
+                      <option value="5000">5 seconds</option>
+                      <option value="8000">8 seconds</option>
+                      <option value="15000">15 seconds (Auto)</option>
+                      <option value="20000">20 seconds</option>
+                    </select>
+                  </div>
                 </div>
 
                 <!-- Administration Page -->
@@ -462,6 +486,37 @@
                           data-i18n="btn-export">Export</span>
                       </button>
                       <input type="file" id="file-import-data" accept=".json" class="hidden">
+                    </div>
+                  </div>
+
+                  <!-- Auto Download Settings -->
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <div>
+                        <label for="toggle-auto-download" class="setting-label-tight"
+                          data-i18n="label-auto-download">Automatic Downloads</label>
+                        <p class="setting-description" data-i18n="auto-download-description">Automatically download all
+                          incoming files without prompting.</p>
+                      </div>
+                      <label class="switch">
+                        <input type="checkbox" id="toggle-auto-download">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                    <div class="input-with-button" style="margin-top: 10px;">
+                      <input type="text" id="auto-download-path" class="setting-input"
+                        placeholder="Custom download path (optional)" data-i18n-placeholder="placeholder-download-path">
+                    </div>
+                    <div class="path-pill-buttons" style="margin-top: 5px; display: flex; gap: 8px;">
+                      <button id="btn-path-desktop" class="small-secondary-btn"
+                        style="border-radius: 12px; padding: 4px 10px; font-size: 0.8em;"
+                        data-i18n="btn-path-desktop">Desktop</button>
+                      <button id="btn-path-documents" class="small-secondary-btn"
+                        style="border-radius: 12px; padding: 4px 10px; font-size: 0.8em;"
+                        data-i18n="btn-path-documents">Documents</button>
+                      <button id="btn-path-downloads" class="small-secondary-btn"
+                        style="border-radius: 12px; padding: 4px 10px; font-size: 0.8em;"
+                        data-i18n="btn-path-downloads">Downloads</button>
                     </div>
                   </div>
 
@@ -963,6 +1018,11 @@
                     <img src="/assets/screen-mirror-svgrepo-com.svg" class="icon-svg" alt="Share" />
                     <span data-i18n="btn-share-screen" class="btn-label">Share Screen</span>
                   </button>
+                  <button id="btn-tool-monitoring" class="tool-menu-btn" title="Monitoring"
+                    data-i18n-title="btn-monitoring">
+                    <img src="/assets/monitoring.svg" class="icon-svg" alt="Monitoring" />
+                    <span data-i18n="btn-monitoring">Monitoring</span>
+                  </button>
                   <button id="btn-tool-hands-down" class="tool-menu-btn" title="Lower Hands"
                     data-i18n-title="btn-hands-down">
                     <img src="/assets/hands-Down.svg" class="icon-svg" alt="Hands Down" />
@@ -982,6 +1042,24 @@
                     data-i18n-title="btn-raise-hand">
                     <img src="/assets/Allow-Hands-Up.svg" class="icon-svg" alt="Allow Hands" />
                     <span data-i18n="btn-raise-hand">Allow Hands</span>
+                  </button>
+                  <button id="btn-tool-lock-screen" class="tool-menu-btn" title="Lock Screen"
+                    data-i18n-title="btn-tool-lock-screen">
+                    <img src="/assets/lock-svgrepo-com.svg" class="icon-svg" onerror="this.src='/assets/lock.svg'"
+                      alt="Lock" />
+                    <span data-i18n="btn-tool-lock-screen">Lock Screen</span>
+                  </button>
+                  <button id="btn-tool-shutdown-pc" class="tool-menu-btn" title="Shutdown PC"
+                    data-i18n-title="btn-tool-shutdown-pc">
+                    <img src="/assets/shutdown.svg" class="icon-svg" onerror="this.src='/assets/power.svg'"
+                      alt="Shutdown" />
+                    <span data-i18n="btn-tool-shutdown-pc">Shutdown PC</span>
+                  </button>
+                  <button id="btn-tool-focus-app" class="tool-menu-btn" title="Focus App"
+                    data-i18n-title="btn-tool-focus-app">
+                    <img src="/assets/focus.svg" class="icon-svg"
+                      onerror="this.src='/assets/screen-mirror-svgrepo-com.svg'" alt="Focus App" />
+                    <span data-i18n="btn-focus">Focus Window</span>
                   </button>
                 </div>
                 <button id="btn-tools-toggle" class="btn-tools-toggle" title="Teacher Tools"
@@ -1074,7 +1152,25 @@
 
     </div>
   </div>
-  </div>
+  </div>
+  <!-- Class Status Modal (Monitoring Grid) -->
+  <div id="class-status-modal" class="modal hidden">
+    <div class="modal-content monitoring-modal-content">
+      <div class="popup-header">
+        <h3 data-i18n="class-status-title">
+          <img src="/assets/monitoring.svg" class="icon-svg" alt="Monitoring" />
+          Class Status & Monitoring
+        </h3>
+        <button class="close-btn" id="btn-close-class-status">&times;</button>
+      </div>
+      <div class="monitoring-grid-container">
+        <div id="monitoring-grid" class="monitoring-grid">
+          <!-- Monitoring cards will appear here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 
 </html>
