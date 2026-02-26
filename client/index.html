@@ -1012,54 +1012,69 @@
               </button>
               <div id="teacher-tools-section" class="teacher-tools-section hidden">
                 <div id="tools-menu" class="tools-menu">
-                  <button id="btn-tool-share-screen" class="tool-menu-btn" title="Share Screen"
-                    data-i18n-title="btn-share-screen">
-                    <img src="/assets/screen-mirror-svgrepo-com.svg" class="icon-svg" alt="Share" />
-                    <span data-i18n="btn-share-screen" class="btn-label">Share Screen</span>
-                  </button>
-                  <button id="btn-tool-monitoring" class="tool-menu-btn" title="Monitoring"
-                    data-i18n-title="btn-monitoring">
-                    <img src="/assets/monitoring.svg" class="icon-svg" alt="Monitoring" />
-                    <span data-i18n="btn-monitoring">Monitoring</span>
-                  </button>
-                  <button id="btn-tool-hands-down" class="tool-menu-btn" title="Lower Hands"
-                    data-i18n-title="btn-hands-down">
-                    <img src="/assets/hands-Down.svg" class="icon-svg" alt="Hands Down" />
-                    <span data-i18n="btn-hands-down">Hands Down</span>
-                  </button>
-                  <button id="btn-tool-block-messages" class="tool-menu-btn" title="Block Messages"
-                    data-i18n-title="btn-block-all">
-                    <img src="/assets/block-1-svgrepo-com.svg" class="icon-svg" alt="Block" />
-                    <span data-i18n="label-block-all">Block Messages</span>
-                  </button>
-                  <button id="btn-tool-block-uploads" class="tool-menu-btn" title="Block Uploads"
-                    data-i18n-title="btn-block-uploads">
-                    <img src="/assets/files-svgrepo-com.svg" class="icon-svg" alt="Block Uploads" />
-                    <span data-i18n="label-block-uploads">Block Uploads</span>
-                  </button>
-                  <button id="btn-tool-allow-hands" class="tool-menu-btn" title="Allow Hands"
-                    data-i18n-title="btn-raise-hand">
-                    <img src="/assets/Allow-Hands-Up.svg" class="icon-svg" alt="Allow Hands" />
-                    <span data-i18n="btn-raise-hand">Allow Hands</span>
-                  </button>
-                  <button id="btn-tool-lock-screen" class="tool-menu-btn" title="Lock Screen"
-                    data-i18n-title="btn-tool-lock-screen">
-                    <img src="/assets/lock-svgrepo-com.svg" class="icon-svg" onerror="this.src='/assets/lock.svg'"
-                      alt="Lock" />
-                    <span data-i18n="btn-tool-lock-screen">Lock Screen</span>
-                  </button>
-                  <button id="btn-tool-shutdown-pc" class="tool-menu-btn" title="Shutdown PC"
-                    data-i18n-title="btn-tool-shutdown-pc">
-                    <img src="/assets/shutdown.svg" class="icon-svg" onerror="this.src='/assets/power.svg'"
-                      alt="Shutdown" />
-                    <span data-i18n="btn-tool-shutdown-pc">Shutdown PC</span>
-                  </button>
-                  <button id="btn-tool-focus-app" class="tool-menu-btn" title="Focus App"
-                    data-i18n-title="btn-tool-focus-app">
-                    <img src="/assets/focus.svg" class="icon-svg"
-                      onerror="this.src='/assets/screen-mirror-svgrepo-com.svg'" alt="Focus App" />
-                    <span data-i18n="btn-focus">Focus Window</span>
-                  </button>
+                  <!-- Communications Column -->
+                  <div class="tool-column">
+                    <div class="tool-column-header" data-i18n="label-communications">Communications</div>
+                    <button id="btn-tool-share-screen" class="tool-menu-btn" title="Share Screen"
+                      data-i18n-title="btn-share-screen">
+                      <img src="/assets/screen-mirror-svgrepo-com.svg" class="icon-svg" alt="Share" />
+                      <span data-i18n="btn-share-screen" class="btn-label">Share Screen</span>
+                    </button>
+                    <button id="btn-tool-block-messages" class="tool-menu-btn" title="Block Messages"
+                      data-i18n-title="btn-block-all">
+                      <img src="/assets/block-1-svgrepo-com.svg" class="icon-svg" alt="Block" />
+                      <span data-i18n="label-block-all">Block Messages</span>
+                    </button>
+                    <button id="btn-tool-block-uploads" class="tool-menu-btn" title="Block Uploads"
+                      data-i18n-title="btn-block-uploads">
+                      <img src="/assets/files-svgrepo-com.svg" class="icon-svg" alt="Block Uploads" />
+                      <span data-i18n="label-block-uploads">Block Uploads</span>
+                    </button>
+                    <button id="btn-tool-allow-hands" class="tool-menu-btn" title="Allow Hands"
+                      data-i18n-title="btn-raise-hand">
+                      <img src="/assets/Allow-Hands-Up.svg" class="icon-svg" alt="Allow Hands" />
+                      <span data-i18n="btn-raise-hand">Allow Hands</span>
+                    </button>
+                    <button id="btn-tool-hands-down" class="tool-menu-btn" title="Lower Hands"
+                      data-i18n-title="btn-hands-down">
+                      <img src="/assets/hands-Down.svg" class="icon-svg" alt="Hands Down" />
+                      <span data-i18n="btn-hands-down">Hands Down</span>
+                    </button>
+                  </div>
+
+                  <!-- Administration Column -->
+                  <div class="tool-column">
+                    <div class="tool-column-header" data-i18n="label-administration">Administration</div>
+                    <button id="btn-tool-monitoring" class="tool-menu-btn" title="Monitoring"
+                      data-i18n-title="btn-monitoring">
+                      <img src="/assets/monitoring.svg" class="icon-svg" alt="Monitoring" />
+                      <span data-i18n="btn-monitoring">Monitoring</span>
+                    </button>
+                    <button id="btn-tool-lock-screen" class="tool-menu-btn" title="Lock Screen"
+                      data-i18n-title="btn-tool-lock-screen">
+                      <img src="/assets/lock-svgrepo-com.svg" class="icon-svg" onerror="this.src='/assets/lock.svg'"
+                        alt="Lock" />
+                      <span data-i18n="btn-tool-lock-screen">Lock Screen</span>
+                    </button>
+                    <button id="btn-tool-shutdown-pc" class="tool-menu-btn" title="Shutdown PC"
+                      data-i18n-title="btn-tool-shutdown-pc">
+                      <img src="/assets/shutdown.svg" class="icon-svg" onerror="this.src='/assets/power.svg'"
+                        alt="Shutdown" />
+                      <span data-i18n="btn-tool-shutdown-pc">Shutdown PC</span>
+                    </button>
+                    <button id="btn-tool-focus-app" class="tool-menu-btn" title="Focus App"
+                      data-i18n-title="btn-tool-focus-app">
+                      <img src="/assets/focus.svg" class="icon-svg"
+                        onerror="this.src='/assets/screen-mirror-svgrepo-com.svg'" alt="Focus App" />
+                      <span data-i18n="btn-focus">Focus Window</span>
+                    </button>
+                    <button id="btn-tool-remote-launch" class="tool-menu-btn" title="Remote Launch"
+                      data-i18n-title="btn-remote-launch">
+                      <img src="/assets/rocket-svgrepo-com.svg" class="icon-svg"
+                        onerror="this.src='/assets/plus-circle-svgrepo-com.svg'" alt="Launch" />
+                      <span data-i18n="btn-remote-launch">Remote Launch</span>
+                    </button>
+                  </div>
                 </div>
                 <button id="btn-tools-toggle" class="btn-tools-toggle" title="Teacher Tools"
                   data-i18n-title="btn-teacher-tools-title">

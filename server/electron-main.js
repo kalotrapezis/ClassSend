@@ -358,8 +358,15 @@ function createWindow() {
 
             let destFolder = path.join(os.homedir(), 'Downloads');
             if (customPath && customPath.trim() !== '') {
-                // Resolve custom path relative to home dir if it doesn't look absolute
-                if (!path.isAbsolute(customPath)) {
+                // Resolve Keywords
+                if (customPath === '[Desktop]') {
+                    destFolder = path.join(os.homedir(), 'Desktop');
+                } else if (customPath === '[Documents]') {
+                    destFolder = path.join(os.homedir(), 'Documents');
+                } else if (customPath === '[Downloads]') {
+                    destFolder = path.join(os.homedir(), 'Downloads');
+                } else if (!path.isAbsolute(customPath)) {
+                    // Resolve custom path relative to home dir if it doesn't look absolute
                     destFolder = path.join(os.homedir(), customPath);
                 } else {
                     destFolder = customPath;

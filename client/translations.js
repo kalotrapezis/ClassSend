@@ -212,7 +212,11 @@ export const translations = {
         "btn-focus": "Focus Window",
         "btn-path-desktop": "Desktop",
         "btn-path-documents": "Documents",
-        "btn-path-downloads": "Downloads"
+        "btn-path-downloads": "Downloads",
+        "label-communications": "Communications",
+        "label-administration": "Administration",
+        "btn-remote-launch": "Remote Launch",
+        "toast-remote-launch-soon": "Remote Launch (App Execution) is coming soon in version 10.1!"
     },
 
     el: {
@@ -427,6 +431,10 @@ export const translations = {
         "btn-focus": "Εστίαση Παραθύρου",
         "btn-path-desktop": "Επιφάνεια Εργασίας",
         "btn-path-documents": "Έγγραφα",
-        "btn-path-downloads": "Λήψεις"
+        "btn-path-downloads": "Λήψεις",
+        "label-communications": "Επικοινωνία",
+        "label-administration": "Διαχείριση",
+        "btn-remote-launch": "Απομακρυσμένη Εκτέλεση",
+        "toast-remote-launch-soon": "Η Απομακρυσμένη Εκτέλεση θα είναι διαθέσιμη σύντομα στην έκδοση 10.1!"
     }
 };

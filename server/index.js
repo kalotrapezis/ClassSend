@@ -5,6 +5,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const NetworkDiscovery = require('./network-discovery');
 const TLSConfig = require('./tls-config');
 const multer = require('multer');
@@ -1538,12 +1539,19 @@ io.on('connection', (socket) => {
 
   // Auto-download settings
   socket.on('update-auto-download', ({ classId, autoDownloadEnabled, autoDownloadPath }) => {
+    console.log(`Server received update-auto-download: ${classId}, ${autoDownloadEnabled}, ${autoDownloadPath}`);
     if (activeClasses.has(classId)) {
       const classData = activeClasses.get(classId);
       if (classData.teacherId === socket.id) {
         classData.autoDownloadEnabled = autoDownloadEnabled;
         classData.autoDownloadPath = autoDownloadPath;
-        io.to(classId).emit('auto-download-updated', { autoDownloadEnabled, autoDownloadPath });
+
+        io.to(classId).emit('auto-download-updated', {
+          autoDownloadEnabled,
+          autoDownloadPath
+        });
+
+        console.log(`Auto-download updated for class ${classId}: ${autoDownloadEnabled}, ${autoDownloadPath}`);
       }
     }
   });

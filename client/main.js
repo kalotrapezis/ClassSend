@@ -822,6 +822,16 @@ if (btnToolAllowHands) {
     });
 }
 
+const btnToolRemoteLaunch = document.getElementById("btn-tool-remote-launch");
+
+if (btnToolRemoteLaunch) {
+    btnToolRemoteLaunch.addEventListener("click", () => {
+        const lang = currentLanguage;
+        const msg = translations[lang]['toast-remote-launch-soon'] || "Remote Launch is coming soon!";
+        showToast(msg, "info");
+    });
+}
+
 if (sidebarOverlay) {
     sidebarOverlay.addEventListener("click", () => {
         sidebarLeft.classList.remove("active");
@@ -3728,13 +3738,14 @@ const btnPathDownloads = document.getElementById('btn-path-downloads');
 
 if (toggleAutoDownload) {
     toggleAutoDownload.addEventListener('change', (e) => {
+        console.log('Toggle auto-download change:', e.target.checked, 'CurrentClassId:', currentClassId);
         if (currentClassId && currentRole === 'teacher') {
             const enabled = e.target.checked;
             const path = autoDownloadPathInput ? autoDownloadPathInput.value.trim() : '';
             socket.emit('update-auto-download', {
                 classId: currentClassId,
-                enabled: enabled,
-                path: path
+                autoDownloadEnabled: enabled,
+                autoDownloadPath: path
             });
             showToast(enabled ? "Auto-download enabled." : "Auto-download disabled.", "info");
         }
@@ -3746,34 +3757,33 @@ if (autoDownloadPathInput) {
         if (currentClassId && currentRole === 'teacher' && toggleAutoDownload.checked) {
             socket.emit('update-auto-download', {
                 classId: currentClassId,
-                enabled: true,
-                path: e.target.value.trim()
+                autoDownloadEnabled: true,
+                autoDownloadPath: e.target.value.trim()
             });
         }
     });
 }
 
-// Let Electron open a directory picker if we want
 // Handle Quick Path Buttons
 const handleQuickPath = (folderType) => {
-    if (currentClassId && currentRole === 'teacher') {
-        socket.emit('request-system-path', { folderType, classId: currentClassId }, (response) => {
-            if (response && response.success && response.path) {
-                if (autoDownloadPathInput) {
-                    autoDownloadPathInput.value = response.path;
-                    // Trigger the change event to save it
-                    autoDownloadPathInput.dispatchEvent(new Event('change'));
-                }
-            } else {
-                showToast("Could not determine path.", "error");
-            }
-        });
+    if (autoDownloadPathInput) {
+        // Map folder types to standard keywords
+        const keywords = {
+            'desktop': '[Desktop]',
+            'documents': '[Documents]',
+            'downloads': '[Downloads]'
+        };
+        const keyword = keywords[folderType] || '[Downloads]';
+        autoDownloadPathInput.value = keyword;
+        // Trigger the change event to save it
+        autoDownloadPathInput.dispatchEvent(new Event('change'));
+        console.log(`[UI] Set quick path keyword: ${keyword}`);
     }
 };
 
-if (btnPathDesktop) btnPathDesktop.addEventListener('click', () => handleQuickPath('desktop'));
-if (btnPathDocuments) btnPathDocuments.addEventListener('click', () => handleQuickPath('documents'));
-if (btnPathDownloads) btnPathDownloads.addEventListener('click', () => handleQuickPath('downloads'));
+if (btnPathDesktop) btnPathDesktop.addEventListener('click', () => { console.log('Desktop path button clicked'); handleQuickPath('desktop'); });
+if (btnPathDocuments) btnPathDocuments.addEventListener('click', () => { console.log('Documents path button clicked'); handleQuickPath('documents'); });
+if (btnPathDownloads) btnPathDownloads.addEventListener('click', () => { console.log('Downloads path button clicked'); handleQuickPath('downloads'); });
 
 // Windows Features Listeners (Electron)
 socket.on('execute-lock-screen', () => {

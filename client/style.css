@@ -4911,19 +4911,19 @@ input:checked+.slider:before {
 .tools-menu {
   position: absolute;
   bottom: 55px;
-  /* Popping up above input area */
-  left: 50%;
-  transform: translateX(-50%) translateY(10px);
+  /* Align to the left of the toggle button container */
+  left: -20px;
+  transform: translateY(10px);
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  width: 240px;
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  width: 520px;
   opacity: 0;
   pointer-events: none;
   transition: all 0.3s var(--smooth);
@@ -4931,10 +4931,27 @@ input:checked+.slider:before {
   z-index: 1000;
 }
 
+.tool-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tool-column-header {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--accent-primary);
+}
+
 .tools-menu.active {
   opacity: 1;
   pointer-events: all;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
 }
 
 .tool-menu-btn {
