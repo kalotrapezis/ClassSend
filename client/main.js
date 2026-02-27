@@ -3691,16 +3691,25 @@ if (btnClearData) {
 }
 
 // Windows Remote Features (Teacher Tools)
-const btnToolLockScreen = document.getElementById('btn-tool-lock-screen');
+const btnToolLockScreen = document.getElementById('btn-tool-lock-screen-custom');
 const btnToolShutdownPc = document.getElementById('btn-tool-shutdown-pc');
 const btnToolFocusApp = document.getElementById('btn-tool-focus-app');
+
+let isClassLocked = false;
 
 if (btnToolLockScreen) {
     btnToolLockScreen.addEventListener('click', () => {
         if (currentClassId && currentRole === 'teacher') {
-            if (confirm(t('confirm-lock-screen') || "Lock all student screens?")) {
+            isClassLocked = !isClassLocked;
+
+            if (isClassLocked) {
+                btnToolLockScreen.classList.add('active');
                 showToast("Lock Screen command sent.", "info");
                 socket.emit('trigger-lock-screen', { classId: currentClassId });
+            } else {
+                btnToolLockScreen.classList.remove('active');
+                showToast("Unlock Screen command sent.", "info");
+                socket.emit('trigger-unlock-screen', { classId: currentClassId });
             }
         }
     });
@@ -3709,10 +3718,8 @@ if (btnToolLockScreen) {
 if (btnToolShutdownPc) {
     btnToolShutdownPc.addEventListener('click', () => {
         if (currentClassId && currentRole === 'teacher') {
-            if (confirm(t('confirm-shutdown-pc') || "WARNING: Shut down all student PCs immediately?")) {
-                showToast("Shutdown command sent.", "warning");
-                socket.emit('trigger-shutdown', { classId: currentClassId });
-            }
+            showToast("Shutdown command sent.", "warning");
+            socket.emit('trigger-shutdown', { classId: currentClassId });
         }
     });
 }
@@ -3785,7 +3792,21 @@ if (btnPathDownloads) btnPathDownloads.addEventListener('click', () => { console
 // Windows Features Listeners (Electron)
 socket.on('execute-lock-screen', () => {
     if (window.electron) {
-        window.electron.ipcRenderer.invoke('lock-screen');
+        // Collect translations for the current language
+        const t = (key) => translations[currentLanguage][key] || key;
+        const lockStrings = {
+            title: t('lock-screen-title'),
+            message: t('lock-screen-msg'),
+            footer: t('lock-screen-footer'),
+            status: t('lock-screen-status')
+        };
+        window.electron.ipcRenderer.invoke('lock-screen', lockStrings);
+    }
+});
+
+socket.on('execute-unlock-screen', () => {
+    if (window.electron) {
+        window.electron.ipcRenderer.invoke('unlock-screen');
     }
 });
 
@@ -5419,6 +5440,7 @@ if (btnToolClassStatus) {
 
         // Ensure monitoring is active if enabled
         if (currentRole === 'teacher' && isMonitoringEnabled && currentClassId) {
+            showToast("Starting class monitoring...", "info");
             socket.emit('start-monitoring', { interval: monitoringInterval });
         }
     });
@@ -5436,6 +5458,7 @@ if (btnToolMonitoring) {
 
         // Force start monitoring for everyone in class when opened
         if (currentRole === 'teacher' && isMonitoringEnabled && currentClassId) {
+            showToast("Starting class monitoring...", "info");
             socket.emit('start-monitoring', { interval: monitoringInterval });
         }
     });
@@ -5519,7 +5542,27 @@ socket.on('start-monitoring', async ({ interval }) => {
 
     if (isElectronApp()) {
         // Show notification toast
-        showToast(t('student-monitoring-notice') || '👁️ Teacher is monitoring your screen.', 'info');
+        const noticeMsg = t('student-monitoring-notice') || '👁️ Teacher is monitoring your screen.';
+        showToast(noticeMsg, 'info');
+
+        // Show OS System Notification
+        if ("Notification" in window) {
+            if (Notification.permission === "granted") {
+                new Notification("ClassSend", {
+                    body: noticeMsg,
+                    icon: "/assets/monitoring.svg"
+                });
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        new Notification("ClassSend", {
+                            body: noticeMsg,
+                            icon: "/assets/monitoring.svg"
+                        });
+                    }
+                });
+            }
+        }
 
         // Stop any existing interval
         if (captureIntervalId) clearInterval(captureIntervalId);
@@ -5543,6 +5586,17 @@ socket.on('stop-monitoring', () => {
 // Student: Handle request for a high-res frame
 socket.on('request-high-res-frame', () => {
     if (currentRole === 'student') {
+        captureAndSendScreen('high');
+    }
+});
+
+// Student: High-res monitoring focus (Teacher is watching ONLY you)
+socket.on('start-high-res-monitoring', ({ interval }) => {
+    if (currentRole !== 'student') return;
+
+    if (isElectronApp()) {
+        if (captureIntervalId) clearInterval(captureIntervalId);
+        captureIntervalId = setInterval(() => captureAndSendScreen('high'), interval || 2000);
         captureAndSendScreen('high');
     }
 });
@@ -5623,15 +5677,25 @@ function createEmptyMonitoringCard(userId, studentName) {
                 return;
             }
 
-            // Request high-res frame from this student
-            socket.emit('request-high-res-frame', { targetUserId: userId });
+            // --- FOCUS MODE START ---
+            // Tell server we are focusing on this student
+            socket.emit('focus-monitoring', { targetUserId: userId });
 
             // Show current (low-res) frame immediately in image viewer
             const imageViewerModal = document.getElementById('image-viewer-modal');
             const viewerImg = document.getElementById('full-image');
             const viewerTitle = document.getElementById('image-title');
+            const btnMinimizeViewer = document.getElementById('btn-minimize-image');
+
             if (viewerImg && imageViewerModal) {
                 viewerImg.src = img.src; // Show low res immediately
+
+                // Fill available space
+                viewerImg.style.width = '100%';
+                viewerImg.style.height = '100%';
+                viewerImg.style.objectFit = 'contain';
+
+                if (btnMinimizeViewer) btnMinimizeViewer.style.display = 'none';
 
                 // Update title
                 if (viewerTitle) {
@@ -5650,11 +5714,14 @@ function createEmptyMonitoringCard(userId, studentName) {
                 };
                 socket.on('monitoring-frame', highResHandler);
 
-                // Cleanup listener if modal is closed before frame arrives
+                // Cleanup listener if modal is closed
                 const closeBtn = document.getElementById('btn-close-image-modal');
                 if (closeBtn) {
                     const cleanup = () => {
                         socket.off('monitoring-frame', highResHandler);
+                        // --- FOCUS MODE END ---
+                        socket.emit('unfocus-monitoring');
+                        if (btnMinimizeViewer) btnMinimizeViewer.style.display = 'inline-flex';
                         closeBtn.removeEventListener('click', cleanup);
                     };
                     closeBtn.addEventListener('click', cleanup, { once: true });

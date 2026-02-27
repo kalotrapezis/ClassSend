@@ -15,7 +15,7 @@
     rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=10.0.0-beta.1">
+  <link rel="stylesheet" href="./style.css?v=10.0.0-beta.2">
 </head>
 
 <body>
@@ -1050,7 +1050,7 @@
                       <img src="/assets/monitoring.svg" class="icon-svg" alt="Monitoring" />
                       <span data-i18n="btn-monitoring">Monitoring</span>
                     </button>
-                    <button id="btn-tool-lock-screen" class="tool-menu-btn" title="Lock Screen"
+                    <button id="btn-tool-lock-screen-custom" class="tool-menu-btn" title="Lock Screen"
                       data-i18n-title="btn-tool-lock-screen">
                       <img src="/assets/lock-svgrepo-com.svg" class="icon-svg" onerror="this.src='/assets/lock.svg'"
                         alt="Lock" />
@@ -1175,7 +1175,12 @@
           <img src="/assets/monitoring.svg" class="icon-svg" alt="Monitoring" />
           Class Status & Monitoring
         </h3>
-        <button class="close-btn" id="btn-close-class-status">&times;</button>
+        <div class="video-header-controls">
+          <button id="btn-minimize-monitoring" class="header-control-btn" title="Minimize">
+            <img src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" />
+          </button>
+          <button class="close-btn" id="btn-close-class-status" style="margin-left:0">&times;</button>
+        </div>
       </div>
       <div class="monitoring-grid-container">
         <div id="monitoring-grid" class="monitoring-grid">
@@ -1185,7 +1190,63 @@
     </div>
   </div>
 
-  <script type="module" src="/main.js?v=9.5.0"></script>
+  <script type="module" src="/main.js?v=10.0.0-beta.2"></script>
+
+  <!-- Monitoring Restore Button -->
+  <button id="btn-restore-monitoring" class="file-restore-btn hidden" title="Restore Monitoring">
+    <img src="/assets/monitoring.svg" class="icon-svg" alt="Monitoring" />
+  </button>
+
+  <script>
+    (function () {
+      function initMonitoringMinimize() {
+        var btnMin = document.getElementById('btn-minimize-monitoring');
+        var btnRestore = document.getElementById('btn-restore-monitoring');
+        var modal = document.getElementById('class-status-modal');
+        if (!btnMin || !btnRestore || !modal) return;
+        btnMin.addEventListener('click', function () {
+          modal.classList.add('hidden');
+          btnRestore.classList.remove('hidden');
+          btnRestore.classList.add('active');
+        });
+        btnRestore.addEventListener('click', function () {
+          modal.classList.remove('hidden');
+          btnRestore.classList.add('hidden');
+          btnRestore.classList.remove('active');
+        });
+      }
+
+      function initUnlockButton() {
+        var lockBtn = document.getElementById('btn-tool-lock-screen-custom');
+        if (!lockBtn) return;
+        var isLocked = false;
+        lockBtn.addEventListener('click', function () {
+          isLocked = !isLocked;
+          if (isLocked) {
+            lockBtn.classList.add('active');
+            lockBtn.title = 'Unlock Screen';
+            lockBtn.querySelector('span').textContent = 'Unlock Screen';
+            if (window._csTools) window._csTools.lockScreen();
+          } else {
+            lockBtn.classList.remove('active');
+            lockBtn.title = 'Lock Screen';
+            lockBtn.querySelector('span').textContent = 'Lock Screen';
+            if (window._csTools) window._csTools.unlockScreen();
+          }
+        });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+          initMonitoringMinimize();
+          initUnlockButton();
+        });
+      } else {
+        initMonitoringMinimize();
+        initUnlockButton();
+      }
+    })();
+  </script>
 </body>
 
 </html>

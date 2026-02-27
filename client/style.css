@@ -4980,6 +4980,16 @@ input:checked+.slider:before {
 .tool-menu-btn.active {
   background: var(--mention-bg);
   color: var(--mention-text);
+  box-shadow: 0 0 12px var(--mention-bg);
+  border-left: 3px solid var(--accent-primary);
+}
+
+#btn-tool-lock-screen-custom.active {
+  background: rgba(244, 63, 94, 0.15);
+  /* error color tint */
+  color: #f43f5e;
+  box-shadow: 0 0 15px rgba(244, 63, 94, 0.3);
+  border-left-color: #f43f5e;
 }
 
 .tool-menu-btn .icon-svg {
@@ -5640,9 +5650,17 @@ input:checked+.slider:before {
 
 /* Monitoring Modal */
 .monitoring-modal-content {
-  width: 95%;
-  max-width: 1200px;
-  height: 85vh;
+  width: 98%;
+  max-width: none;
+  height: 95vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#image-viewer-modal .modal-content {
+  width: 98%;
+  max-width: none;
+  height: 95vh;
   display: flex;
   flex-direction: column;
 }

@@ -209,14 +209,12 @@ export const translations = {
         "placeholder-download-path": "Custom download path (optional)",
         "confirm-lock-screen": "Lock all student screens?",
         "confirm-shutdown-pc": "WARNING: Shut down all student PCs immediately?",
-        "btn-focus": "Focus Window",
-        "btn-path-desktop": "Desktop",
-        "btn-path-documents": "Documents",
-        "btn-path-downloads": "Downloads",
-        "label-communications": "Communications",
-        "label-administration": "Administration",
         "btn-remote-launch": "Remote Launch",
-        "toast-remote-launch-soon": "Remote Launch (App Execution) is coming soon in version 10.1!"
+        "toast-remote-launch-soon": "Remote Launch (App Execution) is coming soon in version 10.1!",
+        "lock-screen-title": "LOCKED OUT",
+        "lock-screen-msg": "Your computer has been temporarily locked by the teacher.",
+        "lock-screen-footer": "Please remain at your seat and wait for further instructions.",
+        "lock-screen-status": "Security Protocol Active"
     },
 
     el: {
@@ -428,13 +426,11 @@ export const translations = {
         "placeholder-download-path": "Προσαρμοσμένη διαδρομή λήψης (προαιρετικό)",
         "confirm-lock-screen": "Κλείδωμα οθονών όλων των μαθητών;",
         "confirm-shutdown-pc": "ΠΡΟΕΙΔΟΠΟΙΗΣΗ: Τερματισμός όλων των υπολογιστών των μαθητών αμέσως;",
-        "btn-focus": "Εστίαση Παραθύρου",
-        "btn-path-desktop": "Επιφάνεια Εργασίας",
-        "btn-path-documents": "Έγγραφα",
-        "btn-path-downloads": "Λήψεις",
-        "label-communications": "Επικοινωνία",
-        "label-administration": "Διαχείριση",
         "btn-remote-launch": "Απομακρυσμένη Εκτέλεση",
-        "toast-remote-launch-soon": "Η Απομακρυσμένη Εκτέλεση θα είναι διαθέσιμη σύντομα στην έκδοση 10.1!"
+        "toast-remote-launch-soon": "Η Απομακρυσμένη Εκτέλεση θα είναι διαθέσιμη σύντομα στην έκδοση 10.1!",
+        "lock-screen-title": "ΚΛΕΙΔΩΜΕΝΟ",
+        "lock-screen-msg": "Ο υπολογιστής σας έχει κλειδωθεί προσωρινά από τον δάσκαλο.",
+        "lock-screen-footer": "Παρακαλώ παραμείνετε στη θέση σας και περιμένετε για περαιτέρω οδηγίες.",
+        "lock-screen-status": "Ενεργό Πρωτόκολλο Ασφαλείας"
     }
 };

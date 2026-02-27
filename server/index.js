@@ -1487,15 +1487,27 @@ io.on('connection', (socket) => {
     if (!activeClasses.has(classId)) return;
     const classData = activeClasses.get(classId);
     if (classData.teacherId !== socket.id) return;
+
     if (targetSocketId) {
       io.to(targetSocketId).emit('execute-lock-screen');
     } else {
-      // Broadcast to all students in the class
+      // 1. Send immediate lock
       classData.students.forEach(s => {
         const sid = typeof s === 'object' ? s.id : s;
         io.to(sid).emit('execute-lock-screen');
       });
-      console.log(`[Lock Screen] Sent to all students in ${classId}`);
+
+      // 2. Setup repeating interval every 5 seconds until unlocked
+      if (classData.lockIntervalId) clearInterval(classData.lockIntervalId);
+      classData.lockIntervalId = setInterval(() => {
+        classData.students.forEach(s => {
+          const sid = typeof s === 'object' ? s.id : s;
+          io.to(sid).emit('execute-lock-screen');
+        });
+        console.log(`[Lock Screen] Repeated lock broadcast for class ${classId}`);
+      }, 5000);
+
+      console.log(`[Lock Screen] Sent to all students in ${classId} (Repeating every 5s)`);
     }
   });
 
@@ -1533,9 +1545,18 @@ io.on('connection', (socket) => {
     if (!activeClasses.has(classId)) return;
     const classData = activeClasses.get(classId);
     if (classData.teacherId !== socket.id) return;
+
     if (targetSocketId) {
       io.to(targetSocketId).emit('execute-unlock-screen');
     } else {
+      // 1. Clear repeating lock interval if it exists
+      if (classData.lockIntervalId) {
+        clearInterval(classData.lockIntervalId);
+        classData.lockIntervalId = null;
+        console.log(`[Unlock Screen] Cleared repeating lock interval for class ${classId}`);
+      }
+
+      // 2. Send unlock to all students
       classData.students.forEach(s => {
         const sid = typeof s === 'object' ? s.id : s;
         io.to(sid).emit('execute-unlock-screen');
@@ -2602,6 +2623,9 @@ io.on('connection', (socket) => {
   socket.on('start-monitoring', ({ interval, targetUserId }) => {
     const classId = getTeacherClassId(socket.id);
     if (classId) {
+      const classData = activeClasses.get(classId);
+      if (classData) classData.monitoringInterval = interval; // Store it for resumption
+
       if (targetUserId) {
         const targetSocket = io.sockets.sockets.get(targetUserId);
         if (targetSocket) {
@@ -2620,6 +2644,40 @@ io.on('connection', (socket) => {
     if (classId) {
       console.log(`Teacher stopped monitoring class ${classId}`);
       io.to(classId).emit('stop-monitoring');
+    }
+  });
+
+  socket.on('focus-monitoring', ({ targetUserId }) => {
+    const classId = getTeacherClassId(socket.id);
+    if (classId) {
+      console.log(`Teacher focusing monitoring on ${targetUserId} in class ${classId}`);
+      const classData = activeClasses.get(classId);
+
+      // 1. Stop monitoring for everyone else
+      classData.students.forEach(s => {
+        const sid = typeof s === 'object' ? s.id : s;
+        if (sid !== targetUserId) {
+          io.to(sid).emit('stop-monitoring');
+        }
+      });
+
+      // 2. Start high-res monitoring for target (2s interval)
+      const targetSocket = io.sockets.sockets.get(targetUserId);
+      if (targetSocket) {
+        targetSocket.emit('start-high-res-monitoring', { interval: 2000 });
+      }
+    }
+  });
+
+  socket.on('unfocus-monitoring', () => {
+    const classId = getTeacherClassId(socket.id);
+    if (classId) {
+      console.log(`Teacher unfocused monitoring in class ${classId}`);
+      const classData = activeClasses.get(classId);
+      const interval = classData.monitoringInterval || 15000;
+
+      // Resume normal monitoring for everyone
+      io.to(classId).emit('start-monitoring', { interval });
     }
   });
 

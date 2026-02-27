@@ -311,8 +311,15 @@ function createWindow() {
     let lockIntervalId = null;
 
     // Custom Lock Screen Overlay + Repeat System Lock
-    ipcMain.handle('lock-screen', async () => {
+    ipcMain.handle('lock-screen', async (event, lockStrings) => {
         try {
+            const strings = lockStrings || {
+                title: "LOCKED OUT",
+                message: "Your computer has been temporarily locked by the teacher.",
+                footer: "Please remain at your seat and wait for further instructions.",
+                status: "Security Protocol Active"
+            };
+
             // 1. Create fullscreen always-on-top overlay window
             if (!lockWindow || lockWindow.isDestroyed()) {
                 lockWindow = new BrowserWindow({
@@ -336,37 +343,85 @@ function createWindow() {
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
   body {
-    background: #0a0a0a;
+    background: radial-gradient(circle at center, #1e0505 0%, #050505 100%);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     height: 100vh; width: 100vw;
-    font-family: 'Segoe UI', sans-serif;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     color: white; overflow: hidden;
   }
-  .lock-icon { font-size: 72px; margin-bottom: 24px; animation: pulse 2s infinite; }
-  h1 { font-size: 2.5rem; font-weight: 700; color: #ff4444; margin-bottom: 8px; letter-spacing: 2px; }
-  p { font-size: 1.1rem; color: rgba(255,255,255,0.6); margin-top: 8px; }
-  .divider { width: 80px; height: 3px; background: #ff4444; margin: 16px auto; border-radius: 2px; }
-  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+  .glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 68, 68, 0.1);
+    padding: 60px;
+    border-radius: 24px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    max-width: 600px;
+    text-align: center;
+  }
+  .lock-icon { 
+    font-size: 80px; 
+    margin-bottom: 30px; 
+    filter: drop-shadow(0 0 15px rgba(255, 68, 68, 0.4));
+    animation: heartbeat 2s ease-in-out infinite; 
+  }
+  h1 { 
+    font-size: 3rem; 
+    font-weight: 800; 
+    color: #ff4444; 
+    margin-bottom: 12px; 
+    letter-spacing: -0.02em;
+    text-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+  }
+  p { font-size: 1.25rem; color: rgba(255,255,255,0.7); margin-top: 12px; line-height: 1.6; }
+  .status-tag {
+    background: rgba(255, 68, 68, 0.1);
+    color: #ff4444;
+    padding: 8px 16px;
+    border-radius: 100px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 24px;
+    border: 1px solid rgba(255, 68, 68, 0.2);
+  }
+  .divider { width: 60px; height: 4px; background: #ff4444; margin: 24px 0; border-radius: 4px; opacity: 0.6; }
+  @keyframes heartbeat {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+  }
 </style>
 </head><body>
-  <div class="lock-icon">🔒</div>
-  <h1>Screen Locked</h1>
-  <div class="divider"></div>
-  <p>Your screen has been locked by the teacher.</p>
-  <p>Please wait for the teacher to unlock your screen.</p>
+  <div class="glass-card">
+    <div class="status-tag">${strings.status}</div>
+    <div class="lock-icon">🔒</div>
+    <h1>${strings.title}</h1>
+    <div class="divider"></div>
+    <p>${strings.message}</p>
+    <p style="font-size: 1rem; opacity: 0.5;">${strings.footer}</p>
+  </div>
 <script>
-  // Block all keyboard shortcuts
-  document.addEventListener('keydown', e => e.preventDefault(), true);
+  // Block all keyboard shortcuts and interactions
+  document.addEventListener('keydown', e => {
+      // Allow nothing
+      e.preventDefault();
+      return false;
+  }, true);
   document.addEventListener('contextmenu', e => e.preventDefault(), true);
-<\/script>
+  // Periodically force focus
+  setInterval(() => { window.focus(); }, 500);
+</script>
 </body></html>`;
 
                 lockWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(lockHtml));
                 lockWindow.setAlwaysOnTop(true, 'screen-saver', 1);
                 lockWindow.focus();
 
-                console.log('[Lock Screen] Custom overlay window created');
+                console.log('[Lock Screen] Custom overlay window created with translations');
             }
 
             // 2. Also trigger system LockWorkStation every 5 seconds as unbypassable fallback
@@ -419,12 +474,14 @@ function createWindow() {
         if (mainWindow) {
             if (mainWindow.isMinimized()) mainWindow.restore();
             mainWindow.show();
+            // Force maximize to fill space
+            mainWindow.setFullScreen(false); // ensured we aren't in kiosk/fullscreen first
             mainWindow.maximize();
             mainWindow.focus();
             mainWindow.setAlwaysOnTop(true);
             setTimeout(() => {
                 mainWindow.setAlwaysOnTop(false);
-            }, 1000);
+            }, 1500);
             return { success: true };
         }
         return { success: false, error: "Window not found" };
@@ -513,11 +570,11 @@ function createTray() {
         }
 
         const iconPath = path.join(__dirname, 'assets', iconFilename);
-        console.log(`Creating tray with icon: ${iconPath}`);
+        console.log(`Creating tray with icon: ${iconPath} `);
         const icon = require('electron').nativeImage.createFromPath(iconPath);
 
         if (icon.isEmpty()) {
-            console.warn(`Tray icon is empty or invalid format: ${iconPath}`);
+            console.warn(`Tray icon is empty or invalid format: ${iconPath} `);
         }
 
         tray = new Tray(icon);
