@@ -5705,11 +5705,10 @@ function createEmptyMonitoringCard(userId, studentName) {
 
                 imageViewerModal.classList.remove('hidden');
 
-                // Single-use listener: swap to high-res when it arrives
+                // Live listener: update viewer as high-res frames arrive
                 const highResHandler = (data) => {
                     if (data.userId === userId && data.isHighRes) {
                         viewerImg.src = data.frame;
-                        socket.off('monitoring-frame', highResHandler);
                     }
                 };
                 socket.on('monitoring-frame', highResHandler);
