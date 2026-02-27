@@ -5625,7 +5625,8 @@ async function captureAndSendScreen(quality = 'low') {
             socket.emit('monitoring-frame', {
                 frame: frameDataUrl,
                 userId: socket.id,
-                userName: userName
+                userName: userName,
+                isHighRes: (quality === 'high')
             });
         }
     } catch (err) {
