@@ -1,0 +1,100 @@
+# Fix: Beta Features Not Working
+
+## Root Cause Summary
+
+All broken features stem from two bugs in [server/index.js](file:///c:/Users/Teo/.gemini/antigravity/scratch/ClassSend/server/index.js):
+
+**Bug 1: Lock Screen / Shutdown / Focus App — broadcast to `undefined`**
+
+The server handlers for `trigger-lock-screen`, `trigger-shutdown`, and `trigger-focus` expect a `targetSocketId` parameter to know which students to target. However, the teacher's client only sends `{classId}` (no `targetSocketId`), so `io.to(undefined)` is called — broadcasting to nobody.
+
+**Bug 2: [getTeacherClassId](file:///c:/Users/Teo/.gemini/antigravity/scratch/ClassSend/server/index.js#2758-2766) and [getUserClassId](file:///c:/Users/Teo/.gemini/antigravity/scratch/ClassSend/server/index.js#2749-2757) are undefined**
+
+The monitoring handlers (`start-monitoring`, `stop-monitoring`, `request-high-res-frame`, `monitoring-frame`) call two helper functions ([getTeacherClassId(socketId)](file:///c:/Users/Teo/.gemini/antigravity/scratch/ClassSend/server/index.js#2758-2766) and [getUserClassId(socketId)](file:///c:/Users/Teo/.gemini/antigravity/scratch/ClassSend/server/index.js#2749-2757)) that **don't exist anywhere in [server/index.js](file:///c:/Users/Teo/.gemini/antigravity/scratch/ClassSend/server/index.js)**. This causes a `ReferenceError` that silently swallows the event, so students never receive the monitoring command and the teacher never receives screenshot frames.
+
+## Proposed Changes
+
+### Server — [server/index.js](file:///c:/Users/Teo/.gemini/antigravity/scratch/ClassSend/server/index.js)
+
+#### [MODIFY] [index.js](file:///c:/Users/Teo/.gemini/antigravity/scratch/ClassSend/server/index.js)
+
+**Change 1: Add missing helper functions** (before the `io.on('connection', ...)` block)
+
+Add two helper functions that scan `activeClasses` to find a class by socket ID:
+```js
+// Find the class a teacher is currently managing
+function getTeacherClassId(socketId) {
+    for (const [classId, data] of activeClasses.entries()) {
+        if (data.teacherId === socketId) return classId;
+    }
+    return null;
+}
+// Find the class any user (teacher or student) currently belongs to
+function getUserClassId(socketId) {
+    for (const [classId, data] of activeClasses.entries()) {
+        if (data.users.some(u => u.id === socketId)) return classId;
+    }
+    return null;
+}
+```
+
+**Change 2: Fix `trigger-lock-screen` handler** (lines 1471-1478)
+
+When `targetSocketId` is omitted, broadcast `execute-lock-screen` to **all students** in the class.
+
+```js
+socket.on('trigger-lock-screen', ({ classId, targetSocketId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    if (targetSocketId) {
+        io.to(targetSocketId).emit('execute-lock-screen');
+    } else {
+        // Broadcast to all students in the class
+        classData.students.forEach(s => io.to(s.id).emit('execute-lock-screen'));
+    }
+});
+```
+
+**Change 3: Fix `trigger-shutdown` handler** (lines 1480-1487) — same pattern
+
+```js
+socket.on('trigger-shutdown', ({ classId, targetSocketId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    if (targetSocketId) {
+        io.to(targetSocketId).emit('execute-shutdown');
+    } else {
+        classData.students.forEach(s => io.to(s.id).emit('execute-shutdown'));
+    }
+});
+```
+
+**Change 4: Fix `trigger-focus` handler** (lines 1489-1496) — same pattern
+
+```js
+socket.on('trigger-focus', ({ classId, targetSocketId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    if (targetSocketId) {
+        io.to(targetSocketId).emit('execute-focus');
+    } else {
+        classData.students.forEach(s => io.to(s.id).emit('execute-focus'));
+    }
+});
+```
+
+## Verification Plan
+
+### Manual Verification (requires two ClassSend instances or teacher + at least one student)
+
+1. **Lock Screen**: Teacher clicks the lock screen button → all student PCs should lock immediately.
+2. **Focus App**: Teacher clicks Focus App → all student ClassSend windows should come to the foreground.
+3. **End of Day**: Teacher clicks the shutdown button → confirms warning dialog → all student PCs shut down.
+4. **Student Monitoring**: Teacher enables monitoring in settings → opens Class Status view — student screen thumbnails should appear and refresh.
+5. **Auto-Download**: Teacher enables auto-download and sets path to `[Downloads]` → student receives a shared file → file auto-saves to student's Downloads folder.
+
+> [!NOTE]
+> Lock Screen and Shutdown will trigger real OS actions on student PCs. Test in a controlled environment.

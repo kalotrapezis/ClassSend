@@ -5447,6 +5447,28 @@ if (btnCloseClassStatus) {
     });
 }
 
+// Minimize Monitoring Panel
+const btnMinimizeMonitoring = document.getElementById('btn-minimize-monitoring');
+const btnRestoreMonitoring = document.getElementById('btn-restore-monitoring');
+
+if (btnMinimizeMonitoring) {
+    btnMinimizeMonitoring.addEventListener('click', () => {
+        if (classStatusModal) classStatusModal.classList.add('hidden');
+        if (btnRestoreMonitoring) {
+            btnRestoreMonitoring.classList.remove('hidden');
+            btnRestoreMonitoring.classList.add('active');
+        }
+    });
+}
+
+if (btnRestoreMonitoring) {
+    btnRestoreMonitoring.addEventListener('click', () => {
+        if (classStatusModal) classStatusModal.classList.remove('hidden');
+        btnRestoreMonitoring.classList.add('hidden');
+        btnRestoreMonitoring.classList.remove('active');
+    });
+}
+
 // Fullscreen
 if (btnFullscreen) {
     btnFullscreen.addEventListener("click", () => {
@@ -5496,8 +5518,8 @@ socket.on('start-monitoring', async ({ interval }) => {
     }
 
     if (isElectronApp()) {
-        // Show notification
-        console.log(t('student-monitoring-notice') || 'You are being monitored by the teacher.');
+        // Show notification toast
+        showToast(t('student-monitoring-notice') || '👁️ Teacher is monitoring your screen.', 'info');
 
         // Stop any existing interval
         if (captureIntervalId) clearInterval(captureIntervalId);
@@ -5601,38 +5623,41 @@ function createEmptyMonitoringCard(userId, studentName) {
                 return;
             }
 
-            // Request high-res frame
+            // Request high-res frame from this student
             socket.emit('request-high-res-frame', { targetUserId: userId });
 
-            // Show image in standard image viewer
-            const imageViewerModal = document.getElementById("image-viewer-modal");
-            const viewerImg = document.getElementById("viewer-img");
+            // Show current (low-res) frame immediately in image viewer
+            const imageViewerModal = document.getElementById('image-viewer-modal');
+            const viewerImg = document.getElementById('full-image');
+            const viewerTitle = document.getElementById('image-title');
             if (viewerImg && imageViewerModal) {
-                viewerImg.src = img.src; // Show low res first
+                viewerImg.src = img.src; // Show low res immediately
 
-                // Set name
-                const viewerTitle = document.getElementById("viewer-title");
-                if (viewerTitle) viewerTitle.textContent = `${studentName} - Screen`;
+                // Update title
+                if (viewerTitle) {
+                    const titleSpan = viewerTitle.querySelector('span') || viewerTitle;
+                    titleSpan.textContent = `${studentName} — Screen`;
+                }
 
-                imageViewerModal.classList.remove("hidden");
+                imageViewerModal.classList.remove('hidden');
 
-                // Add a temporary single listener to update high res when it arrives
+                // Single-use listener: swap to high-res when it arrives
                 const highResHandler = (data) => {
-                    if (data.userId === userId) {
+                    if (data.userId === userId && data.isHighRes) {
                         viewerImg.src = data.frame;
-                        socket.off('monitoring-frame', highResHandler); // Remove it after received once
+                        socket.off('monitoring-frame', highResHandler);
                     }
                 };
                 socket.on('monitoring-frame', highResHandler);
 
                 // Cleanup listener if modal is closed before frame arrives
-                const closeBtn = document.getElementById("btn-close-image-viewer");
+                const closeBtn = document.getElementById('btn-close-image-modal');
                 if (closeBtn) {
                     const cleanup = () => {
                         socket.off('monitoring-frame', highResHandler);
                         closeBtn.removeEventListener('click', cleanup);
                     };
-                    closeBtn.addEventListener('click', cleanup);
+                    closeBtn.addEventListener('click', cleanup, { once: true });
                 }
             }
         };
@@ -5684,6 +5709,28 @@ socket.on('monitoring-frame', ({ frame, userId, userName: studentName }) => {
         }
     }
 });
+
+// Teacher triggers unlock for all students
+socket.on('execute-unlock-screen', () => {
+    if (window.electron) {
+        window.electron.ipcRenderer.invoke('unlock-screen');
+    }
+});
+
+// Global bridge for inline HTML scripts (unlock button, etc.)
+window._csTools = {
+    unlockScreen: function () {
+        if (currentClassId) {
+            socket.emit('trigger-unlock-screen', { classId: currentClassId });
+        }
+    },
+    lockScreen: function () {
+        if (currentClassId) {
+            socket.emit('trigger-lock-screen', { classId: currentClassId });
+        }
+    }
+};
+
 // --- END MONITORING FEATURE LOGIC ---
 
 // Update stream cleanup to hide the button

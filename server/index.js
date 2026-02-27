@@ -790,6 +790,21 @@ io.on('connection', (socket) => {
     }
   }
 
+  // Helper: find the class ID for a teacher socket
+  function getTeacherClassId(socketId) {
+    for (const [classId, data] of activeClasses.entries()) {
+      if (data.teacherId === socketId) return classId;
+    }
+    return null;
+  }
+
+  // Helper: find the class ID for any user (teacher or student)
+  function getUserClassId(socketId) {
+    for (const [classId, data] of activeClasses.entries()) {
+      if (data.users && data.users.some(u => u.id === socketId)) return classId;
+    }
+    return null;
+  }
 
   socket.on('create-class', ({ classId, userName }, callback) => {
     if (activeClasses.has(classId)) {
@@ -1469,29 +1484,63 @@ io.on('connection', (socket) => {
 
   // Windows Feature Triggers
   socket.on('trigger-lock-screen', ({ classId, targetSocketId }) => {
-    if (activeClasses.has(classId)) {
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId === socket.id) {
-        io.to(targetSocketId).emit('execute-lock-screen');
-      }
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('execute-lock-screen');
+    } else {
+      // Broadcast to all students in the class
+      classData.students.forEach(s => {
+        const sid = typeof s === 'object' ? s.id : s;
+        io.to(sid).emit('execute-lock-screen');
+      });
+      console.log(`[Lock Screen] Sent to all students in ${classId}`);
     }
   });
 
   socket.on('trigger-shutdown', ({ classId, targetSocketId }) => {
-    if (activeClasses.has(classId)) {
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId === socket.id) {
-        io.to(targetSocketId).emit('execute-shutdown');
-      }
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('execute-shutdown');
+    } else {
+      classData.students.forEach(s => {
+        const sid = typeof s === 'object' ? s.id : s;
+        io.to(sid).emit('execute-shutdown');
+      });
+      console.log(`[Shutdown] Sent to all students in ${classId}`);
     }
   });
 
   socket.on('trigger-focus', ({ classId, targetSocketId }) => {
-    if (activeClasses.has(classId)) {
-      const classData = activeClasses.get(classId);
-      if (classData.teacherId === socket.id) {
-        io.to(targetSocketId).emit('execute-focus');
-      }
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('execute-focus');
+    } else {
+      classData.students.forEach(s => {
+        const sid = typeof s === 'object' ? s.id : s;
+        io.to(sid).emit('execute-focus');
+      });
+      console.log(`[Focus App] Sent to all students in ${classId}`);
+    }
+  });
+
+  socket.on('trigger-unlock-screen', ({ classId, targetSocketId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('execute-unlock-screen');
+    } else {
+      classData.students.forEach(s => {
+        const sid = typeof s === 'object' ? s.id : s;
+        io.to(sid).emit('execute-unlock-screen');
+      });
+      console.log(`[Unlock Screen] Sent to all students in ${classId}`);
     }
   });
 

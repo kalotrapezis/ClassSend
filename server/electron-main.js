@@ -306,18 +306,97 @@ function createWindow() {
         }
     });
 
-    // Windows Lock Screen
+    // Lock Screen State
+    let lockWindow = null;
+    let lockIntervalId = null;
+
+    // Custom Lock Screen Overlay + Repeat System Lock
     ipcMain.handle('lock-screen', async () => {
-        return new Promise((resolve) => {
-            exec('rundll32.exe user32.dll,LockWorkStation', (error) => {
-                if (error) {
-                    console.error('Failed to lock screen:', error);
-                    resolve({ success: false, error: error.message });
-                } else {
-                    resolve({ success: true });
-                }
-            });
-        });
+        try {
+            // 1. Create fullscreen always-on-top overlay window
+            if (!lockWindow || lockWindow.isDestroyed()) {
+                lockWindow = new BrowserWindow({
+                    fullscreen: true,
+                    alwaysOnTop: true,
+                    frame: false,
+                    skipTaskbar: true,
+                    resizable: false,
+                    movable: false,
+                    closable: false,
+                    focusable: true,
+                    kiosk: true,
+                    webPreferences: {
+                        devTools: false,
+                        nodeIntegration: false,
+                    }
+                });
+
+                const lockHtml = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  body {
+    background: #0a0a0a;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100vh; width: 100vw;
+    font-family: 'Segoe UI', sans-serif;
+    color: white; overflow: hidden;
+  }
+  .lock-icon { font-size: 72px; margin-bottom: 24px; animation: pulse 2s infinite; }
+  h1 { font-size: 2.5rem; font-weight: 700; color: #ff4444; margin-bottom: 8px; letter-spacing: 2px; }
+  p { font-size: 1.1rem; color: rgba(255,255,255,0.6); margin-top: 8px; }
+  .divider { width: 80px; height: 3px; background: #ff4444; margin: 16px auto; border-radius: 2px; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+</style>
+</head><body>
+  <div class="lock-icon">🔒</div>
+  <h1>Screen Locked</h1>
+  <div class="divider"></div>
+  <p>Your screen has been locked by the teacher.</p>
+  <p>Please wait for the teacher to unlock your screen.</p>
+<script>
+  // Block all keyboard shortcuts
+  document.addEventListener('keydown', e => e.preventDefault(), true);
+  document.addEventListener('contextmenu', e => e.preventDefault(), true);
+<\/script>
+</body></html>`;
+
+                lockWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(lockHtml));
+                lockWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+                lockWindow.focus();
+
+                console.log('[Lock Screen] Custom overlay window created');
+            }
+
+            // 2. Also trigger system LockWorkStation every 5 seconds as unbypassable fallback
+            if (!lockIntervalId) {
+                const lockSystem = () => exec('rundll32.exe user32.dll,LockWorkStation');
+                lockSystem(); // immediate first lock
+                lockIntervalId = setInterval(lockSystem, 5000);
+                console.log('[Lock Screen] Repeat system lock started (every 5s)');
+            }
+
+            return { success: true };
+        } catch (err) {
+            console.error('[Lock Screen] Error:', err);
+            return { success: false, error: err.message };
+        }
+    });
+
+    // Unlock Screen
+    ipcMain.handle('unlock-screen', () => {
+        if (lockIntervalId) {
+            clearInterval(lockIntervalId);
+            lockIntervalId = null;
+            console.log('[Lock Screen] Repeat system lock stopped');
+        }
+        if (lockWindow && !lockWindow.isDestroyed()) {
+            lockWindow.destroy();
+            lockWindow = null;
+            console.log('[Lock Screen] Overlay window closed');
+        }
+        return { success: true };
     });
 
     // Windows End of Day Shutdown
@@ -335,11 +414,12 @@ function createWindow() {
         });
     });
 
-    // Bring Window to Focus
+    // Bring Window to Focus and Maximize
     ipcMain.handle('focus-window', () => {
         if (mainWindow) {
             if (mainWindow.isMinimized()) mainWindow.restore();
             mainWindow.show();
+            mainWindow.maximize();
             mainWindow.focus();
             mainWindow.setAlwaysOnTop(true);
             setTimeout(() => {
