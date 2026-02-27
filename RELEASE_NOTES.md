@@ -1,6 +1,6 @@
 # Release Notes
 
-## [10.0.0-beta.1] - 2026-02-27
+## [10.0.0] - 2026-02-27
 ### FIXES
 - **Advanced Filtering**: Resolved core logic issues to ensure stable profanity detection.
 - **Sensitivity Controls**: Added interactive sliders for "Warning" and "Block" thresholds in the moderation settings.

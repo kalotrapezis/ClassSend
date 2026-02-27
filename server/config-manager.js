@@ -35,8 +35,8 @@ class ConfigManager {
 
     getDefaults() {
         return {
-            enableLogging: true, // Default: On
-            autoExportLogs: true // Default: On
+            enableLogging: false, // Default: Off
+            autoExportLogs: false // Default: Off
         };
     }
 
