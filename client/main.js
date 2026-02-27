@@ -3701,7 +3701,6 @@ if (btnToolLockScreen) {
             if (confirm(t('confirm-lock-screen') || "Lock all student screens?")) {
                 showToast("Lock Screen command sent.", "info");
                 socket.emit('trigger-lock-screen', { classId: currentClassId });
-                toolsMenu.classList.add('hidden');
             }
         }
     });
@@ -3713,7 +3712,6 @@ if (btnToolShutdownPc) {
             if (confirm(t('confirm-shutdown-pc') || "WARNING: Shut down all student PCs immediately?")) {
                 showToast("Shutdown command sent.", "warning");
                 socket.emit('trigger-shutdown', { classId: currentClassId });
-                toolsMenu.classList.add('hidden');
             }
         }
     });
@@ -3724,7 +3722,6 @@ if (btnToolFocusApp) {
         if (currentClassId && currentRole === 'teacher') {
             showToast("Focus App command sent.", "info");
             socket.emit('trigger-focus', { classId: currentClassId });
-            toolsMenu.classList.add('hidden');
         }
     });
 }

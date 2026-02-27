@@ -1,5 +1,5 @@
-# ClassSend 9.5.1
-![Version](https://img.shields.io/badge/version-v9.5.1-blue)
+# ClassSend 10.0.0-beta.1
+![Version](https://img.shields.io/badge/version-v10.0.0--beta.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -35,8 +35,8 @@
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
 - **Linux AppImage**: `ClassSend-9.5.1-x64.AppImage`
 - **Linux Zip**: `ClassSend-linux-x64-9.5.1.zip`
-- **Windows Installer (64-bit)**: `ClassSend-9.5.1 Setup.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-9.5.1.zip`
+- **Windows Installer (64-bit)**: `ClassSend-10.0.0-beta.1 Setup.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-10.0.0-beta.1.zip`
 
 
 

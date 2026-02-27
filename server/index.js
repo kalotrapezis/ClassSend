@@ -233,7 +233,7 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '9.5.1', // Should match package.json
+    version: '10.0.0-beta.1', // Should match package.json
     classes: classes
   });
 });

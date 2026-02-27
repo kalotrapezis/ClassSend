@@ -1,5 +1,22 @@
 # Release Notes
 
+## [10.0.0-beta.1] - 2026-02-27
+### FIXES
+- **Advanced Filtering**: Resolved core logic issues to ensure stable profanity detection.
+- **Sensitivity Controls**: Added interactive sliders for "Warning" and "Block" thresholds in the moderation settings.
+- **UI State**: Fixed a bug where teacher tools remained highlighted even when not active.
+
+### NEW (Windows)
+- **Student Monitoring**: Enhanced monitoring system that periodically sends low-resolution screenshots (5, 10, 15, 20 sec intervals).
+- **Screen Lock**: Added "Κλείδωμα Οθόνης" - a full-screen, always-on-top plane to restrict student activity.
+- **End of Day**: Implemented "Τερματισμός Τέλους Ημέρας" for bulk classroom termination.
+- **Focus Mode**: Automatic window restoration from the system tray when focus is requested.
+- **Automatic Downloads**: Predetermined download location support across all classroom PCs.
+
+### COMING SOON
+- **Remote Execution**: Direct application execution on all student PCs from the teacher console.
+
+
 ## [9.5.1] - 2026-02-25
 ### Added
 - **Media Library Deletion**: Implemented both individual and library-wide media deletion with physical file removal.
