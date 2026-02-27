@@ -13,6 +13,12 @@
 - **⚙️ Persisted Settings**: Log settings and Advanced Filter configurations are saved securely upon changes.
 - **📌 Pinned Comments**: Improved UI, styling, and action button propagation for pinned messages.
 - **🏷️ Consistent Styling**: Action buttons feature unified labels, hover states, colors, and layout across all message types.
+- **🖥️ (New) Student Monitoring**: Periodic low-resolution screenshots for classroom oversight.
+- **🔒 (New) Screen Lock**: "Κλείδωμα Οθόνης" to restrict student activity with a full-screen overlay.
+- **⏳ (New) End of Day**: "Τερματισμός Τέλους Ημέρας" for bulk classroom termination.
+- **🎯 (New) Focus Mode**: Automatic window restoration from the system tray.
+- **📥 (New) Automatic Downloads**: Support for predetermined download locations across all PCs.
+- **🎚️ (New) Sensitivity Controls**: Interactive sliders for moderation thresholds.
 - **� Smart Auto-Connect**: The app dynamically probes for known servers from history and seamlessly routes students and teachers to the right place.
 - **� Instant Start**: New students skip the setup screens and go straight to finding a class.
 - **✨ Visual Polish**: Progress bars for sending/receiving files, and system messages that auto-delete with a sleek visual timer.
