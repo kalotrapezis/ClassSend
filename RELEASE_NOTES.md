@@ -1,5 +1,9 @@
 # Release Notes
 
+## [10.1.0] - 2026-02-28
+### NEW
+- **Beta Release**: Updated version and preparing for beta branch deployment.
+
 ## [10.0.1] - 2026-02-28
 ### FIXES
 - **Translation Fixes**: Corrected missing and incorrect translations across the application.

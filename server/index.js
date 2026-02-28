@@ -2018,6 +2018,17 @@ io.on('connection', (socket) => {
     console.log(`Allow hands up set to ${enabled} in class ${classId}`);
   });
 
+  // Remote App Launch (Teacher → all students in class)
+  socket.on('launch-app', ({ classId, command }) => {
+    if (!classId || !command) return;
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return; // Only teacher can launch
+    console.log(`🚀 [AppLaunch] Teacher launched in class ${classId}: ${command}`);
+    // Broadcast to students only (exclude the teacher socket)
+    socket.to(classId).emit('launch-app', { command });
+  });
+
   // Language sync (Teacher to students)
   socket.on('set-class-language', ({ classId, language }) => {
     if (!activeClasses.has(classId)) return;

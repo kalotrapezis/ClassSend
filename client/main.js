@@ -824,13 +824,339 @@ if (btnToolAllowHands) {
 
 const btnToolRemoteLaunch = document.getElementById("btn-tool-remote-launch");
 
-if (btnToolRemoteLaunch) {
-    btnToolRemoteLaunch.addEventListener("click", () => {
+// ===== APP LAUNCH MODAL =====
+const appLaunchModal = document.getElementById("app-launch-modal");
+const btnCloseAppLaunch = document.getElementById("btn-close-app-launch");
+const appTilesGrid = document.getElementById("app-tiles-grid");
+const docTilesGrid = document.getElementById("doc-tiles-grid");
+const appLaunchFavoritesList = document.getElementById("app-launch-favorites-list");
+const btnLaunchCustomApp = document.getElementById("btn-launch-custom-app");
+const appLaunchCustomInput = document.getElementById("app-launch-custom-input");
+
+// Favorites state — stored as array of { id, label, icon, command }
+let appLaunchFavorites = [];
+function loadAppFavorites() {
+    try { appLaunchFavorites = JSON.parse(localStorage.getItem('classsend-app-favorites') || '[]'); } catch { appLaunchFavorites = []; }
+}
+function saveAppFavorites() {
+    localStorage.setItem('classsend-app-favorites', JSON.stringify(appLaunchFavorites));
+}
+loadAppFavorites();
+
+// Predefined app definitions
+// command uses pipe (|) to separate 64-bit|32-bit paths
+const PREDEFINED_APPS = [
+    {
+        id: 'gcompris',
+        label: 'GCompris',
+        icon: '/assets/application-x-executable-svgrepo-com.svg',
+        command: 'C:\\Program Files\\GCompris\\gcompris-qt.exe|C:\\Program Files (x86)\\GCompris\\gcompris-qt.exe'
+    },
+    {
+        id: 'scratch',
+        label: 'Scratch',
+        icon: '/assets/application-x-executable-svgrepo-com.svg',
+        command: 'C:\\Program Files\\Scratch Desktop\\Scratch Desktop.exe|C:\\Program Files (x86)\\Scratch Desktop\\Scratch Desktop.exe'
+    },
+    {
+        id: 'serban',
+        label: 'Serban',
+        icon: '/assets/application-x-executable-svgrepo-com.svg',
+        command: 'C:\\Program Files\\Serban\\Serban.exe|C:\\Program Files (x86)\\Serban\\Serban.exe'
+    },
+    {
+        id: 'paint',
+        label: 'Paint',
+        icon: '/assets/brush-svgrepo-com.svg',
+        command: 'mspaint.exe'
+    },
+    {
+        id: 'calculator',
+        label: t('label-calculator') || 'Calculator',
+        icon: '/assets/data-svgrepo-com.svg',
+        command: 'calc.exe'
+    },
+    {
+        id: 'notepad',
+        label: 'Notepad',
+        icon: '/assets/files-svgrepo-com.svg',
+        command: 'notepad.exe'
+    },
+    {
+        id: 'tuxpaint',
+        label: 'TuxPaint',
+        icon: '/assets/brush-svgrepo-com.svg',
+        command: 'C:\\Program Files\\TuxPaint\\tuxpaint.exe|C:\\Program Files (x86)\\TuxPaint\\tuxpaint.exe'
+    },
+    {
+        id: 'tuxmath',
+        label: 'TuxMath',
+        icon: '/assets/data-svgrepo-com.svg',
+        command: 'C:\\Program Files\\TuxMath\\tuxmath.exe|C:\\Program Files (x86)\\TuxMath\\tuxmath.exe'
+    },
+    {
+        id: 'supertux',
+        label: 'SuperTux',
+        icon: '/assets/application-x-executable-svgrepo-com.svg',
+        command: 'C:\\Program Files\\SuperTux\\bin\\supertux2.exe|C:\\Program Files (x86)\\SuperTux\\bin\\supertux2.exe'
+    },
+    {
+        id: 'supertuxkart',
+        label: 'SuperTuxKart',
+        icon: '/assets/application-x-executable-svgrepo-com.svg',
+        command: 'C:\\Program Files\\SuperTuxKart\\bin\\supertuxkart.exe|C:\\Program Files (x86)\\SuperTuxKart\\bin\\supertuxkart.exe'
+    }
+];
+
+// Document / URL shortcuts
+const PREDEFINED_DOCS = [
+    {
+        id: 'new-docx',
+        label: 'Word (.docx)',
+        icon: '/assets/files-svgrepo-com.svg',
+        command: 'winword.exe'
+    },
+    {
+        id: 'new-xlsx',
+        label: 'Excel (.xlsx)',
+        icon: '/assets/excel-file-svgrepo-com.svg',
+        command: 'excel.exe'
+    },
+    {
+        id: 'new-pptx',
+        label: 'PowerPoint',
+        icon: '/assets/image-square-svgrepo-com.svg',
+        command: 'powerpnt.exe'
+    },
+    {
+        id: 'url-browser',
+        label: t('label-open-url') || 'Open URL...',
+        icon: '/assets/browser-svgrepo-com.svg',
+        command: null // handled by opening advanced section
+    }
+];
+
+function isFavorited(id) {
+    return appLaunchFavorites.some(f => f.id === id);
+}
+
+function toggleFavorite(app) {
+    const idx = appLaunchFavorites.findIndex(f => f.id === app.id);
+    if (idx === -1) {
+        appLaunchFavorites.push({ id: app.id, label: app.label, icon: app.icon, command: app.command });
+    } else {
+        appLaunchFavorites.splice(idx, 1);
+    }
+    saveAppFavorites();
+    renderAppTiles();
+    renderFavoritesList();
+}
+
+function doLaunchApp(command) {
+    if (!command) return;
+    if (currentRole !== 'teacher') return;
+    // Emit to server which broadcasts to students
+    socket.emit('launch-app', { classId: currentClassId, command });
+    // Show toast for teacher
+    const lang = currentLanguage;
+    const msg = (translations[lang] && translations[lang]['toast-app-launched']) || 'App launched on all students';
+    showToast(msg, 'success');
+}
+
+function renderAppTile(app, grid) {
+    const tile = document.createElement('div');
+    tile.className = 'app-tile';
+    tile.title = app.label;
+
+    // star button
+    const star = document.createElement('button');
+    star.className = 'app-tile-star' + (isFavorited(app.id) ? ' is-favorite' : '');
+    star.title = isFavorited(app.id) ? 'Remove from favorites' : 'Add to favorites';
+    star.innerHTML = `<img src="/assets/${isFavorited(app.id) ? 'favorite-filled' : 'favorite'}.svg" class="icon-svg" />`;
+    star.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFavorite(app);
+    });
+
+    // icon
+    const icon = document.createElement('img');
+    icon.className = 'app-tile-icon';
+    icon.src = app.icon;
+    icon.alt = app.label;
+    icon.onerror = () => { icon.src = '/assets/application-x-executable-svgrepo-com.svg'; };
+
+    // label
+    const label = document.createElement('span');
+    label.className = 'app-tile-label';
+    label.textContent = app.label;
+
+    // launch bar (shown on hover via CSS)
+    const launchBar = document.createElement('button');
+    launchBar.className = 'app-tile-launch';
+    const lang = currentLanguage;
+    launchBar.textContent = (translations[lang] && translations[lang]['btn-launch-app']) || 'Launch';
+    launchBar.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (app.id === 'url-browser') {
+            // Open advanced section
+            const details = document.querySelector('.app-launch-advanced');
+            if (details) details.open = true;
+            if (appLaunchCustomInput) appLaunchCustomInput.focus();
+            return;
+        }
+        doLaunchApp(app.command);
+    });
+
+    tile.appendChild(star);
+    tile.appendChild(icon);
+    tile.appendChild(label);
+    tile.appendChild(launchBar);
+    grid.appendChild(tile);
+}
+
+function renderAppTiles() {
+    if (!appTilesGrid || !docTilesGrid) return;
+    appTilesGrid.innerHTML = '';
+    docTilesGrid.innerHTML = '';
+    PREDEFINED_APPS.forEach(app => renderAppTile(app, appTilesGrid));
+    PREDEFINED_DOCS.forEach(app => renderAppTile(app, docTilesGrid));
+}
+
+function renderFavoritesList() {
+    if (!appLaunchFavoritesList) return;
+    appLaunchFavoritesList.innerHTML = '';
+    if (appLaunchFavorites.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'app-launch-empty';
         const lang = currentLanguage;
-        const msg = translations[lang]['toast-remote-launch-soon'] || "Remote Launch is coming soon!";
-        showToast(msg, "info");
+        empty.textContent = (translations[lang] && translations[lang]['app-launch-empty-state']) || 'No favorites yet — star an app above';
+        appLaunchFavoritesList.appendChild(empty);
+        return;
+    }
+    appLaunchFavorites.forEach(fav => {
+        const item = document.createElement('div');
+        item.className = 'fav-item';
+
+        const icon = document.createElement('img');
+        icon.className = 'fav-item-icon';
+        icon.src = fav.icon;
+        icon.alt = fav.label;
+        icon.onerror = () => { icon.src = '/assets/application-x-executable-svgrepo-com.svg'; };
+
+        const lbl = document.createElement('span');
+        lbl.className = 'fav-item-label';
+        lbl.textContent = fav.label;
+
+        const actions = document.createElement('div');
+        actions.className = 'fav-item-actions';
+
+        const launchBtn = document.createElement('button');
+        launchBtn.className = 'fav-btn';
+        launchBtn.innerHTML = `<img src="/assets/AppLaunch.svg" /> Launch`;
+        launchBtn.addEventListener('click', () => doLaunchApp(fav.command));
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'fav-btn remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.title = 'Remove';
+        removeBtn.addEventListener('click', () => {
+            appLaunchFavorites = appLaunchFavorites.filter(f => f.id !== fav.id);
+            saveAppFavorites();
+            renderAppTiles();
+            renderFavoritesList();
+        });
+
+        actions.appendChild(launchBtn);
+        actions.appendChild(removeBtn);
+        item.appendChild(icon);
+        item.appendChild(lbl);
+        item.appendChild(actions);
+        appLaunchFavoritesList.appendChild(item);
     });
 }
+
+// Open modal
+if (btnToolRemoteLaunch) {
+    btnToolRemoteLaunch.addEventListener("click", () => {
+        if (currentRole !== 'teacher') return;
+        renderAppTiles();
+        renderFavoritesList();
+        appLaunchModal.classList.remove("hidden");
+        toolsMenu.classList.remove("active");
+        btnToolsToggle.classList.remove("active");
+    });
+}
+
+// Close modal
+if (btnCloseAppLaunch) {
+    btnCloseAppLaunch.addEventListener("click", () => appLaunchModal.classList.add("hidden"));
+}
+if (appLaunchModal) {
+    appLaunchModal.addEventListener("click", (e) => {
+        if (e.target === appLaunchModal) appLaunchModal.classList.add("hidden");
+    });
+}
+
+// Advanced custom launch
+if (btnLaunchCustomApp) {
+    btnLaunchCustomApp.addEventListener("click", () => {
+        const command = appLaunchCustomInput.value.trim();
+        if (command) doLaunchApp(command);
+    });
+}
+
+// Add to favorites from custom input
+const btnAddCustomFavorite = document.getElementById("btn-add-custom-favorite");
+if (btnAddCustomFavorite && appLaunchCustomInput) {
+    btnAddCustomFavorite.addEventListener("click", () => {
+        const command = appLaunchCustomInput.value.trim();
+        if (!command) return;
+
+        // Create a custom app object
+        // Use a hash or just the command as a pseudo-id
+        const customId = 'custom-' + btoa(command).substring(0, 12);
+
+        // Check if already behavior
+        if (appLaunchFavorites.some(f => f.command === command)) {
+            showToast('Already in favorites', 'info');
+            return;
+        }
+
+        const newFav = {
+            id: customId,
+            label: command.length > 20 ? command.substring(0, 17) + '...' : command,
+            icon: command.toLowerCase().startsWith('http') ? '/assets/browser-svgrepo-com.svg' : '/assets/application-x-executable-svgrepo-com.svg',
+            command: command
+        };
+
+        appLaunchFavorites.push(newFav);
+        saveAppFavorites();
+        renderAppTiles();
+        renderFavoritesList();
+        showToast('Added to favorites', 'success');
+        appLaunchCustomInput.value = '';
+    });
+}
+if (appLaunchCustomInput) {
+    appLaunchCustomInput.addEventListener("keydown", (e) => {
+        if (e.key === 'Enter') btnLaunchCustomApp && btnLaunchCustomApp.click();
+    });
+}
+
+// Student-side socket listener: receive launch command and execute via Electron IPC
+socket.on('launch-app', async ({ command }) => {
+    if (currentRole !== 'student') return;
+    if (!command) return;
+    console.log(`[AppLaunch] Received launch command from teacher: ${command}`);
+    if (window.electron && window.electron.ipcRenderer) {
+        const result = await window.electron.ipcRenderer.invoke('launch-app', { command });
+        console.log('[AppLaunch] IPC result:', result);
+    } else {
+        // Web fallback: if it's a URL, try opening it
+        const isUrl = /^(https?|ftp):\/\//i.test(command.trim());
+        if (isUrl) window.open(command.trim(), '_blank');
+    }
+});
 
 if (sidebarOverlay) {
     sidebarOverlay.addEventListener("click", () => {

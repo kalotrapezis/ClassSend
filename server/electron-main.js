@@ -487,6 +487,63 @@ function createWindow() {
         return { success: false, error: "Window not found" };
     });
 
+    // ===== REMOTE APP LAUNCH =====
+    // Receives { command } from the renderer (via socket).
+    // command can be:
+    //   • A URL (http/https/ftp) → open in default browser
+    //   • A path that may contain {64} and {32} placeholders for arch-specific paths
+    //   • A plain executable path → launch directly
+    ipcMain.handle('launch-app', async (event, { command }) => {
+        try {
+            if (!command) return { success: false, error: 'No command provided' };
+
+            const isUrl = /^(https?|ftp):\/\//i.test(command.trim());
+
+            if (isUrl) {
+                await shell.openExternal(command.trim());
+                console.log(`[AppLaunch] Opened URL: ${command}`);
+                return { success: true, type: 'url' };
+            }
+
+            // Executable launch
+            // Support {64} / {32} path placeholders separated by |
+            // e.g.: "C:\Program Files\App\app.exe|C:\Program Files (x86)\App\app.exe"
+            let execPath = command.trim();
+            let fallbackPath = null;
+
+            if (command.includes('|')) {
+                const parts = command.split('|');
+                execPath = parts[0].trim();
+                fallbackPath = parts[1].trim();
+            }
+
+            // Determine which path to use based on OS arch
+            const is64bit = os.arch() === 'x64' || os.arch() === 'arm64';
+            let chosenPath = is64bit ? execPath : (fallbackPath || execPath);
+
+            // If chosen path doesn't exist and we have a fallback, swap
+            if (fallbackPath && !fs.existsSync(chosenPath) && fs.existsSync(fallbackPath)) {
+                console.log(`[AppLaunch] Primary path not found, using fallback: ${fallbackPath}`);
+                chosenPath = fallbackPath;
+            }
+
+            // Wrap path in quotes for safety
+            const safeCmd = `"${chosenPath}"`;
+            exec(safeCmd, (error) => {
+                if (error) {
+                    console.error(`[AppLaunch] Failed to launch: ${chosenPath}`, error);
+                } else {
+                    console.log(`[AppLaunch] Launched: ${chosenPath}`);
+                }
+            });
+
+            return { success: true, type: 'exe', path: chosenPath };
+        } catch (err) {
+            console.error('[AppLaunch] Error:', err);
+            return { success: false, error: err.message };
+        }
+    });
+
     // Auto-download file creation
     ipcMain.handle('auto-download', async (event, { url, filename, customPath }) => {
         try {

@@ -5723,3 +5723,279 @@ input:checked+.slider:before {
 .monitoring-placeholder {
   transition: opacity 0.3s ease;
 }
+
+/* ===== APP LAUNCH MODAL ===== */
+.app-launch-modal-content {
+  max-width: 560px;
+  width: 94%;
+  max-height: 82vh;
+  overflow-y: auto;
+  border-top: 4px solid var(--accent-primary);
+}
+
+.app-launch-body {
+  padding: 0.5rem 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.app-launch-section-header {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-primary);
+  padding: 0.8rem 0 0.4rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.favorites-header .favorites-hint {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* App tiles grid */
+.app-tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+  padding: 0.4rem 0;
+}
+
+.app-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 6px 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s var(--smooth);
+  position: relative;
+  min-height: 76px;
+  text-align: center;
+}
+
+.app-tile:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.app-tile:active {
+  transform: scale(0.96);
+}
+
+.app-tile-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.app-tile-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+/* Favorite star on tile */
+.app-tile-star {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  line-height: 1;
+}
+
+.app-tile:hover .app-tile-star,
+.app-tile-star.is-favorite {
+  opacity: 1;
+}
+
+.app-tile-star img {
+  width: 14px;
+  height: 14px;
+}
+
+/* Launch button on tile (shows on hover) */
+.app-tile-launch {
+  display: none;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 3px 0;
+  border-radius: 0 0 9px 9px;
+  cursor: pointer;
+  border: none;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.app-tile:hover .app-tile-launch {
+  display: block;
+}
+
+/* Favorites list */
+.app-launch-favorites-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0.25rem 0;
+}
+
+.app-launch-empty {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 10px 0;
+}
+
+.fav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.fav-item-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.fav-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fav-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.fav-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 3px 7px;
+  font-size: 0.72rem;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.fav-btn:hover {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.fav-btn img {
+  width: 12px;
+  height: 12px;
+}
+
+.fav-btn.remove-btn:hover {
+  background: var(--error);
+  border-color: var(--error);
+}
+
+/* Advanced collapsible */
+.app-launch-advanced {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.app-launch-advanced summary {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s var(--smooth);
+}
+
+.app-launch-advanced summary::before {
+  content: '›';
+  font-size: 1rem;
+  transition: transform 0.2s ease;
+  display: inline-block;
+  color: var(--accent-primary);
+}
+
+.app-launch-advanced[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.app-launch-advanced summary:hover {
+  background: var(--bg-tertiary);
+  color: #fff;
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+
+.app-launch-advanced-body {
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.app-launch-advanced-hint {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.app-launch-advanced-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.app-launch-advanced-row .setting-input {
+  flex: 1;
+  font-size: 0.82rem;
+  padding: 6px 10px;
+}

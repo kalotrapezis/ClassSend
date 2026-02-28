@@ -248,7 +248,20 @@ export const translations = {
         "alert-ip-suffix-missing": "Please enter the last number of the IP address",
         "alert-import-complete": "Import Complete!\n🚫 Blacklist: {totalBlacklist} requests sent\n✅ Whitelist: {totalWhitelist} requests sent\n\nLists should update shortly.",
         "toast-block-enabled": "Communications blocked",
-        "toast-block-disabled": "Communications allowed"
+        "toast-block-disabled": "Communications allowed",
+        "modal-app-launch-title": "App Launch",
+        "label-apps": "Applications",
+        "label-documents": "New Document",
+        "label-app-favorites": "Favorites",
+        "favorites-hint": "★ to pin",
+        "app-launch-empty-state": "No favorites yet — star an app above",
+        "btn-launch-app": "Launch",
+        "placeholder-app-path": "C:\\Program Files\\app.exe  or  https://...",
+        "label-advanced": "Advanced",
+        "advanced-launch-hint": "Enter a full .exe path or a URL. URLs open in the default browser.",
+        "label-open-url": "Open URL...",
+        "label-calculator": "Calculator",
+        "toast-app-launched": "App launched on all students"
     },
 
     el: {
@@ -497,6 +510,19 @@ export const translations = {
         "alert-ai-load-failed": "Αποτυχία φόρτωσης του μοντέλου AI. Ελέγξτε τα αρχεία καταγραφής.",
         "alert-startup-failed": "Αποτυχία ενημέρωσης της ρύθμισης εκκίνησης: {message}",
         "alert-ip-suffix-missing": "Παρακαλώ εισάγετε τον τελευταίο αριθμό της διεύθυνσης IP",
-        "alert-import-complete": "Η εισαγωγή ολοκληρώθηκε!\n🚫 Μαύρη Λίστα: {totalBlacklist} αιτήματα εστάλησαν\n✅ Λευκή Λίστα: {totalWhitelist} αιτήματα εστάλησαν\n\nΟι λίστες θα ενημερωθούν σύντομα."
+        "alert-import-complete": "Η εισαγωγή ολοκληρώθηκε!\n🚫 Μαύρη Λίστα: {totalBlacklist} αιτήματα εστάλησαν\n✅ Λευκή Λίστα: {totalWhitelist} αιτήματα εστάλησαν\n\nΟι λίστες θα ενημερωθούν σύντομα.",
+        "modal-app-launch-title": "Εκκίνηση Εφαρμογής",
+        "label-apps": "Εφαρμογές",
+        "label-documents": "Νέο Έγγραφο",
+        "label-app-favorites": "Αγαπημένα",
+        "favorites-hint": "★ για καρφίτσωμα",
+        "app-launch-empty-state": "Δεν υπάρχουν αγαπημένα — αστεράκι σε μια εφαρμογή παραπάνω",
+        "btn-launch-app": "Εκκίνηση",
+        "placeholder-app-path": "C:\\Program Files\\εφαρμογή.exe  ή  https://...",
+        "label-advanced": "Για προχωρημένους",
+        "advanced-launch-hint": "Εισάγετε πλήρη διαδρομή .exe ή URL. Τα URL ανοίγουν στο προεπιλεγμένο πρόγραμμα περιήγησης.",
+        "label-open-url": "Άνοιγμα URL...",
+        "label-calculator": "Αριθμομηχανή",
+        "toast-app-launched": "Η εφαρμογή εκκινήθηκε σε όλους τους μαθητές"
     }
 };

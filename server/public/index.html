@@ -15,8 +15,8 @@
     rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap"
     rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index-BoYFvU5g.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-Clp3ZgiI.css">
+  <script type="module" crossorigin src="/assets/index-DfE5311x.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-Biua2brZ.css">
 </head>
 
 <body>
@@ -924,6 +924,62 @@
         </div>
       </div>
 
+      <!-- App Launch Modal (Teacher Only) -->
+      <div id="app-launch-modal" class="modal hidden">
+        <div class="modal-content app-launch-modal-content">
+          <div class="popup-header">
+            <h3 class="popup-title-with-icon">
+              <img src="/assets/AppLaunch.svg" class="icon-svg" alt="App Launch" />
+              <span data-i18n="modal-app-launch-title">App Launch</span>
+            </h3>
+            <button id="btn-close-app-launch" class="close-btn">×</button>
+          </div>
+
+          <div class="app-launch-body">
+            <!-- Predefined Apps Grid -->
+            <div class="app-launch-section-header" data-i18n="label-apps">Applications</div>
+            <div class="app-tiles-grid" id="app-tiles-grid">
+              <!-- Tiles are dynamically rendered by JS -->
+            </div>
+
+            <!-- Documents Section -->
+            <div class="app-launch-section-header" data-i18n="label-documents">New Document</div>
+            <div class="app-tiles-grid" id="doc-tiles-grid">
+              <!-- Document tiles rendered by JS -->
+            </div>
+
+            <!-- Favorites Section -->
+            <div class="app-launch-section-header favorites-header">
+              <span data-i18n="label-app-favorites">Favorites</span>
+              <span class="favorites-hint" data-i18n="favorites-hint">★ to pin</span>
+            </div>
+            <div id="app-launch-favorites-list" class="app-launch-favorites-list">
+              <div class="app-launch-empty" data-i18n="app-launch-empty-state">No favorites yet — star an app above
+              </div>
+            </div>
+
+            <!-- Advanced Section (collapsible) -->
+            <details class="app-launch-advanced">
+              <summary data-i18n="label-advanced">Advanced</summary>
+              <div class="app-launch-advanced-body">
+                <p class="app-launch-advanced-hint" data-i18n="advanced-launch-hint">Enter a full .exe path or a URL.
+                  URLs open in the default browser.</p>
+                <div class="app-launch-advanced-row">
+                  <input type="text" id="app-launch-custom-input" class="setting-input"
+                    placeholder="C:\Program Files\app.exe  or  https://..."
+                    data-i18n-placeholder="placeholder-app-path" />
+                  <button id="btn-add-custom-favorite" class="icon-btn-small" title="Add to favorites">
+                    <img src="/assets/favorite.svg" class="icon-svg" />
+                  </button>
+                  <button id="btn-launch-custom-app" class="small-primary-btn"
+                    data-i18n="btn-launch-app">Launch</button>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+
       <!-- Text Selection Popup (for adding words from chat) -->
       <div id="text-selection-popup" class="text-selection-popup hidden">
         <button id="btn-add-selection-to-blacklist">
@@ -1071,7 +1127,7 @@
                     </button>
                     <button id="btn-tool-remote-launch" class="tool-menu-btn" title="Remote Launch"
                       data-i18n-title="btn-remote-launch">
-                      <img src="/assets/rocket-svgrepo-com.svg" class="icon-svg"
+                      <img src="/assets/AppLaunch.svg" class="icon-svg"
                         onerror="this.src='/assets/plus-circle-svgrepo-com.svg'" alt="Launch" />
                       <span data-i18n="btn-remote-launch">Remote Launch</span>
                     </button>
