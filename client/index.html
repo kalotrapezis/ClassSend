@@ -601,7 +601,7 @@
                     </div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
                     <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
-                        id="app-version-display">10.0.0-beta.1</span></p>
+                        id="app-version-display">10.2.1-beta</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
@@ -1218,25 +1218,24 @@
               <button id="btn-image-fullscreen" class="video-control-btn" title="Fullscreen"
                 data-i18n-title="btn-fullscreen-title"><img src="/assets/full-screen-square-svgrepo-com.svg"
                   class="icon-video-ctrl" /></button>
+
+              <!-- Divider and Focus Controls -->
+              <div id="focus-divider" class="video-ctrl-divider hidden"></div>
+              <button id="btn-focus-lock" class="video-control-btn hidden" title="Lock Screen"
+                data-i18n-title="btn-tool-lock-screen">
+                <img src="/assets/lock-svgrepo-com.svg" class="icon-video-ctrl" />
+              </button>
+              <button id="btn-focus-app" class="video-control-btn hidden" title="Focus Window"
+                data-i18n-title="btn-focus">
+                <img src="/assets/focus.svg" class="icon-video-ctrl" />
+              </button>
+              <button id="btn-focus-launch" class="video-control-btn hidden" title="App Launch"
+                data-i18n-title="btn-remote-launch">
+                <img src="/assets/AppLaunch.svg" class="icon-video-ctrl" />
+              </button>
             </div>
-            <!-- Monitor Focus Mode Controls (hidden by default, shown only in focus mode) -->
+            <!-- Monitor Focus Mode Controls - Favorites Row only -->
             <div id="monitor-focus-controls" class="monitor-focus-controls hidden">
-              <!-- Primary row: Lock · Focus · Launch -->
-              <div class="focus-ctrl-row">
-                <button id="btn-focus-lock" class="focus-pill-btn" title="Lock Screen">
-                  <img src="/assets/lock-svgrepo-com.svg" class="icon-video-ctrl focus-pill-icon" />
-                  <span id="focus-lock-label" data-i18n="btn-tool-lock-screen">Lock Screen</span>
-                </button>
-                <button id="btn-focus-app" class="focus-pill-btn" title="Focus App">
-                  <img src="/assets/focus.svg" class="icon-video-ctrl focus-pill-icon" />
-                  <span data-i18n="btn-focus">Focus Window</span>
-                </button>
-                <button id="btn-focus-launch" class="focus-pill-btn" title="App Execution">
-                  <img src="/assets/AppLaunch.svg" class="icon-video-ctrl focus-pill-icon" />
-                  <span data-i18n="btn-remote-launch">Remote Launch</span>
-                </button>
-              </div>
-              <!-- Secondary row: Favorites (fades in when Launch is clicked) -->
               <div id="focus-fav-row" class="focus-fav-row">
                 <!-- Dynamically populated from appLaunchFavorites -->
               </div>

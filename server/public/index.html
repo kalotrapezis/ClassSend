@@ -15,8 +15,8 @@
     rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap"
     rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index-DfE5311x.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-Biua2brZ.css">
+  <script type="module" crossorigin src="/assets/index-CXKSyte3.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DJhEaG07.css">
 </head>
 
 <body>
@@ -1219,6 +1219,28 @@
               <button id="btn-image-fullscreen" class="video-control-btn" title="Fullscreen"
                 data-i18n-title="btn-fullscreen-title"><img src="/assets/full-screen-square-svgrepo-com.svg"
                   class="icon-video-ctrl" /></button>
+            </div>
+            <!-- Monitor Focus Mode Controls (hidden by default, shown only in focus mode) -->
+            <div id="monitor-focus-controls" class="monitor-focus-controls hidden">
+              <!-- Primary row: Lock · Focus · Launch -->
+              <div class="focus-ctrl-row">
+                <button id="btn-focus-lock" class="focus-pill-btn" title="Lock Screen">
+                  <img src="/assets/lock-svgrepo-com.svg" class="icon-video-ctrl focus-pill-icon" />
+                  <span id="focus-lock-label" data-i18n="btn-tool-lock-screen">Lock Screen</span>
+                </button>
+                <button id="btn-focus-app" class="focus-pill-btn" title="Focus App">
+                  <img src="/assets/focus.svg" class="icon-video-ctrl focus-pill-icon" />
+                  <span data-i18n="btn-focus">Focus Window</span>
+                </button>
+                <button id="btn-focus-launch" class="focus-pill-btn" title="App Execution">
+                  <img src="/assets/AppLaunch.svg" class="icon-video-ctrl focus-pill-icon" />
+                  <span data-i18n="btn-remote-launch">Remote Launch</span>
+                </button>
+              </div>
+              <!-- Secondary row: Favorites (fades in when Launch is clicked) -->
+              <div id="focus-fav-row" class="focus-fav-row">
+                <!-- Dynamically populated from appLaunchFavorites -->
+              </div>
             </div>
           </div>
         </div>

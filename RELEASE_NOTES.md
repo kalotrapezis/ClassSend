@@ -1,5 +1,13 @@
 # Release Notes
 
+## [10.2.1-beta] - 2026-02-28
+### IMPROVEMENTS
+- **Documentation**: Updated README and help documentation for clarity.
+- **App Cards Fixes**: Resolved layout and state issues in the student monitoring grid.
+- **Launching Improvements**: Enhanced application execution reliability from the teacher console.
+- **UI Enhancements**: Refined the modern glassmorphism pill designs and animations.
+- **Asset Fixes**: Resolved 404 error by restoring missing `lock-svgrepo-com.svg` asset.
+
 ## [10.2.0-beta.1] - 2026-02-28
 ### NEW
 - **Monitor Focus Controls**: Added individual Lock, App Focus, and Remote Launch pill controls to the focused monitoring view.

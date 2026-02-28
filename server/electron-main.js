@@ -487,57 +487,114 @@ function createWindow() {
         return { success: false, error: "Window not found" };
     });
 
+    // Helper function to resolve paths with environment variables and wildcards
+    function resolveRobustPath(p) {
+        if (!p) return p;
+
+        // 1. Expand environment variables (case-insensitive lookup)
+        let resolved = p.replace(/%([^%]+)%/g, (_, name) => {
+            const upperName = name.toUpperCase();
+            // Try specific case first, then fall back to case-insensitive search
+            if (process.env[name]) return process.env[name];
+
+            const envKey = Object.keys(process.env).find(k => k.toUpperCase() === upperName);
+            return envKey ? process.env[envKey] : `%${name}%`;
+        });
+
+        // 2. Handle Wildcards for directories (e.g., SuperTuxKart*)
+        if (resolved.includes('*')) {
+            try {
+                const parts = resolved.split(/[\\/]/);
+                let current = '';
+
+                for (let i = 0; i < parts.length; i++) {
+                    const part = parts[i];
+                    if (i === 0 && part.includes(':')) {
+                        current = part + (part.endsWith('\\') ? '' : '\\');
+                        continue;
+                    }
+
+                    if (part.includes('*')) {
+                        const pattern = new RegExp('^' + part.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$', 'i');
+                        const entries = fs.readdirSync(current);
+                        const match = entries.find(e => pattern.test(e));
+                        if (match) {
+                            current = path.join(current, match);
+                        } else {
+                            current = path.join(current, part);
+                        }
+                    } else {
+                        current = current ? path.join(current, part) : part;
+                    }
+                }
+                resolved = current;
+            } catch (e) {
+                console.error(`[AppLaunch] Wildcard resolution failed for ${resolved}:`, e);
+            }
+        }
+
+        return resolved;
+    }
+
     // ===== REMOTE APP LAUNCH =====
-    // Receives { command } from the renderer (via socket).
-    // command can be:
-    //   • A URL (http/https/ftp) → open in default browser
-    //   • A path that may contain {64} and {32} placeholders for arch-specific paths
-    //   • A plain executable path → launch directly
     ipcMain.handle('launch-app', async (event, { command }) => {
         try {
             if (!command) return { success: false, error: 'No command provided' };
 
-            const isUrl = /^(https?|ftp):\/\//i.test(command.trim());
+            const trimmedCmd = command.trim();
+            const isUrl = /^(https?|ftp):\/\//i.test(trimmedCmd);
 
             if (isUrl) {
-                await shell.openExternal(command.trim());
-                console.log(`[AppLaunch] Opened URL: ${command}`);
+                await shell.openExternal(trimmedCmd);
+                console.log(`[AppLaunch] Opened URL: ${trimmedCmd}`);
                 return { success: true, type: 'url' };
             }
 
-            // Executable launch
-            // Support {64} / {32} path placeholders separated by |
-            // e.g.: "C:\Program Files\App\app.exe|C:\Program Files (x86)\App\app.exe"
-            let execPath = command.trim();
+            // Architecture-specific paths split by |
+            let execPath = trimmedCmd;
             let fallbackPath = null;
-
-            if (command.includes('|')) {
-                const parts = command.split('|');
+            if (trimmedCmd.includes('|')) {
+                const parts = trimmedCmd.split('|');
                 execPath = parts[0].trim();
                 fallbackPath = parts[1].trim();
             }
 
-            // Determine which path to use based on OS arch
             const is64bit = os.arch() === 'x64' || os.arch() === 'arm64';
-            let chosenPath = is64bit ? execPath : (fallbackPath || execPath);
+            let rawPath = is64bit ? execPath : (fallbackPath || execPath);
+            let chosenPath = resolveRobustPath(rawPath);
 
-            // If chosen path doesn't exist and we have a fallback, swap
-            if (fallbackPath && !fs.existsSync(chosenPath) && fs.existsSync(fallbackPath)) {
-                console.log(`[AppLaunch] Primary path not found, using fallback: ${fallbackPath}`);
-                chosenPath = fallbackPath;
+            // If primary not found, try fallback
+            if (fallbackPath && !fs.existsSync(chosenPath)) {
+                let resolvedFallback = resolveRobustPath(fallbackPath);
+                if (fs.existsSync(resolvedFallback)) {
+                    console.log(`[AppLaunch] Primary not found, using fallback: ${resolvedFallback}`);
+                    chosenPath = resolvedFallback;
+                }
             }
 
-            // Wrap path in quotes for safety
-            const safeCmd = `"${chosenPath}"`;
-            exec(safeCmd, (error) => {
+            // EXECUTION
+            if (fs.existsSync(chosenPath)) {
+                // If it's a literal file path, use shell.openPath (more robust for Electron)
+                console.log(`[AppLaunch] Launching file path: ${chosenPath}`);
+                const error = await shell.openPath(chosenPath);
                 if (error) {
-                    console.error(`[AppLaunch] Failed to launch: ${chosenPath}`, error);
-                } else {
-                    console.log(`[AppLaunch] Launched: ${chosenPath}`);
+                    console.error(`[AppLaunch] shell.openPath failed: ${error}`);
+                    // Fallback to exec if shell failed
+                    exec(`"${chosenPath}"`);
                 }
-            });
+                return { success: true, type: 'exe', method: 'shell', path: chosenPath };
+            } else {
+                // If not found as file, it might be in PATH (like 'mspaint' or 'calc')
+                // Run WITHOUT quotes if it's a single word/no path separators
+                const shouldQuote = chosenPath.includes(' ') || chosenPath.includes('\\') || chosenPath.includes('/');
+                const finalCmd = shouldQuote ? `"${chosenPath}"` : chosenPath;
 
-            return { success: true, type: 'exe', path: chosenPath };
+                console.log(`[AppLaunch] Launching command: ${finalCmd}`);
+                exec(finalCmd, (err) => {
+                    if (err) console.error(`[AppLaunch] exec failed for ${finalCmd}:`, err);
+                });
+                return { success: true, type: 'exe', method: 'exec', path: chosenPath };
+            }
         } catch (err) {
             console.error('[AppLaunch] Error:', err);
             return { success: false, error: err.message };

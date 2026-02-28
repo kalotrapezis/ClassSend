@@ -836,97 +836,154 @@ const appLaunchCustomInput = document.getElementById("app-launch-custom-input");
 // Favorites state — stored as array of { id, label, icon, command }
 let appLaunchFavorites = [];
 function loadAppFavorites() {
-    try { appLaunchFavorites = JSON.parse(localStorage.getItem('classsend-app-favorites') || '[]'); } catch { appLaunchFavorites = []; }
+    try {
+        const stored = JSON.parse(localStorage.getItem('classsend-app-favorites') || '[]');
+        // Sync with predefined lists to handle path/label updates
+        appLaunchFavorites = stored.map(fav => {
+            const predefined = [...(typeof PREDEFINED_APPS !== 'undefined' ? PREDEFINED_APPS : []), ...(typeof PREDEFINED_DOCS !== 'undefined' ? PREDEFINED_DOCS : [])].find(p => p.id === fav.id);
+            if (predefined) return { ...predefined };
+            return fav;
+        });
+    } catch { appLaunchFavorites = []; }
 }
 function saveAppFavorites() {
     localStorage.setItem('classsend-app-favorites', JSON.stringify(appLaunchFavorites));
 }
-loadAppFavorites();
+// definitions moved before load call
+
 
 // Predefined app definitions
-// command uses pipe (|) to separate 64-bit|32-bit paths
+// command uses pipe (|) to separate preferred|fallback paths, supports %env% and * wildcards
 const PREDEFINED_APPS = [
     {
         id: 'gcompris',
         label: 'GCompris',
         icon: '/assets/application-x-executable-svgrepo-com.svg',
-        command: 'C:\\Program Files\\GCompris\\gcompris-qt.exe|C:\\Program Files (x86)\\GCompris\\gcompris-qt.exe'
+        command: 'C:\\Program Files\\GCompris-Qt\\bin\\GCompris.exe'
+    },
+    {
+        id: 'scratch-jr',
+        label: 'ScratchJr',
+        icon: '/assets/application-x-executable-svgrepo-com.svg',
+        command: '%LocalAppData%\\ScratchJr\\ScratchJr.exe'
     },
     {
         id: 'scratch',
-        label: 'Scratch',
+        label: 'Scratch 3',
         icon: '/assets/application-x-executable-svgrepo-com.svg',
-        command: 'C:\\Program Files\\Scratch Desktop\\Scratch Desktop.exe|C:\\Program Files (x86)\\Scratch Desktop\\Scratch Desktop.exe'
+        command: 'C:\\Program Files (x86)\\Scratch 3\\Scratch 3.exe'
     },
     {
-        id: 'serban',
-        label: 'Serban',
+        id: 'sebran',
+        label: 'Sebran',
         icon: '/assets/application-x-executable-svgrepo-com.svg',
-        command: 'C:\\Program Files\\Serban\\Serban.exe|C:\\Program Files (x86)\\Serban\\Serban.exe'
-    },
-    {
-        id: 'paint',
-        label: 'Paint',
-        icon: '/assets/brush-svgrepo-com.svg',
-        command: 'mspaint.exe'
-    },
-    {
-        id: 'calculator',
-        label: t('label-calculator') || 'Calculator',
-        icon: '/assets/data-svgrepo-com.svg',
-        command: 'calc.exe'
-    },
-    {
-        id: 'notepad',
-        label: 'Notepad',
-        icon: '/assets/files-svgrepo-com.svg',
-        command: 'notepad.exe'
+        command: 'C:\\Program Files (x86)\\Sebran\\SEBRAN.EXE'
     },
     {
         id: 'tuxpaint',
         label: 'TuxPaint',
         icon: '/assets/brush-svgrepo-com.svg',
-        command: 'C:\\Program Files\\TuxPaint\\tuxpaint.exe|C:\\Program Files (x86)\\TuxPaint\\tuxpaint.exe'
-    },
-    {
-        id: 'tuxmath',
-        label: 'TuxMath',
-        icon: '/assets/data-svgrepo-com.svg',
-        command: 'C:\\Program Files\\TuxMath\\tuxmath.exe|C:\\Program Files (x86)\\TuxMath\\tuxmath.exe'
+        command: 'C:\\Program Files\\TuxPaint\\tuxpaint.exe'
     },
     {
         id: 'supertux',
         label: 'SuperTux',
         icon: '/assets/application-x-executable-svgrepo-com.svg',
-        command: 'C:\\Program Files\\SuperTux\\bin\\supertux2.exe|C:\\Program Files (x86)\\SuperTux\\bin\\supertux2.exe'
+        command: 'C:\\Program Files\\SuperTux\\bin\\supertux2.exe'
     },
     {
         id: 'supertuxkart',
         label: 'SuperTuxKart',
         icon: '/assets/application-x-executable-svgrepo-com.svg',
-        command: 'C:\\Program Files\\SuperTuxKart\\bin\\supertuxkart.exe|C:\\Program Files (x86)\\SuperTuxKart\\bin\\supertuxkart.exe'
+        command: 'C:\\Program Files\\SuperTuxKart*\\supertuxkart.exe'
+    },
+    {
+        id: 'chrome',
+        label: 'Google Chrome',
+        icon: '/assets/browser-svgrepo-com.svg',
+        command: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+    },
+    {
+        id: 'pictoblox',
+        label: 'PictoBlox',
+        icon: '/assets/application-x-executable-svgrepo-com.svg',
+        command: 'C:\\Program Files\\PictoBlox\\PictoBlox.exe'
+    },
+    {
+        id: 'onlyoffice',
+        label: 'ONLYOFFICE',
+        icon: '/assets/files-svgrepo-com.svg',
+        command: 'C:\\Program Files\\ONLYOFFICE\\DesktopEditors\\DesktopEditors.exe'
+    },
+    {
+        id: 'kdenlive',
+        label: 'Kdenlive',
+        icon: '/assets/application-x-executable-svgrepo-com.svg',
+        command: 'C:\\Program Files\\kdenlive\\bin\\kdenlive.exe'
+    },
+    {
+        id: 'audacity',
+        label: 'Audacity',
+        icon: '/assets/application-x-executable-svgrepo-com.svg',
+        command: 'C:\\Program Files\\Audacity\\Audacity.exe'
+    },
+    {
+        id: 'paint',
+        label: 'Paint',
+        icon: '/assets/brush-svgrepo-com.svg',
+        command: 'mspaint|C:\\Windows\\System32\\mspaint.exe'
     }
 ];
 
 // Document / URL shortcuts
 const PREDEFINED_DOCS = [
     {
+        id: 'calc',
+        label: t('label-calculator') || 'Calculator',
+        icon: '/assets/data-svgrepo-com.svg',
+        command: 'calc|C:\\Windows\\System32\\calc.exe'
+    },
+    {
+        id: 'notepad',
+        label: 'Notepad',
+        icon: '/assets/files-svgrepo-com.svg',
+        command: 'notepad|C:\\Windows\\System32\\notepad.exe'
+    },
+    {
         id: 'new-docx',
         label: 'Word (.docx)',
         icon: '/assets/files-svgrepo-com.svg',
-        command: 'winword.exe'
+        command: 'C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\WINWORD.EXE'
     },
     {
         id: 'new-xlsx',
         label: 'Excel (.xlsx)',
         icon: '/assets/excel-file-svgrepo-com.svg',
-        command: 'excel.exe'
+        command: 'C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\EXCEL.EXE'
     },
     {
         id: 'new-pptx',
         label: 'PowerPoint',
         icon: '/assets/image-square-svgrepo-com.svg',
-        command: 'powerpnt.exe'
+        command: 'C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\POWERPNT.EXE'
+    },
+    {
+        id: 'libre-writer',
+        label: 'LibreOffice Writer',
+        icon: '/assets/files-svgrepo-com.svg',
+        command: 'C:\\Program Files\\LibreOffice\\program\\swriter.exe'
+    },
+    {
+        id: 'libre-calc',
+        label: 'LibreOffice Calc',
+        icon: '/assets/excel-file-svgrepo-com.svg',
+        command: 'C:\\Program Files\\LibreOffice\\program\\scalc.exe'
+    },
+    {
+        id: 'libre-impress',
+        label: 'LibreOffice Impress',
+        icon: '/assets/image-square-svgrepo-com.svg',
+        command: 'C:\\Program Files\\LibreOffice\\program\\simpress.exe'
     },
     {
         id: 'url-browser',
@@ -935,6 +992,12 @@ const PREDEFINED_DOCS = [
         command: null // handled by opening advanced section
     }
 ];
+
+
+
+// Load favorites after lists are defined
+loadAppFavorites();
+
 
 function isFavorited(id) {
     return appLaunchFavorites.some(f => f.id === id);
@@ -955,6 +1018,7 @@ function toggleFavorite(app) {
 function doLaunchApp(command) {
     if (!command) return;
     if (currentRole !== 'teacher') return;
+    console.log(`[Launch] Triggering: ${command} in class ${currentClassId}`);
     // Emit to server which broadcasts to students
     socket.emit('launch-app', { classId: currentClassId, command });
     // Show toast for teacher
@@ -995,17 +1059,19 @@ function renderAppTile(app, grid) {
     launchBar.className = 'app-tile-launch';
     const lang = currentLanguage;
     launchBar.textContent = (translations[lang] && translations[lang]['btn-launch-app']) || 'Launch';
-    launchBar.addEventListener('click', (e) => {
+    const onLaunch = (e) => {
         e.stopPropagation();
         if (app.id === 'url-browser') {
-            // Open advanced section
             const details = document.querySelector('.app-launch-advanced');
             if (details) details.open = true;
             if (appLaunchCustomInput) appLaunchCustomInput.focus();
             return;
         }
         doLaunchApp(app.command);
-    });
+    };
+
+    tile.addEventListener('click', onLaunch);
+    launchBar.addEventListener('click', onLaunch);
 
     tile.appendChild(star);
     tile.appendChild(icon);
@@ -6175,6 +6241,7 @@ function openMonitorFocusMode(targetUserId, studentName) {
     const btnLock = document.getElementById('btn-focus-lock');
     const btnFocusApp = document.getElementById('btn-focus-app');
     const btnLaunch = document.getElementById('btn-focus-launch');
+    const divider = document.getElementById('focus-divider');
     const lockLabel = document.getElementById('focus-lock-label');
 
     if (!controlsEl) return;
@@ -6183,14 +6250,18 @@ function openMonitorFocusMode(targetUserId, studentName) {
     _focusLockState = false;
     if (btnLock) {
         btnLock.classList.remove('active');
-        if (lockLabel) lockLabel.textContent = t('btn-tool-lock-screen') || 'Lock Screen';
         const lockIcon = btnLock.querySelector('img');
         if (lockIcon) lockIcon.src = '/assets/lock-svgrepo-com.svg';
     }
     if (favRow) favRow.classList.remove('visible');
 
-    // Show the control bar
+    // Show the control bar and focus tools
     controlsEl.classList.remove('hidden');
+    if (divider) divider.classList.remove('hidden');
+    if (btnLock) btnLock.classList.remove('hidden');
+    if (btnFocusApp) btnFocusApp.classList.remove('hidden');
+    if (btnLaunch) btnLaunch.classList.remove('hidden');
+    console.log('Monitor focus controls shown for:', targetUserId);
 
     // --- Lock pill ---
     const onLockClick = () => {
@@ -6198,14 +6269,14 @@ function openMonitorFocusMode(targetUserId, studentName) {
         _focusLockState = !_focusLockState;
         if (_focusLockState) {
             btnLock.classList.add('active');
-            if (lockLabel) lockLabel.textContent = t('btn-tool-unlock-screen') || 'Unlock Screen';
+            btnLock.title = t('btn-tool-unlock-screen') || 'Unlock Screen';
             const lockIcon = btnLock.querySelector('img');
             if (lockIcon) lockIcon.src = '/assets/lock-svgrepo-com.svg';
             showToast(t('toast-lock-sent') || 'Screen locked', 'info');
             socket.emit('trigger-lock-screen', { classId: currentClassId, targetSocketId: targetUserId });
         } else {
             btnLock.classList.remove('active');
-            if (lockLabel) lockLabel.textContent = t('btn-tool-lock-screen') || 'Lock Screen';
+            btnLock.title = t('btn-tool-lock-screen') || 'Lock Screen';
             const lockIcon = btnLock.querySelector('img');
             if (lockIcon) lockIcon.src = '/assets/lock-svgrepo-com.svg';
             showToast(t('toast-unlock-sent') || 'Screen unlocked', 'info');
@@ -6295,6 +6366,12 @@ function closeMonitorFocusMode() {
 
     // Hide controls
     if (controlsEl) controlsEl.classList.add('hidden');
+    const divider = document.getElementById('focus-divider');
+    if (divider) divider.classList.add('hidden');
+    if (btnLock) btnLock.classList.add('hidden');
+    if (btnFocusApp) btnFocusApp.classList.add('hidden');
+    if (btnLaunch) btnLaunch.classList.add('hidden');
+
     if (favRow) {
         favRow.classList.remove('visible');
         favRow.innerHTML = '';
