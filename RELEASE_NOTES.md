@@ -1,5 +1,10 @@
 # Release Notes
 
+## [10.0.1] - 2026-02-28
+### FIXES
+- **Translation Fixes**: Corrected missing and incorrect translations across the application.
+- **Label Wording Fixes**: Updated label wording for clarity and consistency.
+
 ## [10.0.0] - 2026-02-27
 ### FIXES
 - **Advanced Filtering**: Resolved core logic issues to ensure stable profanity detection.

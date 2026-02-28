@@ -1294,7 +1294,7 @@ function updateChatDisabledState() {
         } else {
             // Enable chat
             messageInput.disabled = false;
-            messageInput.placeholder = "Type a message...";
+            messageInput.placeholder = t('placeholder-message');
             btnSendMessage.disabled = false;
             btnSendMessage.style.opacity = '1';
         }
@@ -1307,7 +1307,7 @@ function updateChatDisabledState() {
     } else {
         btnAttachFile.classList.remove("disabled-upload");
         btnAttachFile.disabled = false;
-        btnAttachFile.title = "Attach file";
+        btnAttachFile.title = t('btn-attach-file');
     }
 }
 
@@ -1384,7 +1384,7 @@ socket.on("block-all-messages-updated", (data) => {
                 } else {
                     messagesContainer.classList.remove("blocked");
                     messageInput.disabled = false;
-                    messageInput.placeholder = "Type a message...";
+                    messageInput.placeholder = t('placeholder-message');
                 }
             }
             updateToolStates();
@@ -1440,7 +1440,7 @@ socket.on("allow-hands-up-updated", (data) => {
 
 socket.on("error", (data) => {
     if (data && data.message) {
-        showToast(data.message, "error");
+        showToast(Z(data.message), "error");
     }
 });
 
@@ -1525,7 +1525,7 @@ btnBackFromClasses.addEventListener("click", () => {
 btnSubmitSetup.addEventListener("click", () => {
     const enteredUserName = userNameInput.value.trim();
 
-    if (!enteredUserName) return alert("Please enter your name");
+    if (!enteredUserName) return alert(t('Please enter your name'));
 
     userName = enteredUserName;
     // Save to localStorage
@@ -1656,7 +1656,7 @@ function renderScanningStateInChat() {
 
     scanningIndicator.innerHTML = `
         <div class="spinner" style="margin: 0 auto 1rem auto;"></div>
-        <h3>Looking for teachers...</h3>
+        <h3 data-i18n="searching-classes">${t('searching-classes')}</h3>
         <p>We are scanning the network for available classes.</p>
         <button id="btn-cancel-scan-chat" class="secondary-btn" style="margin-top: 1rem;">Back / Change Role</button>
     `;
@@ -1665,7 +1665,7 @@ function renderScanningStateInChat() {
 
     // Disable inputs
     messageInput.disabled = true;
-    messageInput.placeholder = "Scanning for teachers...";
+    messageInput.placeholder = t('searching-classes');
     btnSendMessage.disabled = true;
 
     // Cancel button handler
@@ -2762,8 +2762,12 @@ function renderMessage(message) {
                         copyBtn.innerHTML = `<img src="/assets/copy-svgrepo-com.svg" class="icon-svg" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-copy-label')}</span>`;
                         copyBtn.classList.remove('success');
                     }, 1500);
-                }, () => {
-                    alert('Failed to copy');
+                }, (err) => {
+                    if (err.name === 'NotAllowedError') {
+                        alert(t('alert-copy-failed'));
+                    } else {
+                        alert(t('alert-copy-failed-generic')); // Fallback for other errors
+                    }
                 });
             });
         }
@@ -2812,7 +2816,7 @@ function renderMessage(message) {
             banBtn.addEventListener('click', () => {
                 const msgId = banBtn.dataset.messageId;
                 const content = banBtn.dataset.messageContent;
-                if (confirm(`Block this word and delete message?\n\n"${content}"`)) {
+                if (confirm(t('confirm-block-word').replace('{content}', content))) {
                     socket.emit('teacher-ban-message', {
                         classId: currentClassId,
                         messageId: msgId,
@@ -2852,7 +2856,7 @@ function renderMessage(message) {
                 if (!messageContent) return;
 
                 // Show confirmation dialog
-                const confirmed = confirm(`Are you sure you want to report this message?\n\n"${messageContent.substring(0, 100)}${messageContent.length > 100 ? '...' : ''}"`);
+                const confirmed = confirm(t('confirm-report-message').replace('{content}', messageContent.substring(0, 100) + (messageContent.length > 100 ? '...' : '')));
                 if (!confirmed) return;
 
                 // Send report to server
@@ -3019,7 +3023,7 @@ function renderMediaHistory() {
             deleteTaskButton.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const fId = deleteTaskButton.dataset.fileId;
-                if (confirm(`Are you sure you want to delete "${msg.fileData.name}"? This will remove it for everyone.`)) {
+                if (confirm(t('confirm-delete-media').replace('{filename}', msg.fileData.name))) {
                     socket.emit('delete-media-item', {
                         classId: currentClassId,
                         fileId: fId,
@@ -3222,7 +3226,7 @@ socket.on("user-name-changed", ({ oldName, newName, users: updatedUsers, classId
 
 socket.on("class-ended", ({ message, classId }) => {
     if (joinedClasses.has(classId)) {
-        alert(message || `Class ${classId} has ended`);
+        alert(message || t('alert-class-ended').replace('{classId}', classId));
         joinedClasses.delete(classId);
         if (currentClassId === classId) {
             // Stop monitoring if active
@@ -3513,6 +3517,7 @@ setInterval(() => {
 function t(key) {
     return translations[currentLanguage][key] || key;
 }
+window.t = t; // Expose globally for any external/legacy scripts
 
 function updateUIText() {
     // Update elements with data-i18n
@@ -3702,14 +3707,36 @@ if (btnToolLockScreen) {
         if (currentClassId && currentRole === 'teacher') {
             isClassLocked = !isClassLocked;
 
+            const span = btnToolLockScreen.querySelector('span');
+
             if (isClassLocked) {
                 btnToolLockScreen.classList.add('active');
-                showToast("Lock Screen command sent.", "info");
+
+                // Update title and text dynamically
+                btnToolLockScreen.title = t('btn-tool-unlock-screen');
+                if (span) span.textContent = t('btn-tool-unlock-screen');
+
+                showToast(t("toast-lock-sent"), "info");
                 socket.emit('trigger-lock-screen', { classId: currentClassId });
+
+                // Trigger Electron lock if applicable
+                if (window._csTools && typeof window._csTools.lockScreen === 'function') {
+                    window._csTools.lockScreen();
+                }
             } else {
                 btnToolLockScreen.classList.remove('active');
-                showToast("Unlock Screen command sent.", "info");
+
+                // Update title and text dynamically
+                btnToolLockScreen.title = t('btn-tool-lock-screen');
+                if (span) span.textContent = t('btn-tool-lock-screen');
+
+                showToast(t("toast-unlock-sent"), "info");
                 socket.emit('trigger-unlock-screen', { classId: currentClassId });
+
+                // Trigger Electron unlock if applicable
+                if (window._csTools && typeof window._csTools.unlockScreen === 'function') {
+                    window._csTools.unlockScreen();
+                }
             }
         }
     });
@@ -3718,8 +3745,10 @@ if (btnToolLockScreen) {
 if (btnToolShutdownPc) {
     btnToolShutdownPc.addEventListener('click', () => {
         if (currentClassId && currentRole === 'teacher') {
-            showToast("Shutdown command sent.", "warning");
-            socket.emit('trigger-shutdown', { classId: currentClassId });
+            if (confirm(t('confirm-shutdown-pc'))) {
+                showToast(t("toast-shutdown-sent"), "warning");
+                socket.emit('trigger-shutdown', { classId: currentClassId });
+            }
         }
     });
 }
@@ -3727,11 +3756,13 @@ if (btnToolShutdownPc) {
 if (btnToolFocusApp) {
     btnToolFocusApp.addEventListener('click', () => {
         if (currentClassId && currentRole === 'teacher') {
-            showToast("Focus App command sent.", "info");
+            showToast(t("toast-focus-sent"), "info");
             socket.emit('trigger-focus', { classId: currentClassId });
         }
     });
 }
+
+// Integrated Monitoring Minimize/Restore Logic from index.html (Already exists below at line 5518)
 
 // Auto Download Toggle (Teacher Settings)
 const toggleAutoDownload = document.getElementById('toggle-auto-download');
@@ -3751,7 +3782,7 @@ if (toggleAutoDownload) {
                 autoDownloadEnabled: enabled,
                 autoDownloadPath: path
             });
-            showToast(enabled ? "Auto-download enabled." : "Auto-download disabled.", "info");
+            showToast(enabled ? t("toast-auto-download-on") : t("toast-auto-download-off"), "info");
         }
     });
 }
@@ -4179,7 +4210,7 @@ function renderPinnedMessages() {
                     setTimeout(() => btn.innerHTML = `<img src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy" style="width: 16px; height: 16px;" /><span class="btn-label">${t('btn-copy-label')}</span>`, 1500);
                 },
                 () => {
-                    alert('Failed to copy');
+                    alert(t('alert-copy-failed'));
                 }
             );
         });
@@ -5029,7 +5060,7 @@ socket.on('network-info', (data) => {
 });
 
 const handleManualIpConnect = (suffix) => {
-    if (!suffix) return alert('Please enter the last number of the IP address');
+    if (!suffix) return alert(t('alert-ip-suffix-missing'));
     const fullIp = `${currentIpPrefix}${suffix}`;
     let targetUrl = `http://${fullIp}:${currentServerPort}`;
 
@@ -5392,11 +5423,11 @@ function initializeMonitoringGrid() {
             disabledOverlay.innerHTML = `
                 <div class="disabled-content">
                     <img src="/assets/monitoring.svg" class="icon-svg large-icon" style="width: 48px; height: 48px; opacity: 0.5; margin-bottom: 10px;" alt="Monitoring" />
-                    <h4>Monitoring is Disabled</h4>
+                    <h4>${t('monitoring-disabled-title')}</h4>
                     <p style="color: var(--text-secondary); margin-bottom: 15px; text-align: center; max-width: 300px;">
-                        Screen monitoring is currently turned off in your settings. Students' screens will not be transmitted.
+                        ${t('monitoring-disabled-desc')}
                     </p>
-                    <button id="btn-enable-monitoring-modal" class="primary-btn">Enable Monitoring</button>
+                    <button id="btn-enable-monitoring-modal" class="primary-btn">${t('btn-enable-monitoring')}</button>
                 </div>
             `;
 
@@ -5458,7 +5489,7 @@ if (btnToolMonitoring) {
 
         // Force start monitoring for everyone in class when opened
         if (currentRole === 'teacher' && isMonitoringEnabled && currentClassId) {
-            showToast("Starting class monitoring...", "info");
+            showToast(t("toast-starting-monitoring"), "info");
             socket.emit('start-monitoring', { interval: monitoringInterval });
         }
     });
@@ -6046,7 +6077,7 @@ if (fileImportData) {
 
                 // Handle legacy array format (assume blacklist)
                 if (Array.isArray(data)) {
-                    if (confirm("Legacy format detected. Import as Blacklist?")) {
+                    if (confirm(t('msg-legacy-format'))) {
                         importList(data, 'blacklist');
                         setTimeout(() => {
                             console.log("🔄 Refreshing lists after legacy import...");
@@ -6080,11 +6111,11 @@ if (fileImportData) {
                     loadWhitelistedWords();
                 }, 1000);
 
-                alert(`Import Complete!\n🚫 Blacklist: ${totalBlacklist} requests sent\n✅ Whitelist: ${totalWhitelist} requests sent\n\nLists should update shortly.`);
+                alert(t('alert-import-complete').replace('{totalBlacklist}', totalBlacklist).replace('{totalWhitelist}', totalWhitelist));
 
             } catch (err) {
                 console.error("Import failed", err);
-                alert("Failed to parse file");
+                alert(t('alert-parse-failed'));
             }
         };
         reader.readAsText(file);
@@ -6139,7 +6170,7 @@ function renderWhitelistWordsList() {
     whitelistWordsListModalElement.innerHTML = "";
 
     if (customWhitelistedWords.length === 0) {
-        whitelistWordsListModalElement.innerHTML = '<div class="empty-blacklist-state">No safe words added yet</div>';
+        whitelistWordsListModalElement.innerHTML = `<div class="empty-blacklist-state">${t('whitelist-empty')}</div>`;
         return;
     }
 
@@ -6162,7 +6193,7 @@ function renderWhitelistWordsList() {
         `;
 
         row.querySelector(".remove-word-btn").addEventListener("click", () => {
-            if (confirm(`Remove '${item.word}' from whitelist?`)) {
+            if (confirm(t('confirm-remove-whitelist').replace('{word}', item.word))) {
                 socket.emit('remove-whitelisted-word', { word: item.word }, (res) => {
                     if (!res.success) alert(res.message || "Failed to remove");
                 });
@@ -6602,7 +6633,7 @@ async function loadDeepLearningModel() {
                     if (result && result.error) {
                         console.error('SERVER ERROR:', result.error);
                     }
-                    alert('Failed to load AI model. Check the logs for "SERVER SIDE MODEL LOADING LOGS".');
+                    alert(t('alert-ai-load-failed'));
                     resolve(false);
                 }
             });
@@ -6787,7 +6818,7 @@ if (startupToggle) {
         socket.emit("set-startup-status", { openAtLogin: e.target.checked }, (response) => {
             if (!response.success) {
                 e.target.checked = !e.target.checked; // Revert
-                alert("Failed to update startup setting: " + response.message || "Unknown error");
+                alert(t('alert-startup-failed').replace('{message}', response.message || "Unknown error"));
             }
         });
     });

@@ -1197,56 +1197,6 @@
 
 
 
-  <script>
-    (function () {
-      function initMonitoringMinimize() {
-        var btnMin = document.getElementById('btn-minimize-monitoring');
-        var btnRestore = document.getElementById('btn-restore-monitoring');
-        var modal = document.getElementById('class-status-modal');
-        if (!btnMin || !btnRestore || !modal) return;
-        btnMin.addEventListener('click', function () {
-          modal.classList.add('hidden');
-          btnRestore.classList.remove('hidden');
-          btnRestore.classList.add('active');
-        });
-        btnRestore.addEventListener('click', function () {
-          modal.classList.remove('hidden');
-          btnRestore.classList.add('hidden');
-          btnRestore.classList.remove('active');
-        });
-      }
-
-      function initUnlockButton() {
-        var lockBtn = document.getElementById('btn-tool-lock-screen-custom');
-        if (!lockBtn) return;
-        var isLocked = false;
-        lockBtn.addEventListener('click', function () {
-          isLocked = !isLocked;
-          if (isLocked) {
-            lockBtn.classList.add('active');
-            lockBtn.title = 'Unlock Screen';
-            lockBtn.querySelector('span').textContent = 'Unlock Screen';
-            if (window._csTools) window._csTools.lockScreen();
-          } else {
-            lockBtn.classList.remove('active');
-            lockBtn.title = 'Lock Screen';
-            lockBtn.querySelector('span').textContent = 'Lock Screen';
-            if (window._csTools) window._csTools.unlockScreen();
-          }
-        });
-      }
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () {
-          initMonitoringMinimize();
-          initUnlockButton();
-        });
-      } else {
-        initMonitoringMinimize();
-        initUnlockButton();
-      }
-    })();
-  </script>
 </body>
 
 </html>
