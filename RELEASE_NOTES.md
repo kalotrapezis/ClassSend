@@ -1,7 +1,9 @@
 # Release Notes
 
-## [10.2.1-beta] - 2026-02-28
+## [10.2.1] - 2026-02-28
 ### IMPROVEMENTS
+- **Individual Controls**: Added fixes for targeting specific student devices with lock/focus/launch commands.
+- **Locking UI**: Improved visual feedback for local and remote lock screen states.
 - **Documentation**: Updated README and help documentation for clarity.
 - **App Cards Fixes**: Resolved layout and state issues in the student monitoring grid.
 - **Launching Improvements**: Enhanced application execution reliability from the teacher console.

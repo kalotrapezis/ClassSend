@@ -6090,7 +6090,7 @@ function createEmptyMonitoringCard(userId, studentName) {
 
         // Fullscreen Icon
         const fsBtn = document.createElement('button');
-        fsBtn.innerHTML = '<img src="/assets/maximize-square-minimalistic-svgrepo-com.svg" style="width: 14px; height: 14px; filter: invert(1); cursor: pointer;" />';
+        fsBtn.innerHTML = '<img src="/assets/full-screen-square-svgrepo-com.svg" style="width: 14px; height: 14px; filter: invert(1); cursor: pointer;" />';
         fsBtn.style.cssText = 'background: none; border: none; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: opacity 0.2s;';
         fsBtn.title = t('btn-fullscreen-title') || 'Fullscreen';
 
@@ -6251,7 +6251,7 @@ function openMonitorFocusMode(targetUserId, studentName) {
     if (btnLock) {
         btnLock.classList.remove('active');
         const lockIcon = btnLock.querySelector('img');
-        if (lockIcon) lockIcon.src = '/assets/lock-svgrepo-com.svg';
+        if (lockIcon) lockIcon.src = '/assets/unlock.svg';
     }
     if (favRow) favRow.classList.remove('visible');
 
@@ -6278,7 +6278,7 @@ function openMonitorFocusMode(targetUserId, studentName) {
             btnLock.classList.remove('active');
             btnLock.title = t('btn-tool-lock-screen') || 'Lock Screen';
             const lockIcon = btnLock.querySelector('img');
-            if (lockIcon) lockIcon.src = '/assets/lock-svgrepo-com.svg';
+            if (lockIcon) lockIcon.src = '/assets/unlock.svg';
             showToast(t('toast-unlock-sent') || 'Screen unlocked', 'info');
             socket.emit('trigger-unlock-screen', { classId: currentClassId, targetSocketId: targetUserId });
         }
