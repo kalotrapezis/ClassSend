@@ -233,7 +233,7 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '10.0.0-beta.1', // Should match package.json
+    version: '10.2.0-beta.1', // Should match package.json
     classes: classes
   });
 });
@@ -2018,15 +2018,21 @@ io.on('connection', (socket) => {
     console.log(`Allow hands up set to ${enabled} in class ${classId}`);
   });
 
-  // Remote App Launch (Teacher → all students in class)
-  socket.on('launch-app', ({ classId, command }) => {
+  // Remote App Launch (Teacher → all students in class, or specific student)
+  socket.on('launch-app', ({ classId, targetSocketId, command }) => {
     if (!classId || !command) return;
     if (!activeClasses.has(classId)) return;
     const classData = activeClasses.get(classId);
     if (classData.teacherId !== socket.id) return; // Only teacher can launch
-    console.log(`🚀 [AppLaunch] Teacher launched in class ${classId}: ${command}`);
-    // Broadcast to students only (exclude the teacher socket)
-    socket.to(classId).emit('launch-app', { command });
+
+    if (targetSocketId) {
+      console.log(`🚀 [AppLaunch] Teacher launched specifically for ${targetSocketId} in class ${classId}: ${command}`);
+      io.to(targetSocketId).emit('launch-app', { command });
+    } else {
+      console.log(`🚀 [AppLaunch] Teacher launched in class ${classId}: ${command}`);
+      // Broadcast to students only (exclude the teacher socket)
+      socket.to(classId).emit('launch-app', { command });
+    }
   });
 
   // Language sync (Teacher to students)

@@ -1,5 +1,12 @@
 # Release Notes
 
+## [10.2.0-beta.1] - 2026-02-28
+### NEW
+- **Monitor Focus Controls**: Added individual Lock, App Focus, and Remote Launch pill controls to the focused monitoring view.
+- **Individual Targeting**: Server-side support for targeting specific students with lock, focus, and launch commands (no longer just class-wide broadcast).
+- **Favorites Integration**: Quick-access favorite apps now available directly within the student focus view.
+- **Improved UI**: Modern glassmorphism pill design for focus mode controls with smooth transition animations.
+
 ## [10.1.0] - 2026-02-28
 ### NEW
 - **Beta Release**: Updated version and preparing for beta branch deployment.

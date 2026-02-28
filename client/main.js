@@ -6028,6 +6028,7 @@ function createEmptyMonitoringCard(userId, studentName) {
         fsBtn.style.cssText = 'background: none; border: none; padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: opacity 0.2s;';
         fsBtn.title = t('btn-fullscreen-title') || 'Fullscreen';
 
+
         const openFullscreen = (e) => {
             e.stopPropagation();
             if (!img.src || img.src.includes(window.location.host) || img.src === window.location.href) {
@@ -6063,6 +6064,9 @@ function createEmptyMonitoringCard(userId, studentName) {
 
                 imageViewerModal.classList.remove('hidden');
 
+                // --- SHOW FOCUS CONTROLS ---
+                openMonitorFocusMode(userId, studentName);
+
                 // Live listener: update viewer as high-res frames arrive
                 const highResHandler = (data) => {
                     if (data.userId === userId && data.isHighRes) {
@@ -6079,6 +6083,7 @@ function createEmptyMonitoringCard(userId, studentName) {
                         // --- FOCUS MODE END ---
                         socket.emit('unfocus-monitoring');
                         if (btnMinimizeViewer) btnMinimizeViewer.style.display = 'inline-flex';
+                        closeMonitorFocusMode();
                         closeBtn.removeEventListener('click', cleanup);
                     };
                     closeBtn.addEventListener('click', cleanup, { once: true });
@@ -6156,6 +6161,147 @@ window._csTools = {
 };
 
 // --- END MONITORING FEATURE LOGIC ---
+
+// ===== MONITOR FOCUS MODE CONTROLS =====
+// These helpers are called by openFullscreen() inside createEmptyMonitoringCard()
+// They show/hide the Lock · Focus · Launch pill bar in the image-viewer-modal.
+// The bar is NEVER shown when the image viewer is opened from a regular image click.
+
+let _focusLockState = false; // Per-open-session lock state
+
+function openMonitorFocusMode(targetUserId, studentName) {
+    const controlsEl = document.getElementById('monitor-focus-controls');
+    const favRow = document.getElementById('focus-fav-row');
+    const btnLock = document.getElementById('btn-focus-lock');
+    const btnFocusApp = document.getElementById('btn-focus-app');
+    const btnLaunch = document.getElementById('btn-focus-launch');
+    const lockLabel = document.getElementById('focus-lock-label');
+
+    if (!controlsEl) return;
+
+    // Reset state each time we enter focus mode
+    _focusLockState = false;
+    if (btnLock) {
+        btnLock.classList.remove('active');
+        if (lockLabel) lockLabel.textContent = t('btn-tool-lock-screen') || 'Lock Screen';
+        const lockIcon = btnLock.querySelector('img');
+        if (lockIcon) lockIcon.src = '/assets/lock-svgrepo-com.svg';
+    }
+    if (favRow) favRow.classList.remove('visible');
+
+    // Show the control bar
+    controlsEl.classList.remove('hidden');
+
+    // --- Lock pill ---
+    const onLockClick = () => {
+        if (!currentClassId || currentRole !== 'teacher') return;
+        _focusLockState = !_focusLockState;
+        if (_focusLockState) {
+            btnLock.classList.add('active');
+            if (lockLabel) lockLabel.textContent = t('btn-tool-unlock-screen') || 'Unlock Screen';
+            const lockIcon = btnLock.querySelector('img');
+            if (lockIcon) lockIcon.src = '/assets/lock-svgrepo-com.svg';
+            showToast(t('toast-lock-sent') || 'Screen locked', 'info');
+            socket.emit('trigger-lock-screen', { classId: currentClassId, targetSocketId: targetUserId });
+        } else {
+            btnLock.classList.remove('active');
+            if (lockLabel) lockLabel.textContent = t('btn-tool-lock-screen') || 'Lock Screen';
+            const lockIcon = btnLock.querySelector('img');
+            if (lockIcon) lockIcon.src = '/assets/lock-svgrepo-com.svg';
+            showToast(t('toast-unlock-sent') || 'Screen unlocked', 'info');
+            socket.emit('trigger-unlock-screen', { classId: currentClassId, targetSocketId: targetUserId });
+        }
+    };
+
+    // --- App Focus pill ---
+    const onFocusClick = () => {
+        if (!currentClassId || currentRole !== 'teacher') return;
+        showToast(t('toast-focus-sent') || 'Focus sent', 'info');
+        socket.emit('trigger-focus', { classId: currentClassId, targetSocketId: targetUserId });
+    };
+
+    // --- App Execution pill (toggles favorites row) ---
+    const onLaunchClick = () => {
+        if (!favRow) return;
+        const isVisible = favRow.classList.contains('visible');
+        if (isVisible) {
+            favRow.classList.remove('visible');
+        } else {
+            // Populate favorites row
+            loadAppFavorites();
+            favRow.innerHTML = '';
+            if (appLaunchFavorites.length === 0) {
+                const note = document.createElement('span');
+                note.className = 'focus-fav-empty';
+                note.textContent = t('app-launch-empty-state') || 'No favorites yet';
+                favRow.appendChild(note);
+            } else {
+                appLaunchFavorites.forEach(fav => {
+                    const pill = document.createElement('button');
+                    pill.className = 'focus-fav-pill';
+                    pill.title = fav.label;
+                    pill.innerHTML = `<img src="${fav.icon}" onerror="this.src='/assets/AppLaunch.svg'" />${fav.label}`;
+                    pill.addEventListener('click', () => {
+                        if (!currentClassId || currentRole !== 'teacher') return;
+                        socket.emit('launch-app', { classId: currentClassId, targetSocketId: targetUserId, command: fav.command });
+                        const msg = (translations[currentLanguage] && translations[currentLanguage]['toast-app-launched']) || 'App launched';
+                        showToast(msg, 'success');
+                        // Collapse row after launch
+                        favRow.classList.remove('visible');
+                    });
+                    favRow.appendChild(pill);
+                });
+            }
+            favRow.classList.add('visible');
+        }
+    };
+
+    if (btnLock) btnLock.addEventListener('click', onLockClick);
+    if (btnFocusApp) btnFocusApp.addEventListener('click', onFocusClick);
+    if (btnLaunch) btnLaunch.addEventListener('click', onLaunchClick);
+
+    // Store handlers on elements so closeMonitorFocusMode can remove them
+    if (btnLock) btnLock._focusHandler = onLockClick;
+    if (btnFocusApp) btnFocusApp._focusHandler = onFocusClick;
+    if (btnLaunch) btnLaunch._focusHandler = onLaunchClick;
+}
+
+function closeMonitorFocusMode() {
+    const controlsEl = document.getElementById('monitor-focus-controls');
+    const favRow = document.getElementById('focus-fav-row');
+    const btnLock = document.getElementById('btn-focus-lock');
+    const btnFocusApp = document.getElementById('btn-focus-app');
+    const btnLaunch = document.getElementById('btn-focus-launch');
+
+    // Remove event listeners
+    if (btnLock && btnLock._focusHandler) {
+        btnLock.removeEventListener('click', btnLock._focusHandler);
+        delete btnLock._focusHandler;
+    }
+    if (btnFocusApp && btnFocusApp._focusHandler) {
+        btnFocusApp.removeEventListener('click', btnFocusApp._focusHandler);
+        delete btnFocusApp._focusHandler;
+    }
+    if (btnLaunch && btnLaunch._focusHandler) {
+        btnLaunch.removeEventListener('click', btnLaunch._focusHandler);
+        delete btnLaunch._focusHandler;
+    }
+
+    // If screen was left locked, send unlock on close
+    if (_focusLockState && currentClassId) {
+        socket.emit('trigger-unlock-screen', { classId: currentClassId });
+        _focusLockState = false;
+    }
+
+    // Hide controls
+    if (controlsEl) controlsEl.classList.add('hidden');
+    if (favRow) {
+        favRow.classList.remove('visible');
+        favRow.innerHTML = '';
+    }
+}
+// ===== END MONITOR FOCUS MODE CONTROLS =====
+
 
 // Update stream cleanup to hide the button
 // We'll update the cleanup locations
@@ -7231,6 +7377,11 @@ function closeAllViewers() {
     if (btnRestoreFile) {
         btnRestoreFile.classList.add("hidden");
         btnRestoreFile.classList.remove("active");
+    }
+
+    // --- CLEANUP MONITOR FOCUS ---
+    if (typeof closeMonitorFocusMode === 'function') {
+        closeMonitorFocusMode();
     }
 
     // Reset State

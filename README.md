@@ -1,5 +1,5 @@
-# ClassSend 10.0.1
-![Version](https://img.shields.io/badge/version-v10.0.1-blue)
+# ClassSend 10.2.0-beta.1
+![Version](https://img.shields.io/badge/version-v10.2.0--beta.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -19,6 +19,7 @@
 - **🎯 (New) Focus Mode**: Automatic window restoration from the system tray.
 - **📥 (New) Automatic Downloads**: Support for predetermined download locations across all PCs.
 - **🎚️ (New) Sensitivity Controls**: Interactive sliders for moderation thresholds.
+- **🖥️ (New) Monitor Focus Controls**: Individual Lock, Focus, and Launch pills for student-specific classroom management.
 - **� Smart Auto-Connect**: The app dynamically probes for known servers from history and seamlessly routes students and teachers to the right place.
 - **� Instant Start**: New students skip the setup screens and go straight to finding a class.
 - **✨ Visual Polish**: Progress bars for sending/receiving files, and system messages that auto-delete with a sleek visual timer.
