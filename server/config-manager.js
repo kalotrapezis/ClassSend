@@ -36,7 +36,13 @@ class ConfigManager {
     getDefaults() {
         return {
             enableLogging: false, // Default: Off
-            autoExportLogs: false // Default: Off
+            autoExportLogs: false, // Default: Off
+            advancedSettings: {
+                blockEnabled: true,
+                blockThreshold: 90, // Low Sensitivity (10%) = High Threshold
+                reportEnabled: true,
+                reportThreshold: 20
+            }
         };
     }
 

@@ -14,10 +14,9 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Raleway:wght@100;200;300;400;500;600&display=swap"
     rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap"
-    rel="stylesheet">
-
-  <script type="module" crossorigin src="/assets/index-BlNcG2PY.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BuCt_VIq.css">
+    rel="stylesheet">
+  <script type="module" crossorigin src="/assets/index-Cyi07Vpy.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-_XvB1QNn.css">
 </head>
 
 <body>
@@ -406,12 +405,21 @@
                   <h4 class="settings-page-header" data-i18n="settings-section-streaming">Screen Sharing</h4>
 
                   <div class="setting-item">
-                    <label for="screen-share-quality" data-i18n="label-screen-share-quality">Screen Share
-                      Quality</label>
-                    <select id="screen-share-quality" class="setting-select">
-                      <option value="auto" data-i18n="quality-auto">Auto</option>
-                      <option value="ethernet" data-i18n="quality-ethernet">Ethernet (Fast)</option>
-                      <option value="wifi" data-i18n="quality-wifi">WiFi (Slow)</option>
+                    <label for="screen-share-resolution" data-i18n="label-screen-share-resolution">Resolution</label>
+                    <select id="screen-share-resolution" class="setting-select">
+                      <option value="1080p">1920×1080 (1080p)</option>
+                      <option value="1440p">2560×1440 (1440p) — Ethernet recommended</option>
+                      <option value="4k">3840×2160 (4K) — Ethernet required</option>
+                    </select>
+                  </div>
+                  <div class="setting-item">
+                    <label for="screen-share-bitrate" data-i18n="label-screen-share-bitrate">Bit Rate</label>
+                    <select id="screen-share-bitrate" class="setting-select">
+                      <option value="8000000">8 Mbps</option>
+                      <option value="16000000" selected>16 Mbps</option>
+                      <option value="24000000">24 Mbps</option>
+                      <option value="32000000">32 Mbps</option>
+                      <option value="64000000">64 Mbps</option>
                     </select>
                   </div>
 
@@ -603,7 +611,7 @@
                     </div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
                     <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
-                        id="app-version-display">10.2.1</span></p>
+                        id="app-version-display">10.3.0</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
@@ -658,7 +666,7 @@
                   data-i18n-title="btn-zoom-out-title"><img src="/assets/minus-circle-svgrepo-com.svg"
                     class="icon-video-ctrl" /></button>
                 <button id="btn-zoom-reset" class="video-control-btn" title="Reset Zoom"
-                  data-i18n-title="btn-zoom-reset-title">100%</button>
+                  data-i18n-title="btn-zoom-reset-title">1:1</button>
                 <button id="btn-zoom-in" class="video-control-btn" title="Zoom In"
                   data-i18n-title="btn-zoom-in-title"><img src="/assets/plus-circle-svgrepo-com.svg"
                     class="icon-video-ctrl" /></button>
@@ -678,26 +686,15 @@
               <div class="video-header-controls">
                 <button id="btn-minimize-pdf" class="header-control-btn" title="Minimize"><img
                     src="/assets/minimize-square-3-svgrepo-com.svg" class="icon-video-ctrl" /></button>
+                <button id="btn-pdf-fullscreen" class="header-control-btn" title="Maximize"
+                  data-i18n-title="btn-fullscreen-title"><img src="/assets/full-screen-square-svgrepo-com.svg"
+                    class="icon-video-ctrl" /></button>
                 <button id="btn-close-pdf" class="close-btn" title="Close"><img
                     src="/assets/close-square-svgrepo-com.svg" class="icon-video-ctrl" /></button>
               </div>
             </div>
             <div class="pdf-container">
-              <iframe id="pdf-frame" src="" frameborder="0"></iframe>
-              <!-- PDF Controls (Overlay) -->
-              <div class="video-controls">
-                <button id="btn-pdf-zoom-out" class="video-control-btn" title="Zoom Out"
-                  data-i18n-title="btn-zoom-out-title"><img src="/assets/minus-circle-svgrepo-com.svg"
-                    class="icon-video-ctrl" /></button>
-                <button id="btn-pdf-zoom-reset" class="video-control-btn" title="Reset Zoom"
-                  data-i18n-title="btn-zoom-reset-title">100%</button>
-                <button id="btn-pdf-zoom-in" class="video-control-btn" title="Zoom In"
-                  data-i18n-title="btn-zoom-in-title"><img src="/assets/plus-circle-svgrepo-com.svg"
-                    class="icon-video-ctrl" /></button>
-                <button id="btn-pdf-fullscreen" class="video-control-btn" title="Fullscreen"
-                  data-i18n-title="btn-fullscreen-title"><img src="/assets/full-screen-square-svgrepo-com.svg"
-                    class="icon-video-ctrl" /></button>
-              </div>
+              <iframe id="pdf-frame" name="pdf-frame" src="" frameborder="0"></iframe>
             </div>
           </div>
         </div>
@@ -1134,9 +1131,10 @@
                     </button>
                   </div>
                 </div>
-                <button id="btn-tools-toggle" class="btn-tools-toggle" title="Teacher Tools"
+                <button id="btn-tools-toggle" class="btn-tools-toggle header-btn" title="Teacher Tools"
                   data-i18n-title="btn-teacher-tools-title">
                   <img src="/assets/menu-navigation-Grid.svg" class="icon-svg" alt="Tools" />
+                  <span data-i18n="label-tools" class="desktop-only">Tools</span>
                 </button>
               </div>
               <button id="btn-report-toggle" class="report-toggle-btn hidden" title="Word Reports"
@@ -1213,7 +1211,7 @@
                 data-i18n-title="btn-zoom-out-title"><img src="/assets/minus-circle-svgrepo-com.svg"
                   class="icon-video-ctrl" /></button>
               <button id="btn-image-zoom-reset" class="video-control-btn" title="Reset Zoom"
-                data-i18n-title="btn-zoom-reset-title">100%</button>
+                data-i18n-title="btn-zoom-reset-title">1:1</button>
               <button id="btn-image-zoom-in" class="video-control-btn" title="Zoom In"
                 data-i18n-title="btn-zoom-in-title"><img src="/assets/plus-circle-svgrepo-com.svg"
                   class="icon-video-ctrl" /></button>
@@ -1236,9 +1234,9 @@
                 <img src="/assets/AppLaunch.svg" class="icon-video-ctrl" />
               </button>
 
-              <!-- Monitor Focus Mode Controls - Favorites Row moved inside -->
+              <!-- Monitor Focus Mode Controls - Favorites Popup -->
               <div id="monitor-focus-controls" class="monitor-focus-controls hidden">
-                <div id="focus-fav-row" class="focus-fav-row">
+                <div id="focus-fav-menu" class="focus-fav-menu">
                   <!-- Dynamically populated from appLaunchFavorites -->
                 </div>
               </div>
@@ -1272,8 +1270,7 @@
       </div>
     </div>
   </div>
-
-
+
 
 
 

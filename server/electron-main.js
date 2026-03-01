@@ -651,6 +651,15 @@ function createWindow() {
         }
     });
 
+    // PDF zoom: inject a real keyboard event into the focused frame (the PDF iframe)
+    // so the overlay buttons trigger the same native zoom as Ctrl+/Ctrl-
+    ipcMain.handle('pdf-zoom', (event, { direction }) => {
+        const keyCode = { in: '=', out: '-', reset: '0' }[direction];
+        if (!keyCode) return;
+        event.sender.sendInputEvent({ type: 'keyDown', keyCode, modifiers: ['ctrl'] });
+        event.sender.sendInputEvent({ type: 'keyUp',   keyCode, modifiers: ['ctrl'] });
+    });
+
     // Handle silent screen capture for monitoring feature
     ipcMain.handle('capture-screen', async (event, options) => {
         try {

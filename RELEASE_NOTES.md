@@ -1,5 +1,12 @@
 # Release Notes
 
+## [10.3.0-beta] - 2026-03-01
+### IMPROVEMENTS
+- **Screen Share Bitrate**: Replaced connection-type presets (Auto/Ethernet/WiFi) with explicit bitrate options: 8, 16, 24, 32, and 64 Mbps. Default is 16 Mbps.
+- **Slider Fix**: AI moderation threshold sliders now correctly reflect saved values on load (fill position was not updating after settings were fetched from server).
+- **Bitrate Dropdown Fix**: Dropdown no longer appears empty when a previously cached bitrate value is no longer valid — falls back to 16 Mbps automatically.
+- **PDF Viewer**: Removed the floating black zoom toolbar. Maximize button moved to the modal header (Minimize / Maximize / Close).
+
 ## [10.2.1] - 2026-02-28
 ### IMPROVEMENTS
 - **Individual Controls**: Added fixes for targeting specific student devices with lock/focus/launch commands.

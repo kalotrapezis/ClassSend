@@ -1722,7 +1722,7 @@ socket.on("hand-raised", ({ userId, handRaised, users, classId }) => {
         const classData = joinedClasses.get(classId);
         classData.users = users;
         if (currentClassId === classId) {
-            renderUsersList();
+            scheduleRenderUsers();
         }
 
         if (userId === socket.id && btnRaiseHand) {
@@ -1737,7 +1737,7 @@ socket.on("hand-lowered", ({ userId, users, classId }) => {
         const classData = joinedClasses.get(classId);
         classData.users = users;
         if (currentClassId === classId) {
-            renderUsersList();
+            scheduleRenderUsers();
         }
 
         if (userId === socket.id && btnRaiseHand) {
@@ -1752,7 +1752,7 @@ socket.on("all-hands-lowered", ({ users, classId }) => {
         const classData = joinedClasses.get(classId);
         classData.users = users;
         if (currentClassId === classId) {
-            renderUsersList();
+            scheduleRenderUsers();
         }
 
         if (btnRaiseHand) {
@@ -3444,6 +3444,13 @@ function scrollToBottom() {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
+// Debounced wrapper — batches rapid user-list changes into a single paint
+let _renderUsersTimer = null;
+function scheduleRenderUsers() {
+    clearTimeout(_renderUsersTimer);
+    _renderUsersTimer = setTimeout(renderUsersList, 40);
+}
+
 // Users List
 function renderUsersList() {
     usersList.innerHTML = "";
@@ -3547,14 +3554,15 @@ socket.on("user-joined", ({ user, users: updatedUsers, classId }) => {
         }
 
         if (currentClassId === classId) {
-            renderUsersList();
+            scheduleRenderUsers();
 
             // Update chat disabled state (enables chat when teacher joins)
             updateChatDisabledState();
 
             // Add new student to monitoring grid if open
             if (currentRole === 'teacher' && user.role === 'student' && classStatusModal && !classStatusModal.classList.contains('hidden')) {
-                createEmptyMonitoringCard(user.id, user.name);
+                const newCard = createEmptyMonitoringCard(user.id, user.name);
+                if (newCard) newCard.classList.add('monitoring-skeleton');
             }
 
             const systemMsg = {
@@ -3576,7 +3584,7 @@ socket.on("user-left", ({ user, users: updatedUsers, classId }) => {
     if (joinedClasses.has(classId)) {
         joinedClasses.get(classId).users = updatedUsers;
         if (currentClassId === classId) {
-            renderUsersList();
+            scheduleRenderUsers();
 
             // Remove user from monitoring grid if open
             if (user && user.id) {
@@ -3601,7 +3609,7 @@ socket.on("user-name-changed", ({ oldName, newName, users: updatedUsers, classId
     if (joinedClasses.has(classId)) {
         joinedClasses.get(classId).users = updatedUsers;
         if (currentClassId === classId) {
-            renderUsersList();
+            scheduleRenderUsers();
 
             const systemMsg = {
                 senderName: "System",
@@ -3999,16 +4007,33 @@ socket.on('language-changed', ({ language, classId }) => {
     }
 });
 
-// Screen Share Quality Setting
-const screenShareQualitySelect = document.getElementById("screen-share-quality");
-let screenShareQuality = localStorage.getItem('screenShareQuality') || 'auto';
+// Screen Share Resolution & Bitrate Settings
+const screenShareResolutionSelect = document.getElementById("screen-share-resolution");
+const screenShareBitrateSelect = document.getElementById("screen-share-bitrate");
+let screenShareResolution = localStorage.getItem('screenShareResolution') || '1080p';
+let screenShareBitrate = parseInt(localStorage.getItem('screenShareBitrate')) || 16000000;
 
-if (screenShareQualitySelect) {
-    screenShareQualitySelect.value = screenShareQuality;
-    screenShareQualitySelect.addEventListener('change', (e) => {
-        screenShareQuality = e.target.value;
-        localStorage.setItem('screenShareQuality', screenShareQuality);
-        console.log('Screen share quality set to:', screenShareQuality);
+if (screenShareResolutionSelect) {
+    screenShareResolutionSelect.value = screenShareResolution;
+    screenShareResolutionSelect.addEventListener('change', (e) => {
+        screenShareResolution = e.target.value;
+        localStorage.setItem('screenShareResolution', screenShareResolution);
+        console.log('Screen share resolution set to:', screenShareResolution);
+    });
+}
+
+if (screenShareBitrateSelect) {
+    screenShareBitrateSelect.value = String(screenShareBitrate);
+    // If stored value doesn't match any option (e.g. old cached value), reset to default
+    if (!screenShareBitrateSelect.value) {
+        screenShareBitrate = 16000000;
+        screenShareBitrateSelect.value = '16000000';
+        localStorage.setItem('screenShareBitrate', '16000000');
+    }
+    screenShareBitrateSelect.addEventListener('change', (e) => {
+        screenShareBitrate = parseInt(e.target.value);
+        localStorage.setItem('screenShareBitrate', String(screenShareBitrate));
+        console.log('Screen share bitrate set to:', screenShareBitrate);
     });
 }
 
@@ -4955,15 +4980,7 @@ const RTC_CONFIG = {
 
 // ===== COMPRESSION & QUALITY OPTIMIZATION =====
 
-// Target bitrates based on quality settings (in bps)
-// ethernet: High bandwidth, low latency for wired connections
-// auto: Balanced defaults that adapt to network
-// wifi: Conservative for slower/congested wireless networks
-const BITRATE_PRESETS = {
-    ethernet: { min: 2000000, target: 4000000, max: 6000000 },  // 2-6 Mbps (fast, high quality)
-    auto: { min: 400000, target: 1000000, max: 1500000 },       // 0.4-1.5 Mbps (balanced)
-    wifi: { min: 150000, target: 400000, max: 800000 }          // 0.15-0.8 Mbps (conservative)
-};
+// Bitrate config is now driven by the user-selected screenShareBitrate value directly.
 
 // Network state tracking for adaptive quality
 let networkQualityLevel = 'good'; // 'good', 'medium', 'poor'
@@ -5011,10 +5028,10 @@ function preferVP9Codec(sdp) {
     return lines.join('\r\n');
 }
 
-// Get current bitrate preset based on quality setting
+// Get current bitrate preset based on the user-selected bitrate
 function getCurrentBitratePreset() {
-    const qualitySetting = localStorage.getItem('screenShareQuality') || 'auto';
-    return BITRATE_PRESETS[qualitySetting] || BITRATE_PRESETS.auto;
+    const target = parseInt(localStorage.getItem('screenShareBitrate')) || 16000000;
+    return { min: Math.round(target * 0.5), target, max: Math.round(target * 1.5) };
 }
 
 // Calculate target bitrate based on network quality
@@ -5037,8 +5054,6 @@ async function applyEncodingOptimizations(sender, isInitial = true) {
     if (sender.track?.kind !== 'video') return;
 
     const targetBitrate = calculateTargetBitrate();
-    const preset = getCurrentBitratePreset();
-    const qualitySetting = localStorage.getItem('screenShareQuality') || 'auto';
 
     try {
         const parameters = sender.getParameters();
@@ -5053,9 +5068,8 @@ async function applyEncodingOptimizations(sender, isInitial = true) {
             maxBitrate: targetBitrate,
             // Scale down resolution on poor networks
             scaleResolutionDownBy: networkQualityLevel === 'poor' ? 1.5 : 1.0,
-            // Adaptive framerate: lower on poor network, higher on ethernet
-            maxFramerate: networkQualityLevel === 'poor' ? 12 :
-                (qualitySetting === 'ethernet' ? 30 : 20),
+            // Adaptive framerate: lower on poor network, otherwise cap at 30fps
+            maxFramerate: networkQualityLevel === 'poor' ? 12 : 30,
             // Network priority for QoS
             networkPriority: 'high',
             priority: 'high'
@@ -5153,43 +5167,22 @@ if (btnShareScreen) {
 
 async function startScreenShare() {
     try {
-        // Get video constraints based on quality setting
-        const qualitySetting = localStorage.getItem('screenShareQuality') || 'auto';
-        let videoConstraints;
+        // Get video constraints based on resolution setting
+        const resolution = localStorage.getItem('screenShareResolution') || '1080p';
+        const resolutionMap = {
+            '1080p': { width: 1920, height: 1080 },
+            '1440p': { width: 2560, height: 1440 },
+            '4k':    { width: 3840, height: 2160 }
+        };
+        const { width, height } = resolutionMap[resolution] || resolutionMap['1080p'];
 
-        switch (qualitySetting) {
-            case 'ethernet':
-                // Ethernet (Fast): High quality, higher framerate for wired connections
-                videoConstraints = {
-                    cursor: "always",
-                    width: { ideal: 1920, max: 1920 },
-                    height: { ideal: 1080, max: 1080 },
-                    frameRate: { ideal: 30, max: 60 }
-                };
-                console.log("Screen share: Ethernet mode (1080p, 30fps, high bitrate)");
-                break;
-            case 'wifi':
-                // WiFi (Slow): Conservative for slower/congested wireless networks
-                videoConstraints = {
-                    cursor: "always",
-                    width: { ideal: 1280, max: 1280 },
-                    height: { ideal: 720, max: 720 },
-                    frameRate: { ideal: 15, max: 20 }
-                };
-                console.log("Screen share: WiFi mode (720p, 15fps, low bitrate)");
-                break;
-            case 'auto':
-            default:
-                // Balanced: adaptive resolution
-                videoConstraints = {
-                    cursor: "always",
-                    width: { ideal: 1280, max: 1920 },
-                    height: { ideal: 720, max: 1080 },
-                    frameRate: { ideal: 20, max: 30 }
-                };
-                console.log("Screen share: Auto mode (adaptive)");
-                break;
-        }
+        const videoConstraints = {
+            cursor: "always",
+            width: { ideal: width, max: width },
+            height: { ideal: height, max: height },
+            frameRate: { ideal: 30, max: 60 }
+        };
+        console.log(`Screen share: ${resolution} (${width}×${height}, 30fps)`);
 
         localStream = await navigator.mediaDevices.getDisplayMedia({
             video: videoConstraints,
@@ -5799,9 +5792,10 @@ function initializeMonitoringGrid() {
     // Filter to only include students (exclude the teacher itself
     const students = classData.users.filter(u => u.id !== socket.id);
 
-    // Create an empty card for each student
+    // Create an empty card for each student, with skeleton animation until first frame
     students.forEach(student => {
-        createEmptyMonitoringCard(student.id, student.name);
+        const card = createEmptyMonitoringCard(student.id, student.name);
+        if (card) card.classList.add('monitoring-skeleton');
     });
 
     // Handle Disabled State
@@ -6045,12 +6039,14 @@ async function captureAndSendScreen(quality = 'low') {
         }
 
         if (frameDataUrl) {
+            if (_frameInFlight) return; // Skip if previous frame not yet acknowledged
+            _frameInFlight = true;
             socket.emit('monitoring-frame', {
                 frame: frameDataUrl,
                 userId: socket.id,
                 userName: userName,
                 isHighRes: (quality === 'high')
-            });
+            }, () => { _frameInFlight = false; }); // Clear on server ack
         }
     } catch (err) {
         console.error('Failed to capture screen:', err);
@@ -6134,11 +6130,17 @@ function createEmptyMonitoringCard(userId, studentName) {
                 openMonitorFocusMode(userId, studentName);
 
                 // Live listener: update viewer as high-res frames arrive
+                // Remove any previously stacked listener before adding a new one
+                if (_activeHighResHandler) {
+                    socket.off('monitoring-frame', _activeHighResHandler);
+                    _activeHighResHandler = null;
+                }
                 const highResHandler = (data) => {
                     if (data.userId === userId && data.isHighRes) {
                         viewerImg.src = data.frame;
                     }
                 };
+                _activeHighResHandler = highResHandler;
                 socket.on('monitoring-frame', highResHandler);
 
                 // Cleanup listener if modal is closed
@@ -6146,6 +6148,7 @@ function createEmptyMonitoringCard(userId, studentName) {
                 if (closeBtn) {
                     const cleanup = () => {
                         socket.off('monitoring-frame', highResHandler);
+                        _activeHighResHandler = null;
                         // --- FOCUS MODE END ---
                         socket.emit('unfocus-monitoring');
                         if (btnMinimizeViewer) btnMinimizeViewer.style.display = 'inline-flex';
@@ -6176,32 +6179,13 @@ function createEmptyMonitoringCard(userId, studentName) {
     return studentCard;
 }
 
-// Teacher: Receive frame and update UI
+// Teacher: Receive frame — queue for RAF batch render to avoid per-frame reflows
 socket.on('monitoring-frame', ({ frame, userId, userName: studentName }) => {
     if (currentRole !== 'teacher' || !monitoringGrid) return;
-
-    let studentCard = document.getElementById(`monitoring-card-${userId}`);
-
-    // Create new card if it doesn't exist
-    if (!studentCard) {
-        studentCard = createEmptyMonitoringCard(userId, studentName);
-    }
-
-    // Update the image source
-    if (studentCard) {
-        const imgElement = studentCard.querySelector('.monitoring-img');
-        const placeholder = studentCard.querySelector('.monitoring-placeholder');
-
-        if (imgElement && frame) {
-            imgElement.src = frame;
-            imgElement.style.opacity = '1';
-            imgElement.style.background = '#000'; // Make background black once frame is loaded
-
-            // Hide placeholder softly
-            if (placeholder) {
-                placeholder.style.display = 'none';
-            }
-        }
+    _pendingFrames.set(userId, { frame, studentName });
+    if (!_rafPending) {
+        _rafPending = true;
+        requestAnimationFrame(_flushMonitoringFrames);
     }
 });
 
@@ -6233,11 +6217,38 @@ window._csTools = {
 // They show/hide the Lock · Focus · Launch pill bar in the image-viewer-modal.
 // The bar is NEVER shown when the image viewer is opened from a regular image click.
 
+// ---- Performance: module-scope state for monitoring + UI ----
+let _frameInFlight = false;           // Backpressure: skip capture if last frame not ack'd
+const _pendingFrames = new Map();     // userId → { frame, studentName } (RAF batch)
+let _rafPending = false;              // RAF dedup flag
+let _activeHighResHandler = null;     // Prevent stacking high-res socket listeners
+let _favoritesSnapshot = null;        // Cache: skip favorites rebuild if unchanged
+
+function _flushMonitoringFrames() {
+    _pendingFrames.forEach(({ frame, studentName }, userId) => {
+        let card = document.getElementById(`monitoring-card-${userId}`);
+        if (!card) card = createEmptyMonitoringCard(userId, studentName);
+        if (!card) return;
+        const img = card.querySelector('.monitoring-img');
+        const ph  = card.querySelector('.monitoring-placeholder');
+        if (img && frame) {
+            img.src = frame;
+            img.style.opacity = '1';
+            img.style.background = '#000';
+            card.classList.remove('monitoring-skeleton');
+        }
+        if (ph) ph.style.display = 'none';
+    });
+    _pendingFrames.clear();
+    _rafPending = false;
+}
+// ---- End performance state ----
+
 let _focusLockState = false; // Per-open-session lock state
 
 function openMonitorFocusMode(targetUserId, studentName) {
     const controlsEl = document.getElementById('monitor-focus-controls');
-    const favRow = document.getElementById('focus-fav-row');
+    const favMenu = document.getElementById('focus-fav-menu');
     const btnLock = document.getElementById('btn-focus-lock');
     const btnFocusApp = document.getElementById('btn-focus-app');
     const btnLaunch = document.getElementById('btn-focus-launch');
@@ -6253,7 +6264,7 @@ function openMonitorFocusMode(targetUserId, studentName) {
         const lockIcon = btnLock.querySelector('img');
         if (lockIcon) lockIcon.src = '/assets/unlock.svg';
     }
-    if (favRow) favRow.classList.remove('visible');
+    if (favMenu) favMenu.classList.remove('visible');
 
     // Show the control bar and focus tools
     controlsEl.classList.remove('hidden');
@@ -6291,40 +6302,55 @@ function openMonitorFocusMode(targetUserId, studentName) {
         socket.emit('trigger-focus', { classId: currentClassId, targetSocketId: targetUserId });
     };
 
-    // --- App Execution pill (toggles favorites row) ---
-    const onLaunchClick = () => {
-        if (!favRow) return;
-        const isVisible = favRow.classList.contains('visible');
-        if (isVisible) {
-            favRow.classList.remove('visible');
-        } else {
-            // Populate favorites row
-            loadAppFavorites();
-            favRow.innerHTML = '';
+    // --- App Execution pill (toggles glass popup menu) ---
+    const onLaunchClick = (e) => {
+        e.stopPropagation();
+        const favMenu = document.getElementById('focus-fav-menu');
+        if (!favMenu) return;
+
+        if (favMenu.classList.contains('visible')) {
+            favMenu.classList.remove('visible');
+            return;
+        }
+
+        // Only rebuild if favorites have changed since last open
+        loadAppFavorites();
+        const snap = JSON.stringify(appLaunchFavorites);
+        if (snap !== _favoritesSnapshot) {
+            _favoritesSnapshot = snap;
+            favMenu.innerHTML = '';
             if (appLaunchFavorites.length === 0) {
-                const note = document.createElement('span');
-                note.className = 'focus-fav-empty';
-                note.textContent = t('app-launch-empty-state') || 'No favorites yet';
-                favRow.appendChild(note);
+                const empty = document.createElement('span');
+                empty.className = 'focus-fav-empty';
+                empty.textContent = t('app-launch-empty-state') || 'No favorites yet';
+                favMenu.appendChild(empty);
             } else {
+                const frag = document.createDocumentFragment();
                 appLaunchFavorites.forEach(fav => {
-                    const pill = document.createElement('button');
-                    pill.className = 'focus-fav-pill';
-                    pill.title = fav.label;
-                    pill.innerHTML = `<img src="${fav.icon}" onerror="this.src='/assets/AppLaunch.svg'" />${fav.label}`;
-                    pill.addEventListener('click', () => {
+                    const item = document.createElement('button');
+                    item.className = 'focus-fav-item';
+                    item.innerHTML = `<img src="${fav.icon}" onerror="this.src='/assets/AppLaunch.svg'" /><span>${fav.label}</span>`;
+                    item.addEventListener('click', () => {
                         if (!currentClassId || currentRole !== 'teacher') return;
                         socket.emit('launch-app', { classId: currentClassId, targetSocketId: targetUserId, command: fav.command });
-                        const msg = (translations[currentLanguage] && translations[currentLanguage]['toast-app-launched']) || 'App launched';
-                        showToast(msg, 'success');
-                        // Collapse row after launch
-                        favRow.classList.remove('visible');
+                        showToast((translations[currentLanguage]?.['toast-app-launched']) || 'App launched', 'success');
+                        favMenu.classList.remove('visible');
                     });
-                    favRow.appendChild(pill);
+                    frag.appendChild(item);
                 });
+                favMenu.appendChild(frag);
             }
-            favRow.classList.add('visible');
         }
+        favMenu.classList.add('visible');
+
+        // Close menu on outside click
+        const outsideClose = (ev) => {
+            if (!favMenu.contains(ev.target) && ev.target !== btnLaunch) {
+                favMenu.classList.remove('visible');
+                document.removeEventListener('click', outsideClose);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', outsideClose), 0);
     };
 
     if (btnLock) btnLock.addEventListener('click', onLockClick);
@@ -6339,7 +6365,7 @@ function openMonitorFocusMode(targetUserId, studentName) {
 
 function closeMonitorFocusMode() {
     const controlsEl = document.getElementById('monitor-focus-controls');
-    const favRow = document.getElementById('focus-fav-row');
+    const favMenu = document.getElementById('focus-fav-menu');
     const btnLock = document.getElementById('btn-focus-lock');
     const btnFocusApp = document.getElementById('btn-focus-app');
     const btnLaunch = document.getElementById('btn-focus-launch');
@@ -6372,10 +6398,9 @@ function closeMonitorFocusMode() {
     if (btnFocusApp) btnFocusApp.classList.add('hidden');
     if (btnLaunch) btnLaunch.classList.add('hidden');
 
-    if (favRow) {
-        favRow.classList.remove('visible');
-        favRow.innerHTML = '';
-    }
+    // Hide favorites popup and reset cache so next open gets a fresh build
+    if (favMenu) favMenu.classList.remove('visible');
+    _favoritesSnapshot = null;
 }
 // ===== END MONITOR FOCUS MODE CONTROLS =====
 
@@ -7091,6 +7116,7 @@ updateFilterUIVisibility = function () {
                     const sensitivity = 100 - settings.blockThreshold;
                     modelBlockThreshold.value = sensitivity;
                     if (modelBlockVal) modelBlockVal.textContent = sensitivity + '%';
+                    updateSliderFill(modelBlockThreshold);
                 }
 
                 if (modelReportToggle) modelReportToggle.checked = settings.reportEnabled;
@@ -7099,6 +7125,7 @@ updateFilterUIVisibility = function () {
                     const sensitivity = 100 - settings.reportThreshold;
                     modelReportThreshold.value = sensitivity;
                     if (modelReportVal) modelReportVal.textContent = sensitivity + '%';
+                    updateSliderFill(modelReportThreshold);
                 }
             }
         });
@@ -7432,7 +7459,6 @@ const mediaPlayerContainer = document.getElementById("media-player-container");
 const btnRestoreFile = document.getElementById("btn-restore-file");
 
 let activeViewer = null; // 'pdf' or 'image'
-let pdfZoomLevel = 1;
 let imageZoomLevel = 1;
 let imageIsDragging = false;
 let imageStartX, imageStartY;
@@ -7463,7 +7489,6 @@ function closeAllViewers() {
 
     // Reset State
     activeViewer = null;
-    pdfZoomLevel = 1;
     imageZoomLevel = 1;
     imageTranslateX = 0;
     imageTranslateY = 0;
@@ -7480,7 +7505,6 @@ function openPdfViewer(url) {
         activeViewer = 'pdf';
         pdfFrame.src = url;
         pdfViewerModal.classList.remove("hidden");
-        updatePdfZoom();
     }
 }
 
@@ -7494,14 +7518,48 @@ function openImageViewer(url) {
     }
 }
 
-function updatePdfZoom() {
-    if (pdfFrame) {
-        pdfFrame.style.transform = `scale(${pdfZoomLevel})`;
+// Trigger the PDF viewer's own native zoom — same action as Ctrl+/- inside the PDF.
+// Uses mousedown.preventDefault() on the buttons (set up below) so clicking them
+// does not steal focus away from the iframe, then injects a real keyboard event.
+function triggerNativePdfZoom(direction) {
+    if (!pdfFrame) return;
+    const keys = { in: { key: '=', code: 'Equal', keyCode: 187 },
+                   out: { key: '-', code: 'Minus', keyCode: 189 },
+                   reset: { key: '0', code: 'Digit0', keyCode: 48 } };
+    const k = keys[direction];
+
+    // Give focus to the iframe so the injected event lands in the PDF viewer
+    try { pdfFrame.contentWindow.focus(); } catch (e) { /* cross-origin guard */ }
+
+    // Electron: sendInputEvent creates a genuine OS-level keyboard event
+    if (isElectronApp()) {
+        try {
+            const ipc = window.electron?.ipcRenderer || window.ipcRenderer ||
+                (typeof require !== 'undefined' ? require('electron').ipcRenderer : null);
+            if (ipc) { ipc.invoke('pdf-zoom', { direction }); return; }
+        } catch (e) { /* fall through */ }
     }
-    if (btnPdfZoomReset) {
-        btnPdfZoomReset.textContent = `${Math.round(pdfZoomLevel * 100)}%`;
-    }
+
+    // Browser fallback: synthetic event dispatched to the iframe window
+    try {
+        pdfFrame.contentWindow.dispatchEvent(
+            new KeyboardEvent('keydown', { ...k, ctrlKey: true, bubbles: true, cancelable: true })
+        );
+    } catch (e) { /* nothing we can do */ }
 }
+
+// When Ctrl+/- is pressed in the PARENT window while the PDF is open, route it
+// to the same native zoom so it doesn't instead zoom the entire Electron app UI.
+document.addEventListener('keydown', (e) => {
+    if (!e.ctrlKey || activeViewer !== 'pdf') return;
+    if (e.key === '=' || e.key === '+' || e.code === 'Equal') {
+        e.preventDefault(); triggerNativePdfZoom('in');
+    } else if (e.key === '-' || e.code === 'Minus') {
+        e.preventDefault(); triggerNativePdfZoom('out');
+    } else if (e.key === '0' || e.code === 'Digit0') {
+        e.preventDefault(); triggerNativePdfZoom('reset');
+    }
+});
 
 function updateImageTransform() {
     if (fullImage) {
@@ -7527,29 +7585,21 @@ if (btnMinimizePdf) {
     });
 }
 
+// Prevent buttons from stealing focus from the PDF iframe on click
+[btnPdfZoomIn, btnPdfZoomOut, btnPdfZoomReset].forEach(btn => {
+    if (btn) btn.addEventListener('mousedown', e => e.preventDefault());
+});
+
 if (btnPdfZoomIn) {
-    btnPdfZoomIn.addEventListener("click", () => {
-        if (pdfZoomLevel < 3) {
-            pdfZoomLevel = Math.min(3, pdfZoomLevel + 0.25);
-            updatePdfZoom();
-        }
-    });
+    btnPdfZoomIn.addEventListener("click", () => triggerNativePdfZoom('in'));
 }
 
 if (btnPdfZoomOut) {
-    btnPdfZoomOut.addEventListener("click", () => {
-        if (pdfZoomLevel > 0.5) {
-            pdfZoomLevel = Math.max(0.5, pdfZoomLevel - 0.25);
-            updatePdfZoom();
-        }
-    });
+    btnPdfZoomOut.addEventListener("click", () => triggerNativePdfZoom('out'));
 }
 
 if (btnPdfZoomReset) {
-    btnPdfZoomReset.addEventListener("click", () => {
-        pdfZoomLevel = 1;
-        updatePdfZoom();
-    });
+    btnPdfZoomReset.addEventListener("click", () => triggerNativePdfZoom('reset'));
 }
 
 const btnPdfFullscreen = document.getElementById("btn-pdf-fullscreen");

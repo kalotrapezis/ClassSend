@@ -818,13 +818,7 @@ io.on('connection', (socket) => {
       messages: [],
       users: [{ id: socket.id, name: userName, role: 'teacher', handRaised: false }],
       deletionTimeout: null, // Initialize deletion timeout
-      // Advanced Model Settings (Default: 50% block, 30% report)
-      advancedSettings: {
-        blockEnabled: true,
-        blockThreshold: 90, // Low Sensitivity (10%) = High Threshold
-        reportEnabled: true,
-        reportThreshold: 20 // Medium Sensitivity to avoid "Hello" -> "Hell" false positives
-      },
+      advancedSettings: configManager.get('advancedSettings'),
       blockAllActive: false,
       allowHandsUp: true
     });
@@ -887,12 +881,7 @@ io.on('connection', (socket) => {
       messages: [],
       users: [{ id: socket.id, name: userName, role: 'teacher', handRaised: false }],
       deletionTimeout: null,
-      advancedSettings: {
-        blockEnabled: true,
-        blockThreshold: 90,
-        reportEnabled: true,
-        reportThreshold: 10
-      },
+      advancedSettings: configManager.get('advancedSettings'),
       blockAllActive: false,
       blockUploadsActive: false, // New
       allowHandsUp: true,
@@ -1020,12 +1009,7 @@ io.on('connection', (socket) => {
         messages: [],
         users: [],
         deletionTimeout: null,
-        advancedSettings: {
-          blockEnabled: true,
-          blockThreshold: 90,
-          reportEnabled: true,
-          reportThreshold: 10
-        },
+        advancedSettings: configManager.get('advancedSettings'),
         blockAllActive: false,
         blockUploadsActive: false, // New
         allowHandsUp: true,
@@ -1082,12 +1066,7 @@ io.on('connection', (socket) => {
         messages: [],
         users: [{ id: socket.id, name: userName, role: 'teacher', handRaised: false }],
         deletionTimeout: null,
-        advancedSettings: {
-          blockEnabled: true,
-          blockThreshold: 90,
-          reportEnabled: true,
-          reportThreshold: 10
-        },
+        advancedSettings: configManager.get('advancedSettings'),
         blockAllActive: false,
         blockUploadsActive: false, // New
         allowHandsUp: true,
@@ -1719,6 +1698,8 @@ io.on('connection', (socket) => {
       reportThreshold
     };
 
+    // Persist so settings survive app restarts
+    configManager.set('advancedSettings', classData.advancedSettings);
     console.log(`Advanced settings updated for class ${classId}:`, classData.advancedSettings);
   });
 
