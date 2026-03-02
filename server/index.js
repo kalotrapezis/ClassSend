@@ -1531,6 +1531,18 @@ io.on('connection', (socket) => {
     console.log(`[Close All Apps] Sent to all students in ${classId}`);
   });
 
+  socket.on('open-file-on-students', ({ classId, fileId, fileName }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+
+    classData.students.forEach(s => {
+      const sid = typeof s === 'object' ? s.id : s;
+      io.to(sid).emit('execute-open-file', { fileId, fileName });
+    });
+    console.log(`[Remote Action] Teacher in ${classId} opening file: ${fileName} on all students`);
+  });
+
   socket.on('trigger-unlock-screen', ({ classId, targetSocketId }) => {
     if (!activeClasses.has(classId)) return;
     const classData = activeClasses.get(classId);

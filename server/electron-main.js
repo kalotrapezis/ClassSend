@@ -487,6 +487,37 @@ function createWindow() {
         return { success: false, error: "Window not found" };
     });
 
+    // Close all user-facing applications except ClassSend
+    ipcMain.handle('close-all-apps', () => {
+        return new Promise((resolve) => {
+            // Get ClassSend's own PID so we can exclude it
+            const selfPid = process.pid;
+            // Use taskkill to kill all user processes except system and ClassSend
+            // /F = force, /T = include child processes
+            // We enumerate visible windows via a PowerShell one-liner and kill their owning processes
+            const ps = `
+$selfPid = ${selfPid};
+Get-Process | Where-Object {
+    $_.MainWindowHandle -ne 0 -and
+    $_.Id -ne $selfPid -and
+    $_.Id -ne (Get-Process -Id $selfPid -ErrorAction SilentlyContinue).Parent.Id -and
+    $_.Name -notmatch '^(explorer|dwm|winlogon|csrss|wininit|services|lsass|svchost|taskhostw|RuntimeBroker|SystemSettings|ShellExperienceHost|SearchUI|StartMenuExperienceHost|TextInputHost|ctfmon|sihost)$'
+} | ForEach-Object {
+    try { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue } catch {}
+}
+`.trim();
+            exec(`powershell -NoProfile -NonInteractive -Command "${ps.replace(/\n/g, ' ')}"`, (error) => {
+                if (error) {
+                    console.error('[Close All Apps] Error:', error.message);
+                    resolve({ success: false, error: error.message });
+                } else {
+                    console.log('[Close All Apps] Completed');
+                    resolve({ success: true });
+                }
+            });
+        });
+    });
+
     // Helper function to resolve paths with environment variables and wildcards
     function resolveRobustPath(p) {
         if (!p) return p;

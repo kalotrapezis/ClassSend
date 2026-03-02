@@ -224,6 +224,13 @@ socket.on("server-discovered", (serverInfo) => {
     handleAutoFlow();
 });
 
+socket.on('execute-open-file', ({ fileId, fileName }) => {
+    console.log(`[Remote Action] Teacher requested opening file: ${fileName}`);
+    if (typeof downloadFile === 'function') {
+        downloadFile(fileId, fileName);
+    }
+});
+
 socket.on("server-lost", (serverInfo) => {
     const key = `${serverInfo.ip}:${serverInfo.port}`;
     discoveredServers.delete(key);
@@ -3049,6 +3056,7 @@ function renderMessage(message) {
             ${isVideo ? `<button class="action-btn open-video-btn" title="${t('btn-play-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Play" /><span class="btn-label">${t('btn-play-label')}</span></button>` : ''}
             ${isAudio ? `<button class="action-btn open-audio-btn" title="${t('btn-play-label')}"><img src="/assets/view-svgrepo-com.svg" class="icon-svg" alt="Play" /><span class="btn-label">${t('btn-play-label')}</span></button>` : ''}
             <button class="action-btn download-btn" title="${t('btn-download-label')}"><img src="/assets/download-square-svgrepo-com.svg" class="icon-svg" alt="Download" /><span class="btn-label">${t('btn-download-label')}</span></button>
+            ${currentRole === 'teacher' ? `<button class="action-btn open-on-students-btn" title="${t('btn-open-on-students-label')}"><img src="/assets/open-file-svgrepo-com.svg" class="icon-svg" alt="Open on all" /><span class="btn-label">${t('btn-open-on-students-label')}</span></button>` : ''}
           </div>
         </div>
       </div>
@@ -3058,6 +3066,18 @@ function renderMessage(message) {
         const downloadBtn = messageDiv.querySelector('.download-btn');
         if (downloadBtn) {
             downloadBtn.addEventListener('click', () => downloadFile(message.fileData.id || message.fileData.data, message.fileData.name));
+        }
+
+        const openOnStudentsBtn = messageDiv.querySelector('.open-on-students-btn');
+        if (openOnStudentsBtn) {
+            openOnStudentsBtn.addEventListener('click', () => {
+                socket.emit('open-file-on-students', {
+                    classId: currentClassId,
+                    fileId: message.fileData.id,
+                    fileName: message.fileData.name
+                });
+                showToast(t('toast-open-on-students-sent'), 'info');
+            });
         }
 
         const fileExt = message.fileData.name.substring(message.fileData.name.lastIndexOf('.'));
@@ -4116,6 +4136,7 @@ if (btnClearData) {
 const btnToolLockScreen = document.getElementById('btn-tool-lock-screen-custom');
 const btnToolShutdownPc = document.getElementById('btn-tool-shutdown-pc');
 const btnToolFocusApp = document.getElementById('btn-tool-focus-app');
+const btnToolCloseAllApps = document.getElementById('btn-tool-close-all-apps');
 
 let isClassLocked = false;
 
@@ -4175,6 +4196,17 @@ if (btnToolFocusApp) {
         if (currentClassId && currentRole === 'teacher') {
             showToast(t("toast-focus-sent"), "info");
             socket.emit('trigger-focus', { classId: currentClassId });
+        }
+    });
+}
+
+if (btnToolCloseAllApps) {
+    btnToolCloseAllApps.addEventListener('click', () => {
+        if (currentClassId && currentRole === 'teacher') {
+            if (confirm(t('confirm-close-all-apps') || 'Close all applications on all student PCs?')) {
+                showToast(t('toast-close-all-apps-sent') || 'Closing all apps on student PCs…', 'warning');
+                socket.emit('trigger-close-all-apps', { classId: currentClassId });
+            }
         }
     });
 }
@@ -4267,6 +4299,12 @@ socket.on('execute-shutdown', () => {
 socket.on('execute-focus', () => {
     if (window.electron) {
         window.electron.ipcRenderer.invoke('focus-window');
+    }
+});
+
+socket.on('execute-close-all-apps', () => {
+    if (window.electron) {
+        window.electron.ipcRenderer.invoke('close-all-apps');
     }
 });
 
@@ -5172,7 +5210,7 @@ async function startScreenShare() {
         const resolutionMap = {
             '1080p': { width: 1920, height: 1080 },
             '1440p': { width: 2560, height: 1440 },
-            '4k':    { width: 3840, height: 2160 }
+            '4k': { width: 3840, height: 2160 }
         };
         const { width, height } = resolutionMap[resolution] || resolutionMap['1080p'];
 
@@ -5998,6 +6036,8 @@ socket.on('stop-monitoring', () => {
         clearInterval(captureIntervalId);
         captureIntervalId = null;
     }
+    // Reset backpressure flag so the next monitoring session isn't permanently blocked
+    _frameInFlight = false;
 });
 
 // Student: Handle request for a high-res frame
@@ -6230,7 +6270,7 @@ function _flushMonitoringFrames() {
         if (!card) card = createEmptyMonitoringCard(userId, studentName);
         if (!card) return;
         const img = card.querySelector('.monitoring-img');
-        const ph  = card.querySelector('.monitoring-placeholder');
+        const ph = card.querySelector('.monitoring-placeholder');
         if (img && frame) {
             img.src = frame;
             img.style.opacity = '1';
@@ -7523,9 +7563,11 @@ function openImageViewer(url) {
 // does not steal focus away from the iframe, then injects a real keyboard event.
 function triggerNativePdfZoom(direction) {
     if (!pdfFrame) return;
-    const keys = { in: { key: '=', code: 'Equal', keyCode: 187 },
-                   out: { key: '-', code: 'Minus', keyCode: 189 },
-                   reset: { key: '0', code: 'Digit0', keyCode: 48 } };
+    const keys = {
+        in: { key: '=', code: 'Equal', keyCode: 187 },
+        out: { key: '-', code: 'Minus', keyCode: 189 },
+        reset: { key: '0', code: 'Digit0', keyCode: 48 }
+    };
     const k = keys[direction];
 
     // Give focus to the iframe so the injected event lands in the PDF viewer
