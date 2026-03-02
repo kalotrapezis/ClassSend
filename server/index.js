@@ -233,7 +233,7 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '10.4.0-beta', // Should match package.json
+    version: '10.5-beta', // Should match package.json
     classes: classes
   });
 });
@@ -820,7 +820,8 @@ io.on('connection', (socket) => {
       deletionTimeout: null, // Initialize deletion timeout
       advancedSettings: configManager.get('advancedSettings'),
       blockAllActive: false,
-      allowHandsUp: true
+      allowHandsUp: true,
+      nextPcNumber: 1
     });
     socket.join(classId);
     console.log(`Class created: ${classId} by ${userName} (${socket.id})`);
@@ -886,7 +887,8 @@ io.on('connection', (socket) => {
       blockUploadsActive: false, // New
       allowHandsUp: true,
       autoDownloadEnabled: false, // New
-      autoDownloadPath: '' // New
+      autoDownloadPath: '', // New
+      nextPcNumber: 1
     });
     socket.join(finalClassId);
     console.log(`Auto-created class: ${finalClassId} by ${userName} (${socket.id})`);
@@ -1140,7 +1142,7 @@ io.on('connection', (socket) => {
     console.log(`Teacher ${userName} took over Lobby`);
   });
 
-  socket.on('join-class', ({ classId, userName }, callback) => {
+  socket.on('join-class', ({ classId, userName, pcName }, callback) => {
     const classData = activeClasses.get(classId);
     if (!classData) {
       if (typeof callback === 'function') callback({ success: false, message: 'Class not found' });
@@ -1189,9 +1191,17 @@ io.on('connection', (socket) => {
       classData.teacherId = socket.id; // Update teacher socket ID
     }
 
-    const newUser = { id: socket.id, name: userName, role, handRaised: false };
+    const newUser = { id: socket.id, name: userName, role, handRaised: false, pcName: pcName || null };
     if (role === 'student') {
       classData.students.push(newUser);
+
+      // Auto-assign PC Name if missing
+      if (!newUser.pcName) {
+        newUser.pcName = `PC-${classData.nextPcNumber}`;
+        classData.nextPcNumber++;
+        socket.emit('pc-name-assigned', { pcName: newUser.pcName });
+        console.log(`[PC-NAME] Assigned ${newUser.pcName} to ${userName} in class ${classId}`);
+      }
 
       // Auto-block if Block All is active
       if (classData.blockAllActive) {

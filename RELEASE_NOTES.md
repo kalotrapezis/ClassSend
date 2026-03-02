@@ -1,6 +1,10 @@
 # Release Notes
 
-## [10.4.0-beta] - 2026-03-02
+## [10.4-beta] - 2026-03-02
+### NEW
+- **PC Names**: New PC Name fild in the settings hidden and shown in the monitoring screens only for the teacher.
+
+## [10.4-beta] - 2026-03-02
 ### NEW
 - **Close All Apps**: Added a new tool for teachers to close all running applications on every student PC instantly.
 - **Improved File Actions**: Enhanced file messages with "Send File" and "Open Action" buttons for better workflow.

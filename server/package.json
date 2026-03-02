@@ -1,6 +1,6 @@
 {
     "name": "classsend",
-    "version": "10.4.0-beta",
+    "version": "10.5-beta",
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
@@ -53,7 +53,7 @@
                     "config": {
                         "name": "ClassSend",
                         "setupIcon": "./assets/icon.ico",
-                        "setupExe": "ClassSend-10.4.0-beta Setup.exe",
+                        "setupExe": "ClassSend-10.5-beta Setup.exe",
                         "loadingGif": "./assets/loadingGif.gif"
                     }
                 },

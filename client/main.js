@@ -77,6 +77,7 @@ console.error = (...args) => {
 let currentServerUrl = window.location.origin;
 let socket = io(currentServerUrl);
 let debugModeActive = false;
+let pcName = localStorage.getItem('classsend-pcName') || null;
 
 console.log(`Connecting to ClassSend server at: ${currentServerUrl}`);
 
@@ -1479,6 +1480,14 @@ socket.on("active-classes", (classes) => {
     }
 });
 
+socket.on("pc-name-assigned", (data) => {
+    pcName = data.pcName;
+    localStorage.setItem('classsend-pcName', pcName);
+    console.log(`[PC-NAME] Assigned: ${pcName}`);
+    const settingsPcNameInput = document.getElementById("settings-pc-name-input");
+    if (settingsPcNameInput) settingsPcNameInput.value = pcName;
+});
+
 // Helper to get ALL classes (Local + Remote)
 function getAllAvailableClasses() {
     const allClasses = [...availableClasses];
@@ -1943,7 +1952,7 @@ btnSubmitSetup.addEventListener("click", () => {
             return;
         }
 
-        socket.emit("create-class", { classId: enteredClassId, userName }, (response) => {
+        socket.emit("create-class", { classId: enteredClassId, userName, pcName }, (response) => {
             if (response.success) {
                 joinedClasses.set(enteredClassId, {
                     messages: [],
@@ -2081,7 +2090,7 @@ function renderScanningStateInChat() {
 }
 
 function joinClass(classIdToJoin, nameToUse, isAutoJoin = false) {
-    socket.emit("join-class", { classId: classIdToJoin, userName: nameToUse }, (response) => {
+    socket.emit("join-class", { classId: classIdToJoin, userName: nameToUse, pcName: pcName }, (response) => {
         if (response.success) {
             const hasTeacher = response.users?.some(u => u.role === 'teacher') || false;
             joinedClasses.set(classIdToJoin, {
@@ -3505,7 +3514,7 @@ function renderUsersList() {
 
         userDiv.innerHTML = `
             <span class="user-status"></span>
-            <span class="user-name">${escapeHtml(user.name)}</span>${handIcon}${blockedIcon}
+            <span class="user-name">${escapeHtml(user.pcName ? user.pcName + ' - ' + user.name : user.name)}</span>${handIcon}${blockedIcon}
         `;
 
         // Add block/unblock button for teachers (only for students)
@@ -6085,6 +6094,7 @@ async function captureAndSendScreen(quality = 'low') {
                 frame: frameDataUrl,
                 userId: socket.id,
                 userName: userName,
+                pcName: pcName,
                 isHighRes: (quality === 'high')
             }, () => { _frameInFlight = false; }); // Clear on server ack
         }
@@ -6093,7 +6103,7 @@ async function captureAndSendScreen(quality = 'low') {
     }
 }
 
-function createEmptyMonitoringCard(userId, studentName) {
+function createEmptyMonitoringCard(userId, studentName, studentPcName) {
     if (!monitoringGrid) return null;
 
     let studentCard = document.getElementById(`monitoring-card-${userId}`);
@@ -6121,7 +6131,8 @@ function createEmptyMonitoringCard(userId, studentName) {
         nameOverlay.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 8px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; justify-content: center; align-items: center; gap: 8px; z-index: 3; border-radius: 0 0 8px 8px;';
 
         const nameText = document.createElement('span');
-        nameText.textContent = studentName;
+        const displayName = studentPcName ? `${studentPcName} - ${studentName}` : studentName;
+        nameText.textContent = displayName;
         nameText.style.fontWeight = '500';
 
         // Fullscreen Icon
@@ -6220,9 +6231,9 @@ function createEmptyMonitoringCard(userId, studentName) {
 }
 
 // Teacher: Receive frame — queue for RAF batch render to avoid per-frame reflows
-socket.on('monitoring-frame', ({ frame, userId, userName: studentName }) => {
+socket.on('monitoring-frame', ({ frame, userId, userName: studentName, pcName: studentPcName }) => {
     if (currentRole !== 'teacher' || !monitoringGrid) return;
-    _pendingFrames.set(userId, { frame, studentName });
+    _pendingFrames.set(userId, { frame, studentName, pcName: studentPcName });
     if (!_rafPending) {
         _rafPending = true;
         requestAnimationFrame(_flushMonitoringFrames);
@@ -6259,15 +6270,15 @@ window._csTools = {
 
 // ---- Performance: module-scope state for monitoring + UI ----
 let _frameInFlight = false;           // Backpressure: skip capture if last frame not ack'd
-const _pendingFrames = new Map();     // userId → { frame, studentName } (RAF batch)
+const _pendingFrames = new Map();     // userId → { frame, studentName, pcName } (RAF batch)
 let _rafPending = false;              // RAF dedup flag
 let _activeHighResHandler = null;     // Prevent stacking high-res socket listeners
 let _favoritesSnapshot = null;        // Cache: skip favorites rebuild if unchanged
 
 function _flushMonitoringFrames() {
-    _pendingFrames.forEach(({ frame, studentName }, userId) => {
+    _pendingFrames.forEach(({ frame, studentName, pcName: studentPcName }, userId) => {
         let card = document.getElementById(`monitoring-card-${userId}`);
-        if (!card) card = createEmptyMonitoringCard(userId, studentName);
+        if (!card) card = createEmptyMonitoringCard(userId, studentName, studentPcName);
         if (!card) return;
         const img = card.querySelector('.monitoring-img');
         const ph = card.querySelector('.monitoring-placeholder');
@@ -7913,6 +7924,12 @@ if (aboutAppIcon) {
                 updateSettingsVisibility();
                 console.log("Debug mode: Sidebar tabs should now be visible.");
             }
+
+            // Reveal PC Name field
+            const settingsPcNameContainer = document.getElementById("settings-pc-name-container");
+            if (settingsPcNameContainer) settingsPcNameContainer.classList.remove("hidden");
+            const settingsPcNameInput = document.getElementById("settings-pc-name-input");
+            if (settingsPcNameInput) settingsPcNameInput.value = pcName || "";
 
             // Show logs button explicitly just in case
             const btnViewLogs = document.getElementById("btn-view-logs");
