@@ -264,7 +264,9 @@ export const translations = {
         "advanced-launch-hint": "Enter a full .exe path or a URL. URLs open in the default browser.",
         "label-open-url": "Open URL...",
         "label-calculator": "Calculator",
-        "toast-app-launched": "App launched on all students"
+        "btn-tool-close-all-apps": "Close All Apps",
+        "confirm-close-all-apps": "Close all applications on all student PCs?",
+        "toast-close-all-apps-sent": "Closing all apps on student PCs..."
     },
 
     el: {
@@ -529,6 +531,8 @@ export const translations = {
         "advanced-launch-hint": "Εισάγετε πλήρη διαδρομή .exe ή URL. Τα URL ανοίγουν στο προεπιλεγμένο πρόγραμμα περιήγησης.",
         "label-open-url": "Άνοιγμα URL...",
         "label-calculator": "Αριθμομηχανή",
-        "toast-app-launched": "Η εφαρμογή εκκινήθηκε σε όλους τους μαθητές"
+        "btn-tool-close-all-apps": "Κλείσιμο Όλων των Εφαρμογών",
+        "confirm-close-all-apps": "Κλείσιμο όλων των εφαρμογών σε όλους τους υπολογιστές των μαθητών;",
+        "toast-close-all-apps-sent": "Το αίτημα κλεισίματος όλων των εφαρμογών εστάλη."
     }
 };

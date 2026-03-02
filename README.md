@@ -1,5 +1,5 @@
-# ClassSend 10.3.0
-![Version](https://img.shields.io/badge/version-v10.3.0--beta-blue)
+# ClassSend 10.4.0
+![Version](https://img.shields.io/badge/version-v10.4.0--beta-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -20,6 +20,9 @@
 - **📥 (New) Automatic Downloads**: Support for predetermined download locations across all PCs.
 - **🎚️ (New) Sensitivity Controls**: Interactive sliders for moderation thresholds.
 - **🖥️ (New) Monitor Focus Controls**: Individual Lock, Focus, and Launch pills for student-specific classroom management.
+- **🚫 (New) Close All Apps**: Teacher tool to close all running applications on every student PC instantly.
+- **📁 (New) Improved File Actions**: "Send File" and "Open Action" buttons directly on file messages for better workflow.
+- **🔍 (New) Monitoring Fixes**: Critical reliability and performance fixes for the student monitoring system.
 - **� Smart Auto-Connect**: The app dynamically probes for known servers from history and seamlessly routes students and teachers to the right place.
 - **� Instant Start**: New students skip the setup screens and go straight to finding a class.
 - **✨ Visual Polish**: Progress bars for sending/receiving files, and system messages that auto-delete with a sleek visual timer.
@@ -42,8 +45,8 @@
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
 - **Linux AppImage**: `ClassSend-9.5.1-x64.AppImage`
 - **Linux Zip**: `ClassSend-linux-x64-9.5.1.zip`
-- **Windows Installer (64-bit)**: `ClassSend-10.0.1 Setup.exe`
-- **Windows Portable (64-bit)**: `ClassSend-win32-x64-10.0.1.zip`
+- **Windows Installer (64-bit)**: `ClassSend-10.4.0 Setup.exe`
+- **Windows Portable (64-bit)**: `ClassSend-win32-x64-10.4.0.zip`
 
 
 

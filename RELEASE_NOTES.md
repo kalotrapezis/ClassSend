@@ -1,5 +1,13 @@
 # Release Notes
 
+## [10.4.0-beta] - 2026-03-02
+### NEW
+- **Close All Apps**: Added a new tool for teachers to close all running applications on every student PC instantly.
+- **Improved File Actions**: Enhanced file messages with "Send File" and "Open Action" buttons for better workflow.
+
+### FIXES
+- **Monitoring System**: Implemented critical fixes for the student monitoring system to improve reliability and performance.
+
 ## [10.3.0-beta] - 2026-03-01
 ### IMPROVEMENTS
 - **Screen Share Bitrate**: Replaced connection-type presets (Auto/Ethernet/WiFi) with explicit bitrate options: 8, 16, 24, 32, and 64 Mbps. Default is 16 Mbps.

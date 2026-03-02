@@ -233,7 +233,7 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '10.2.1', // Should match package.json
+    version: '10.4.0-beta', // Should match package.json
     classes: classes
   });
 });
@@ -1520,6 +1520,17 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('trigger-close-all-apps', ({ classId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    classData.students.forEach(s => {
+      const sid = typeof s === 'object' ? s.id : s;
+      io.to(sid).emit('execute-close-all-apps');
+    });
+    console.log(`[Close All Apps] Sent to all students in ${classId}`);
+  });
+
   socket.on('trigger-unlock-screen', ({ classId, targetSocketId }) => {
     if (!activeClasses.has(classId)) return;
     const classData = activeClasses.get(classId);
@@ -2690,7 +2701,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('monitoring-frame', ({ frame, userId, userName, isHighRes }) => {
+  socket.on('monitoring-frame', ({ frame, userId, userName, isHighRes }, ack) => {
     const classId = getUserClassId(userId || socket.id);
     if (classId) {
       const classData = activeClasses.get(classId);
@@ -2699,6 +2710,10 @@ io.on('connection', (socket) => {
         io.to(classData.teacherId).emit('monitoring-frame', { frame, userId: userId || socket.id, userName, isHighRes });
       }
     }
+    // Acknowledge receipt so the client-side backpressure flag (_frameInFlight) is cleared.
+    // Without this, the first frame locks _frameInFlight = true permanently and all
+    // subsequent frames are silently dropped.
+    if (typeof ack === 'function') ack();
   });
 
   // Backup Word Lists Event
