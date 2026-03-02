@@ -610,7 +610,7 @@
                     </div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
                     <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
-                        id="app-version-display">10.3.0</span></p>
+                        id="app-version-display">10.3.1-beta</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
@@ -618,12 +618,12 @@
                         data-i18n="recent-improvements">
                         Recent Improvements:</h4>
                       <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.4;">
-                        <li>Advanced Filtering & Sensitivity Sliders</li>
+                        <li><strong>Fixed:</strong> PDF viewer no longer freezes the app — switched to PDF.js canvas renderer</li>
+                        <li><strong>Fixed:</strong> Viewer fullscreen state now resets properly on close (no longer reopens in fullscreen)</li>
+                        <li><strong>Fixed:</strong> Explicit bitrate options (8/16/24/32/64 Mbps) for screen recording quality</li>
+                        <li>Advanced Filtering &amp; Sensitivity Sliders</li>
                         <li>Student Monitoring (Low-res JPG)</li>
-                        <li>Screen Lock & Focus Mode</li>
-                        <li>End of Day Termination</li>
-                        <li>Direct Location Downloads & Path Sync</li>
-                        <li>Teacher UI Highlight Fixes</li>
+                        <li>Screen Lock &amp; Focus Mode</li>
                       </ul>
                     </div>
 
@@ -693,7 +693,7 @@
               </div>
             </div>
             <div class="pdf-container">
-              <iframe id="pdf-frame" name="pdf-frame" src="" frameborder="0"></iframe>
+              <iframe id="pdf-frame" src="" frameborder="0"></iframe>
             </div>
           </div>
         </div>

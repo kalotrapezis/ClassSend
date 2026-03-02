@@ -7465,11 +7465,11 @@ let imageStartX, imageStartY;
 let imageTranslateX = 0, imageTranslateY = 0;
 
 function closeAllViewers() {
-    // Hide Modals
-    if (pdfViewerModal) pdfViewerModal.classList.add("hidden");
-    if (imageViewerModal) imageViewerModal.classList.add("hidden");
-    if (documentViewerModal) documentViewerModal.classList.add("hidden");
-    if (mediaPlayerModal) mediaPlayerModal.classList.add("hidden");
+    // Hide Modals and remove fullscreen state
+    if (pdfViewerModal) { pdfViewerModal.classList.add("hidden"); pdfViewerModal.classList.remove("fullscreen"); }
+    if (imageViewerModal) { imageViewerModal.classList.add("hidden"); imageViewerModal.classList.remove("fullscreen"); }
+    if (documentViewerModal) { documentViewerModal.classList.add("hidden"); documentViewerModal.classList.remove("fullscreen"); }
+    if (mediaPlayerModal) { mediaPlayerModal.classList.add("hidden"); mediaPlayerModal.classList.remove("fullscreen"); }
     if (mediaPlayerContainer) mediaPlayerContainer.innerHTML = '';
 
     // Reset Sources
@@ -7496,14 +7496,14 @@ function closeAllViewers() {
     // Clear Web Frame
     const webFrame = document.getElementById("web-frame");
     if (webFrame) webFrame.src = "about:blank";
-    if (webViewerModal) webViewerModal.classList.add("hidden");
+    if (webViewerModal) { webViewerModal.classList.add("hidden"); webViewerModal.classList.remove("fullscreen"); }
 }
 
 function openPdfViewer(url) {
     closeAllViewers(); // Auto-close others
     if (pdfViewerModal && pdfFrame) {
         activeViewer = 'pdf';
-        pdfFrame.src = url;
+        pdfFrame.src = '/pdf-viewer.html?file=' + encodeURIComponent(url);
         pdfViewerModal.classList.remove("hidden");
     }
 }
