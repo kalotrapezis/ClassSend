@@ -1,6 +1,6 @@
 # Release Notes
 
-## [10.4-beta] - 2026-03-02
+## [10.5-beta] - 2026-03-02
 ### NEW
 - **PC Names**: New PC Name fild in the settings hidden and shown in the monitoring screens only for the teacher. PC names are asigned automaticaly with the order the PCs join the class the first time.
 
