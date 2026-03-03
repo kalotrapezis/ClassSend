@@ -271,7 +271,11 @@ export const translations = {
         "label-calculator": "Calculator",
         "btn-tool-close-all-apps": "Close All Apps",
         "confirm-close-all-apps": "Close all applications on all student PCs?",
-        "toast-close-all-apps-sent": "Closing all apps on student PCs..."
+        "toast-close-all-apps-sent": "Closing all apps on student PCs...",
+        "btn-tool-disable-internet": "Disable Internet",
+        "btn-tool-enable-internet": "Enable Internet",
+        "toast-internet-disabled": "Internet Access Disabled",
+        "toast-internet-enabled": "Internet Access Restored"
     },
 
     el: {
@@ -538,6 +542,10 @@ export const translations = {
         "label-calculator": "Αριθμομηχανή",
         "btn-tool-close-all-apps": "Κλείσιμο Όλων των Εφαρμογών",
         "confirm-close-all-apps": "Κλείσιμο όλων των εφαρμογών σε όλους τους υπολογιστές των μαθητών;",
-        "toast-close-all-apps-sent": "Το αίτημα κλεισίματος όλων των εφαρμογών εστάλη."
+        "toast-close-all-apps-sent": "Το αίτημα κλεισίματος όλων των εφαρμογών εστάλη.",
+        "btn-tool-disable-internet": "Διακοπή Internet",
+        "btn-tool-enable-internet": "Επαναφορά Internet",
+        "toast-internet-disabled": "Η πρόσβαση στο Internet διακόπηκε",
+        "toast-internet-enabled": "Η πρόσβαση στο Internet αποκαταστάθηκε"
     }
 };

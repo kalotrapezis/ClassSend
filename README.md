@@ -21,6 +21,7 @@
 - **🎚️ (New) Sensitivity Controls**: Interactive sliders for moderation thresholds.
 - **🖥️ (New) Monitor Focus Controls**: Individual Lock, Focus, and Launch pills for student-specific classroom management.
 - **🚫 (New) Close All Apps**: Teacher tool to close all running applications on every student PC instantly.
+- **🌐 (New) No Internet**: Teacher tool to disable and restore student internet access on demand while maintaining local classroom connectivity.
 - **📁 (New) Improved File Actions**: "Send File" and "Open Action" buttons directly on file messages for better workflow.
 - **🔍 (New) Monitoring Fixes**: Critical reliability and performance fixes for the student monitoring system.
 - **� Smart Auto-Connect**: The app dynamically probes for known servers from history and seamlessly routes students and teachers to the right place.

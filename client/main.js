@@ -4238,6 +4238,36 @@ if (btnToolCloseAllApps) {
     });
 }
 
+// No Internet Tool Logic
+const btnToolNoInternet = document.getElementById('btn-tool-no-internet');
+if (btnToolNoInternet) {
+    btnToolNoInternet.addEventListener('click', () => {
+        if (currentClassId && currentRole === 'teacher') {
+            const isCurrentlyDisabled = btnToolNoInternet.classList.contains('active');
+            if (isCurrentlyDisabled) {
+                // Currently Disabled -> Enable Internet
+                showToast('Restoring internet connection...', 'info');
+                socket.emit('trigger-enable-internet', { classId: currentClassId });
+                // We assume immediate success for UI
+                btnToolNoInternet.classList.remove('active');
+                const span = btnToolNoInternet.querySelector('span');
+                if (span) span.textContent = t('btn-tool-disable-internet') || 'Disable Internet';
+                btnToolNoInternet.title = t('btn-tool-disable-internet') || 'Disable Internet';
+            } else {
+                // Currently Enabled -> Disable Internet
+                if (confirm('Are you sure you want to disable internet access for all students? They will be disconnected from the internet but not from this local session.')) {
+                    showToast('Disabling internet connection...', 'warning');
+                    socket.emit('trigger-disable-internet', { classId: currentClassId });
+                    btnToolNoInternet.classList.add('active');
+                    const span = btnToolNoInternet.querySelector('span');
+                    if (span) span.textContent = t('btn-tool-enable-internet') || 'Enable Internet';
+                    btnToolNoInternet.title = t('btn-tool-enable-internet') || 'Enable Internet';
+                }
+            }
+        }
+    });
+}
+
 // Integrated Monitoring Minimize/Restore Logic from index.html (Already exists below at line 5518)
 
 // Auto Download Toggle (Teacher Settings)
@@ -4332,6 +4362,22 @@ socket.on('execute-focus', () => {
 socket.on('execute-close-all-apps', () => {
     if (window.electron) {
         window.electron.ipcRenderer.invoke('close-all-apps');
+    }
+});
+
+socket.on('execute-disable-internet', () => {
+    if (window.electron) {
+        window.electron.ipcRenderer.invoke('toggle-internet', true)
+            .then(() => console.log('Internet disabled successfully'))
+            .catch(e => console.error('Failed to disable internet', e));
+    }
+});
+
+socket.on('execute-enable-internet', () => {
+    if (window.electron) {
+        window.electron.ipcRenderer.invoke('toggle-internet', false)
+            .then(() => console.log('Internet enabled successfully'))
+            .catch(e => console.error('Failed to enable internet', e));
     }
 });
 
@@ -6320,6 +6366,7 @@ function openMonitorFocusMode(targetUserId, studentName) {
     const favMenu = document.getElementById('focus-fav-menu');
     const btnLock = document.getElementById('btn-focus-lock');
     const btnFocusApp = document.getElementById('btn-focus-app');
+    const btnFocusNoInternet = document.getElementById('btn-focus-no-internet');
     const btnLaunch = document.getElementById('btn-focus-launch');
     const divider = document.getElementById('focus-divider');
     const lockLabel = document.getElementById('focus-lock-label');
@@ -6340,6 +6387,10 @@ function openMonitorFocusMode(targetUserId, studentName) {
     if (divider) divider.classList.remove('hidden');
     if (btnLock) btnLock.classList.remove('hidden');
     if (btnFocusApp) btnFocusApp.classList.remove('hidden');
+    if (btnFocusNoInternet) {
+        btnFocusNoInternet.classList.remove('hidden');
+        btnFocusNoInternet.classList.remove('active');
+    }
     if (btnLaunch) btnLaunch.classList.remove('hidden');
     console.log('Monitor focus controls shown for:', targetUserId);
 
@@ -6369,6 +6420,25 @@ function openMonitorFocusMode(targetUserId, studentName) {
         if (!currentClassId || currentRole !== 'teacher') return;
         showToast(t('toast-focus-sent') || 'Focus sent', 'info');
         socket.emit('trigger-focus', { classId: currentClassId, targetSocketId: targetUserId });
+    };
+
+    // --- No Internet pill ---
+    const onNoInternetClick = () => {
+        if (!currentClassId || currentRole !== 'teacher') return;
+        const isCurrentlyDisabled = btnFocusNoInternet.classList.contains('active');
+        if (isCurrentlyDisabled) {
+            showToast('Restoring internet connection for student...', 'info');
+            socket.emit('trigger-enable-internet', { classId: currentClassId, targetSocketId: targetUserId });
+            btnFocusNoInternet.classList.remove('active');
+            btnFocusNoInternet.title = t('btn-tool-disable-internet') || 'Disable Internet';
+        } else {
+            if (confirm(`Are you sure you want to disable internet access for ${studentName}?`)) {
+                showToast('Disabling internet connection for student...', 'warning');
+                socket.emit('trigger-disable-internet', { classId: currentClassId, targetSocketId: targetUserId });
+                btnFocusNoInternet.classList.add('active');
+                btnFocusNoInternet.title = t('btn-tool-enable-internet') || 'Enable Internet';
+            }
+        }
     };
 
     // --- App Execution pill (toggles glass popup menu) ---
@@ -6424,11 +6494,13 @@ function openMonitorFocusMode(targetUserId, studentName) {
 
     if (btnLock) btnLock.addEventListener('click', onLockClick);
     if (btnFocusApp) btnFocusApp.addEventListener('click', onFocusClick);
+    if (btnFocusNoInternet) btnFocusNoInternet.addEventListener('click', onNoInternetClick);
     if (btnLaunch) btnLaunch.addEventListener('click', onLaunchClick);
 
     // Store handlers on elements so closeMonitorFocusMode can remove them
     if (btnLock) btnLock._focusHandler = onLockClick;
     if (btnFocusApp) btnFocusApp._focusHandler = onFocusClick;
+    if (btnFocusNoInternet) btnFocusNoInternet._focusHandler = onNoInternetClick;
     if (btnLaunch) btnLaunch._focusHandler = onLaunchClick;
 }
 
@@ -6437,6 +6509,7 @@ function closeMonitorFocusMode() {
     const favMenu = document.getElementById('focus-fav-menu');
     const btnLock = document.getElementById('btn-focus-lock');
     const btnFocusApp = document.getElementById('btn-focus-app');
+    const btnFocusNoInternet = document.getElementById('btn-focus-no-internet');
     const btnLaunch = document.getElementById('btn-focus-launch');
 
     // Remove event listeners
@@ -6447,6 +6520,10 @@ function closeMonitorFocusMode() {
     if (btnFocusApp && btnFocusApp._focusHandler) {
         btnFocusApp.removeEventListener('click', btnFocusApp._focusHandler);
         delete btnFocusApp._focusHandler;
+    }
+    if (btnFocusNoInternet && btnFocusNoInternet._focusHandler) {
+        btnFocusNoInternet.removeEventListener('click', btnFocusNoInternet._focusHandler);
+        delete btnFocusNoInternet._focusHandler;
     }
     if (btnLaunch && btnLaunch._focusHandler) {
         btnLaunch.removeEventListener('click', btnLaunch._focusHandler);
@@ -6459,12 +6536,15 @@ function closeMonitorFocusMode() {
         _focusLockState = false;
     }
 
+    // We don't automatically restore internet on close because they might just be minimizing the window.
+
     // Hide controls
     if (controlsEl) controlsEl.classList.add('hidden');
     const divider = document.getElementById('focus-divider');
     if (divider) divider.classList.add('hidden');
     if (btnLock) btnLock.classList.add('hidden');
     if (btnFocusApp) btnFocusApp.classList.add('hidden');
+    if (btnFocusNoInternet) btnFocusNoInternet.classList.add('hidden');
     if (btnLaunch) btnLaunch.classList.add('hidden');
 
     // Hide favorites popup and reset cache so next open gets a fresh build

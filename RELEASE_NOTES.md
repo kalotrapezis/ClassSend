@@ -2,6 +2,7 @@
 
 ## [10.5-beta] - 2026-03-02
 ### NEW
+- **No Internet Tool**: Added a global and individual teacher tool to disable and restore student web access while maintaining local network communication.
 - **PC Names**: New PC Name fild in the settings hidden and shown in the monitoring screens only for the teacher. PC names are asigned automaticaly with the order the PCs join the class the first time.
 
 ## [10.4-beta] - 2026-03-02

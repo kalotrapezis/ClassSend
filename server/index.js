@@ -1541,6 +1541,36 @@ io.on('connection', (socket) => {
     console.log(`[Close All Apps] Sent to all students in ${classId}`);
   });
 
+  socket.on('trigger-disable-internet', ({ classId, targetSocketId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('execute-disable-internet');
+    } else {
+      classData.students.forEach(s => {
+        const sid = typeof s === 'object' ? s.id : s;
+        io.to(sid).emit('execute-disable-internet');
+      });
+      console.log(`[No Internet] Disabling internet for all students in ${classId}`);
+    }
+  });
+
+  socket.on('trigger-enable-internet', ({ classId, targetSocketId }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('execute-enable-internet');
+    } else {
+      classData.students.forEach(s => {
+        const sid = typeof s === 'object' ? s.id : s;
+        io.to(sid).emit('execute-enable-internet');
+      });
+      console.log(`[No Internet] Enabling internet for all students in ${classId}`);
+    }
+  });
+
   socket.on('open-file-on-students', ({ classId, fileId, fileName }) => {
     if (!activeClasses.has(classId)) return;
     const classData = activeClasses.get(classId);

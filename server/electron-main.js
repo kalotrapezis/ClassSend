@@ -518,6 +518,32 @@ Get-Process | Where-Object {
         });
     });
 
+    // Toggle Internet via Windows Registry (Proxy Method)
+    ipcMain.handle('toggle-internet', async (event, disable) => {
+        return new Promise((resolve) => {
+            let cmd = '';
+            // ProxyOverride="<local>" ensures localhost/local IP traffic is not blocked
+            if (disable) {
+                // Enable a fake proxy
+                cmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 1 /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyServer /t REG_SZ /d "127.0.0.1:81" /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyOverride /t REG_SZ /d "<local>" /f`;
+            } else {
+                // Disable the proxy
+                cmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f`;
+            }
+
+            console.log(`[Toggle Internet] Executing: ${cmd}`);
+            exec(cmd, (error) => {
+                if (error) {
+                    console.error('[Toggle Internet] Error:', error.message);
+                    resolve({ success: false, error: error.message });
+                } else {
+                    console.log(`[Toggle Internet] Successfully ${disable ? 'disabled' : 'enabled'} internet`);
+                    resolve({ success: true });
+                }
+            });
+        });
+    });
+
     // Helper function to resolve paths with environment variables and wildcards
     function resolveRobustPath(p) {
         if (!p) return p;
@@ -688,7 +714,7 @@ Get-Process | Where-Object {
         const keyCode = { in: '=', out: '-', reset: '0' }[direction];
         if (!keyCode) return;
         event.sender.sendInputEvent({ type: 'keyDown', keyCode, modifiers: ['ctrl'] });
-        event.sender.sendInputEvent({ type: 'keyUp',   keyCode, modifiers: ['ctrl'] });
+        event.sender.sendInputEvent({ type: 'keyUp', keyCode, modifiers: ['ctrl'] });
     });
 
     // Handle silent screen capture for monitoring feature
