@@ -2161,6 +2161,8 @@ function switchClass(id) {
     chatInterface.classList.remove("hidden");
 
     if (settingsNameInput) settingsNameInput.value = userName;
+    const _pcNameInput = document.getElementById('settings-pc-name-input');
+    if (_pcNameInput) _pcNameInput.value = pcName || '';
 
     // Update role display in settings
     if (typeof updateRoleDisplay === 'function') {
@@ -2429,6 +2431,22 @@ if (btnSettingsChangeName) {
                 settingsNameInput.value = userName; // Revert
             }
         });
+    });
+}
+
+// PC Name Change from Settings
+const btnSettingsChangePcName = document.getElementById("btn-settings-change-pc-name");
+if (btnSettingsChangePcName) {
+    btnSettingsChangePcName.addEventListener("click", () => {
+        const settingsPcNameInput = document.getElementById("settings-pc-name-input");
+        if (!settingsPcNameInput) return;
+        const newPcName = settingsPcNameInput.value.trim();
+        if (!newPcName) return alert("Please enter a PC name");
+        if (newPcName === pcName) return;
+
+        pcName = newPcName;
+        localStorage.setItem('classsend-pcName', newPcName);
+        showToast(translations[currentLanguage]["toast-name-updated-success"], "success");
     });
 }
 
