@@ -6367,6 +6367,7 @@ function openMonitorFocusMode(targetUserId, studentName) {
     const btnLock = document.getElementById('btn-focus-lock');
     const btnFocusApp = document.getElementById('btn-focus-app');
     const btnFocusNoInternet = document.getElementById('btn-focus-no-internet');
+    const btnFocusCloseApps = document.getElementById('btn-focus-close-apps');
     const btnLaunch = document.getElementById('btn-focus-launch');
     const divider = document.getElementById('focus-divider');
     const lockLabel = document.getElementById('focus-lock-label');
@@ -6391,6 +6392,7 @@ function openMonitorFocusMode(targetUserId, studentName) {
         btnFocusNoInternet.classList.remove('hidden');
         btnFocusNoInternet.classList.remove('active');
     }
+    if (btnFocusCloseApps) btnFocusCloseApps.classList.remove('hidden');
     if (btnLaunch) btnLaunch.classList.remove('hidden');
     console.log('Monitor focus controls shown for:', targetUserId);
 
@@ -6438,6 +6440,15 @@ function openMonitorFocusMode(targetUserId, studentName) {
                 btnFocusNoInternet.classList.add('active');
                 btnFocusNoInternet.title = t('btn-tool-enable-internet') || 'Enable Internet';
             }
+        }
+    };
+
+    // --- Close Apps pill ---
+    const onCloseAppsClick = () => {
+        if (!currentClassId || currentRole !== 'teacher') return;
+        if (confirm(t('confirm-close-all-apps') || `Close all applications for ${studentName}?`)) {
+            showToast(t('toast-close-all-apps-sent') || `Closing apps for ${studentName}…`, 'warning');
+            socket.emit('trigger-close-all-apps', { classId: currentClassId, targetSocketId: targetUserId });
         }
     };
 
@@ -6495,12 +6506,14 @@ function openMonitorFocusMode(targetUserId, studentName) {
     if (btnLock) btnLock.addEventListener('click', onLockClick);
     if (btnFocusApp) btnFocusApp.addEventListener('click', onFocusClick);
     if (btnFocusNoInternet) btnFocusNoInternet.addEventListener('click', onNoInternetClick);
+    if (btnFocusCloseApps) btnFocusCloseApps.addEventListener('click', onCloseAppsClick);
     if (btnLaunch) btnLaunch.addEventListener('click', onLaunchClick);
 
     // Store handlers on elements so closeMonitorFocusMode can remove them
     if (btnLock) btnLock._focusHandler = onLockClick;
     if (btnFocusApp) btnFocusApp._focusHandler = onFocusClick;
     if (btnFocusNoInternet) btnFocusNoInternet._focusHandler = onNoInternetClick;
+    if (btnFocusCloseApps) btnFocusCloseApps._focusHandler = onCloseAppsClick;
     if (btnLaunch) btnLaunch._focusHandler = onLaunchClick;
 }
 
@@ -6510,6 +6523,7 @@ function closeMonitorFocusMode() {
     const btnLock = document.getElementById('btn-focus-lock');
     const btnFocusApp = document.getElementById('btn-focus-app');
     const btnFocusNoInternet = document.getElementById('btn-focus-no-internet');
+    const btnFocusCloseApps = document.getElementById('btn-focus-close-apps');
     const btnLaunch = document.getElementById('btn-focus-launch');
 
     // Remove event listeners
@@ -6524,6 +6538,10 @@ function closeMonitorFocusMode() {
     if (btnFocusNoInternet && btnFocusNoInternet._focusHandler) {
         btnFocusNoInternet.removeEventListener('click', btnFocusNoInternet._focusHandler);
         delete btnFocusNoInternet._focusHandler;
+    }
+    if (btnFocusCloseApps && btnFocusCloseApps._focusHandler) {
+        btnFocusCloseApps.removeEventListener('click', btnFocusCloseApps._focusHandler);
+        delete btnFocusCloseApps._focusHandler;
     }
     if (btnLaunch && btnLaunch._focusHandler) {
         btnLaunch.removeEventListener('click', btnLaunch._focusHandler);
@@ -6545,6 +6563,7 @@ function closeMonitorFocusMode() {
     if (btnLock) btnLock.classList.add('hidden');
     if (btnFocusApp) btnFocusApp.classList.add('hidden');
     if (btnFocusNoInternet) btnFocusNoInternet.classList.add('hidden');
+    if (btnFocusCloseApps) btnFocusCloseApps.classList.add('hidden');
     if (btnLaunch) btnLaunch.classList.add('hidden');
 
     // Hide favorites popup and reset cache so next open gets a fresh build

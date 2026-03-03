@@ -1530,15 +1530,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('trigger-close-all-apps', ({ classId }) => {
+  socket.on('trigger-close-all-apps', ({ classId, targetSocketId }) => {
     if (!activeClasses.has(classId)) return;
     const classData = activeClasses.get(classId);
     if (classData.teacherId !== socket.id) return;
-    classData.students.forEach(s => {
-      const sid = typeof s === 'object' ? s.id : s;
-      io.to(sid).emit('execute-close-all-apps');
-    });
-    console.log(`[Close All Apps] Sent to all students in ${classId}`);
+
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('execute-close-all-apps');
+      console.log(`[Close All Apps] Sent to specific student ${targetSocketId} in ${classId}`);
+    } else {
+      classData.students.forEach(s => {
+        const sid = typeof s === 'object' ? s.id : s;
+        io.to(sid).emit('execute-close-all-apps');
+      });
+      console.log(`[Close All Apps] Sent to all students in ${classId}`);
+    }
   });
 
   socket.on('trigger-disable-internet', ({ classId, targetSocketId }) => {

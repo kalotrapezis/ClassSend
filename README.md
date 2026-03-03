@@ -19,8 +19,8 @@
 - **🎯 (New) Focus Mode**: Automatic window restoration from the system tray.
 - **📥 (New) Automatic Downloads**: Support for predetermined download locations across all PCs.
 - **🎚️ (New) Sensitivity Controls**: Interactive sliders for moderation thresholds.
-- **🖥️ (New) Monitor Focus Controls**: Individual Lock, Focus, and Launch pills for student-specific classroom management.
-- **🚫 (New) Close All Apps**: Teacher tool to close all running applications on every student PC instantly.
+- **🖥️ (New) Monitor Focus Controls**: Individual Lock, Focus, No Internet, Close Apps, and Launch pills for student-specific classroom management.
+- **🚫 (New) Close All Apps**: Teacher tool in the main menu and individual focus modal to close all running applications instantly.
 - **🌐 (New) No Internet**: Teacher tool to disable and restore student internet access on demand while maintaining local classroom connectivity.
 - **📁 (New) Improved File Actions**: "Send File" and "Open Action" buttons directly on file messages for better workflow.
 - **🔍 (New) Monitoring Fixes**: Critical reliability and performance fixes for the student monitoring system.

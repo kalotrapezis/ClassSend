@@ -7,7 +7,7 @@
 
 ## [10.4-beta] - 2026-03-02
 ### NEW
-- **Close All Apps**: Added a new tool for teachers to close all running applications on every student PC instantly.
+- **Close All Apps**: Added a global and individual feature for teachers to close all running applications instantly.
 - **Improved File Actions**: Enhanced file messages with "Send File" and "Open Action" buttons for better workflow.
 
 ### FIXES
