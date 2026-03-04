@@ -304,6 +304,12 @@ async function categorizeWithConfidence(text) {
     let logProbability = Math.log(categoryProbability);
 
     Object.keys(frequencyTable).forEach(token => {
+      // FIX: Ignore Out-Of-Vocabulary tokens to prevent Laplace smoothing from skewing 
+      // probabilities towards categories with fewer overall tokens (typically "profane").
+      if (!classifier.vocabulary[token]) {
+        return; // Skip token completely if unseen
+      }
+
       const frequencyInText = frequencyTable[token];
       const tokenProbability = classifier.tokenProbability(token, category);
       logProbability += frequencyInText * Math.log(tokenProbability);

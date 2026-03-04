@@ -6391,6 +6391,8 @@ function openMonitorFocusMode(targetUserId, studentName) {
     if (btnFocusNoInternet) {
         btnFocusNoInternet.classList.remove('hidden');
         btnFocusNoInternet.classList.remove('active');
+        const netIcon = btnFocusNoInternet.querySelector('img');
+        if (netIcon) netIcon.src = '/assets/internet-unlocked.svg';
     }
     if (btnFocusCloseApps) btnFocusCloseApps.classList.remove('hidden');
     if (btnLaunch) btnLaunch.classList.remove('hidden');
@@ -6428,17 +6430,20 @@ function openMonitorFocusMode(targetUserId, studentName) {
     const onNoInternetClick = () => {
         if (!currentClassId || currentRole !== 'teacher') return;
         const isCurrentlyDisabled = btnFocusNoInternet.classList.contains('active');
+        const netIcon = btnFocusNoInternet.querySelector('img');
         if (isCurrentlyDisabled) {
             showToast('Restoring internet connection for student...', 'info');
             socket.emit('trigger-enable-internet', { classId: currentClassId, targetSocketId: targetUserId });
             btnFocusNoInternet.classList.remove('active');
             btnFocusNoInternet.title = t('btn-tool-disable-internet') || 'Disable Internet';
+            if (netIcon) netIcon.src = '/assets/internet-unlocked.svg';
         } else {
             if (confirm(`Are you sure you want to disable internet access for ${studentName}?`)) {
                 showToast('Disabling internet connection for student...', 'warning');
                 socket.emit('trigger-disable-internet', { classId: currentClassId, targetSocketId: targetUserId });
                 btnFocusNoInternet.classList.add('active');
                 btnFocusNoInternet.title = t('btn-tool-enable-internet') || 'Enable Internet';
+                if (netIcon) netIcon.src = '/assets/no-internet-.svg';
             }
         }
     };
