@@ -43,7 +43,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Serve assets directory
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 // Serve media directory for in-app viewers
-app.use('/media', express.static(path.join(process.cwd(), 'media')));
+let mediaBaseDir = process.cwd();
+if (electronApp && electronApp.isPackaged) {
+  mediaBaseDir = path.dirname(process.execPath);
+}
+app.use('/media', express.static(path.join(mediaBaseDir, 'media')));
 
 // TLS/HTTPS support (optional)
 const USE_TLS = process.env.USE_TLS === 'true' || false;
@@ -1773,8 +1777,17 @@ io.on('connection', (socket) => {
       reportThreshold
     };
 
+    // Keep deep copy of main settings updated in memory config & push to disk
+    const fullConfig = configManager.getAll();
+    if (!fullConfig.advancedSettings) fullConfig.advancedSettings = {};
+
+    fullConfig.advancedSettings = {
+      ...fullConfig.advancedSettings,
+      ...classData.advancedSettings
+    };
+
     // Persist so settings survive app restarts
-    configManager.set('advancedSettings', classData.advancedSettings);
+    configManager.set('advancedSettings', fullConfig.advancedSettings);
     console.log(`Advanced settings updated for class ${classId}:`, classData.advancedSettings);
   });
 
@@ -2882,7 +2895,7 @@ io.on('connection', (socket) => {
       if (typeof openAtLogin === 'boolean') {
         electronApp.setLoginItemSettings({
           openAtLogin: openAtLogin,
-          openAsHidden: false // Optional: start hidden?
+          args: openAtLogin ? ['--hidden'] : []
         });
         console.log(`Startup setting changed: ${openAtLogin}`);
         callback({ success: true });

@@ -1,6 +1,6 @@
 {
     "name": "classsend",
-    "version": "10.5.0-beta",
+    "version": "10.5.1-beta2",
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
@@ -35,16 +35,12 @@
                     "unpack": "**/*.{node,dll}"
                 },
                 "extraResource": [],
-                "arch": [
-                    "ia32"
-                ]
+                "arch": "x64"
             },
             "makers": [
                 {
                     "name": "@electron-forge/maker-zip",
                     "platforms": [
-                        "darwin",
-                        "linux",
                         "win32"
                     ]
                 },
@@ -53,22 +49,8 @@
                     "config": {
                         "name": "ClassSend",
                         "setupIcon": "./assets/icon.ico",
-                        "setupExe": "ClassSend-10.5.0-beta Setup.exe",
+                        "setupExe": "ClassSend-Setup.exe",
                         "loadingGif": "./assets/loadingGif.gif"
-                    }
-                },
-                {
-                    "name": "@forkprince/electron-forge-maker-appimage",
-                    "config": {
-                        "name": "ClassSend",
-                        "productName": "ClassSend",
-                        "genericName": "File Sharing",
-                        "description": "Local Network File Sharing for Education",
-                        "categories": [
-                            "Network",
-                            "Education"
-                        ],
-                        "icon": "./public/icon.ico"
                     }
                 }
             ]
@@ -91,7 +73,7 @@
             "public/**/*"
         ],
         "targets": [
-            "node18-win-x86"
+            "node22-win-x64"
         ]
     },
     "dependencies": {
@@ -107,13 +89,11 @@
         "socket.io": "^4.8.1"
     },
     "devDependencies": {
-        "@electron-forge/cli": "^7.11.1",
-        "@electron-forge/maker-squirrel": "^7.11.1",
-        "@electron-forge/maker-zip": "^7.11.1",
-        "@forkprince/electron-forge-maker-appimage": "^1.0.11",
-        "electron": "^40.6.0",
-        "electron-forge-maker-nsis": "^26.8.1",
-        "png-to-ico": "^3.0.1",
-        "sharp": "^0.34.5"
+        "@electron-forge/cli": "^6.4.2",
+        "@electron-forge/maker-squirrel": "^6.4.2",
+        "@electron-forge/maker-zip": "^6.4.2",
+        "electron": "^22.3.27",
+        "png-to-ico": "^2.0.4",
+        "sharp": "^0.32.6"
     }
 }

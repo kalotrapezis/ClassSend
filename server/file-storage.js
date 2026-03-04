@@ -5,7 +5,16 @@ const crypto = require('crypto');
 class FileStorage {
     constructor() {
         // Store in the installation root directory as "media"
-        const baseDir = process.cwd();
+        let baseDir = process.cwd();
+        try {
+            const electronApp = require('electron').app;
+            if (electronApp && electronApp.isPackaged) {
+                baseDir = path.dirname(process.execPath);
+            }
+        } catch (e) {
+            // Not running in electron or electron not available
+        }
+
         this.uploadDir = path.join(baseDir, 'media');
         this.metadataFile = path.join(this.uploadDir, 'files.json');
         this.files = new Map(); // fileId → { name, size, type, path, classId, uploadedBy, timestamp }

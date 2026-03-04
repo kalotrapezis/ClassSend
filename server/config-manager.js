@@ -35,6 +35,7 @@ class ConfigManager {
 
     getDefaults() {
         return {
+            startupConfigured: false,
             enableLogging: false, // Default: Off
             autoExportLogs: false, // Default: Off
             advancedSettings: {

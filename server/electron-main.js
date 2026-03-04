@@ -162,24 +162,29 @@ function createWindow() {
     }
     const iconPath = path.join(__dirname, 'assets', iconFilename);
 
-    // Create splash screen first
-    const splashWindow = new BrowserWindow({
-        width: 450,
-        height: 450,
-        frame: false,
-        transparent: true,
-        alwaysOnTop: true,
-        skipTaskbar: true,
-        resizable: false,
-        icon: iconPath,
-        webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-        },
-    });
+    const isHiddenStartup = process.argv.includes('--hidden');
 
-    splashWindow.loadFile(path.join(__dirname, 'splash.html'));
-    splashWindow.center();
+    let splashWindow = null;
+    if (!isHiddenStartup) {
+        // Create splash screen first
+        splashWindow = new BrowserWindow({
+            width: 450,
+            height: 450,
+            frame: false,
+            transparent: true,
+            alwaysOnTop: true,
+            skipTaskbar: true,
+            resizable: false,
+            icon: iconPath,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+            },
+        });
+
+        splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+        splashWindow.center();
+    }
 
     // Initialize server AFTER showing splash screen
     // Increased delay to ensure splash renders before heavy lifting
@@ -229,8 +234,10 @@ function createWindow() {
             if (splashWindow && !splashWindow.isDestroyed()) {
                 splashWindow.close();
             }
-            mainWindow.show();
-            mainWindow.focus();
+            if (!isHiddenStartup) {
+                mainWindow.show();
+                mainWindow.focus();
+            }
         }, 500);
     });
 
@@ -780,7 +787,8 @@ function createTray() {
                 checked: app.getLoginItemSettings().openAtLogin,
                 click: (menuItem) => {
                     app.setLoginItemSettings({
-                        openAtLogin: menuItem.checked
+                        openAtLogin: menuItem.checked,
+                        args: menuItem.checked ? ['--hidden'] : []
                     });
                 }
             },
@@ -811,21 +819,6 @@ function createTray() {
                         // Revert checkbox
                         menuItem.checked = !menuItem.checked;
                     }
-                }
-            },
-            {
-                type: 'separator'
-            },
-            {
-                label: 'Close',
-                click: async () => {
-                    isQuitting = true;
-                    try {
-                        if (stopServerFunc) await stopServerFunc();
-                    } catch (error) {
-                        console.error('Error stopping server:', error);
-                    }
-                    app.quit();
                 }
             }
         ]);
@@ -861,6 +854,14 @@ if (!gotTheLock) {
     });
 
     app.whenReady().then(() => {
+        if (!configManager.get('startupConfigured')) {
+            app.setLoginItemSettings({
+                openAtLogin: true,
+                args: ['--hidden']
+            });
+            configManager.set('startupConfigured', true);
+        }
+
         createWindow();
         createTray();
 

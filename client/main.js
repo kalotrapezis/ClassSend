@@ -595,11 +595,14 @@ if (btnShowUrl) {
 
             // Hide manual join if teacher
             const modalManualJoin = document.getElementById("modal-manual-join");
+            const modalManualHistoryList = document.getElementById("modal-manual-history-list");
             if (modalManualJoin) {
                 if (currentRole === 'teacher') {
                     modalManualJoin.classList.add("hidden");
+                    if (modalManualHistoryList) modalManualHistoryList.classList.add("hidden");
                 } else {
                     modalManualJoin.classList.remove("hidden");
+                    renderGlobalHistoryLists(); // Ensure history is rendered and visibility is updated
                 }
             }
 
