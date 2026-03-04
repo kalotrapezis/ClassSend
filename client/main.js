@@ -7649,7 +7649,6 @@ function closeAllViewers() {
     if (mediaPlayerContainer) mediaPlayerContainer.innerHTML = '';
 
     // Reset Sources
-    if (pdfFrame) pdfFrame.src = "";
     if (fullImage) fullImage.src = "";
 
     // Hide Restore Button
@@ -7671,7 +7670,7 @@ function closeAllViewers() {
 
     // Clear Web Frame
     const webFrame = document.getElementById("web-frame");
-    if (webFrame) webFrame.src = "about:blank";
+    if (webFrame) { try { webFrame.src = "about:blank"; } catch (e) { /* Electron may abort webview navigation */ } }
     if (webViewerModal) { webViewerModal.classList.add("hidden"); webViewerModal.classList.remove("fullscreen"); }
 }
 

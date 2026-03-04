@@ -1,46 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PDF Viewer</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; background: #2b2b2b; color: #ccc; font-family: system-ui, sans-serif; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: #2b2b2b;
+      color: #ccc;
+      font-family: system-ui, sans-serif;
+    }
+
     #toolbar {
-      display: flex; align-items: center; gap: 8px;
-      padding: 6px 12px; background: #1e1e1e; border-bottom: 1px solid #444;
-      height: 40px; flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: #1e1e1e;
+      border-bottom: 1px solid #444;
+      height: 40px;
+      flex-shrink: 0;
     }
+
     #toolbar button {
-      background: #3a3a3a; border: 1px solid #555; color: #ccc;
-      padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 13px;
+      background: #3a3a3a;
+      border: 1px solid #555;
+      color: #ccc;
+      padding: 3px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
     }
-    #toolbar button:hover { background: #4a4a4a; }
-    #toolbar button:disabled { opacity: 0.4; cursor: default; }
-    #page-info { font-size: 13px; color: #aaa; }
+
+    #toolbar button:hover {
+      background: #4a4a4a;
+    }
+
+    #toolbar button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    #page-info {
+      font-size: 13px;
+      color: #aaa;
+    }
+
     #page-input {
-      width: 46px; text-align: center; background: #3a3a3a;
-      border: 1px solid #555; color: #ccc; padding: 2px 4px;
-      border-radius: 4px; font-size: 13px;
+      width: 46px;
+      text-align: center;
+      background: #3a3a3a;
+      border: 1px solid #555;
+      color: #ccc;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-size: 13px;
     }
+
     #zoom-select {
-      background: #3a3a3a; border: 1px solid #555; color: #ccc;
-      padding: 2px 4px; border-radius: 4px; font-size: 13px;
+      background: #3a3a3a;
+      border: 1px solid #555;
+      color: #ccc;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-size: 13px;
     }
+
     #canvas-wrap {
-      flex: 1; overflow: auto; display: flex;
-      flex-direction: column; align-items: center;
-      padding: 12px; gap: 12px;
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px;
+      gap: 12px;
     }
-    #container { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-    canvas { display: block; box-shadow: 0 2px 12px rgba(0,0,0,0.6); background: white; }
-    #status { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.8); color: #ccc; padding: 16px 24px;
-      border-radius: 8px; font-size: 14px; display: none; }
-    body { display: flex; flex-direction: column; }
+
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    canvas {
+      display: block;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+      background: white;
+    }
+
+    #status {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: #ccc;
+      padding: 16px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
   </style>
 </head>
+
 <body>
   <div id="toolbar">
     <button id="btn-prev">&#8592;</button>
@@ -62,11 +139,60 @@
   <div id="status">Loading PDF...</div>
 
   <script>
+    // Polyfill Promise.withResolvers (required by PDF.js v5, not yet in all Chromium/Electron builds)
+    if (typeof Promise.withResolvers === 'undefined') {
+      Promise.withResolvers = function () {
+        let resolve, reject;
+        const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+        return { promise, resolve, reject };
+      };
+    }
     // Polyfill Map.prototype.getOrInsertComputed (required by PDF.js v5, not yet in all Chromium builds)
     if (!Map.prototype.getOrInsertComputed) {
-      Map.prototype.getOrInsertComputed = function(key, computeFn) {
+      Map.prototype.getOrInsertComputed = function (key, computeFn) {
         if (!this.has(key)) this.set(key, computeFn(key));
         return this.get(key);
+      };
+    }
+    // Polyfill URL.parse (required by PDF.js v5, added in Chrome 126)
+    if (typeof URL.parse === 'undefined') {
+      URL.parse = function (url, base) {
+        try {
+          return new URL(url, base);
+        } catch (e) {
+          return null;
+        }
+      };
+    }
+    // Polyfill Promise.try (required by PDF.js v5, added in Chrome 130)
+    if (typeof Promise.try === 'undefined') {
+      Promise.try = function (fn, ...args) {
+        return new Promise((resolve, reject) => {
+          try { resolve(fn(...args)); } catch (e) { reject(e); }
+        });
+      };
+    }
+    // Polyfills for Uint8Array hex/base64 methods (required by PDF.js v5, added in Chrome 130)
+    if (typeof Uint8Array.prototype.toHex === 'undefined') {
+      Uint8Array.prototype.toHex = function () {
+        let out = '';
+        for (let i = 0; i < this.length; i++) out += this[i].toString(16).padStart(2, '0');
+        return out;
+      };
+    }
+    if (typeof Uint8Array.prototype.toBase64 === 'undefined') {
+      Uint8Array.prototype.toBase64 = function () {
+        let str = '';
+        for (let i = 0; i < this.length; i++) str += String.fromCharCode(this[i]);
+        return btoa(str);
+      };
+    }
+    if (typeof Uint8Array.fromBase64 === 'undefined') {
+      Uint8Array.fromBase64 = function (str) {
+        const bin = atob(str.replace(/\s/g, ''));
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
       };
     }
   </script>
@@ -126,6 +252,7 @@
         const ctx = canvas.getContext('2d');
         await page.render({ canvasContext: ctx, viewport }).promise;
       }
+      document.querySelectorAll('[id^="page-canvas-"]').forEach(c => observer.observe(c));
       hideStatus();
     }
 
@@ -182,13 +309,8 @@
       }
     }, { threshold: 0.5 });
 
-    const origRenderAll = renderAll;
-    window.renderAll = async function() {
-      await origRenderAll();
-      document.querySelectorAll('[id^="page-canvas-"]').forEach(c => observer.observe(c));
-    };
-
     loadPdf(fileUrl);
   </script>
 </body>
+
 </html>
