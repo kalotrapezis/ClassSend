@@ -1,5 +1,14 @@
 # Release Notes
 
+## [10.5.2-beta2] - 2026-03-04
+### FIXES
+- **Settings Persistence**: Fixed "Auto-download" and "Startup" settings not persisting across application restarts.
+- **Auto-download Default**: Blank download paths now correctly default to `[Desktop]`.
+- **Registry Sync**: Fixed the "Start on Login" toggle to accurately reflect the Windows registry state on startup.
+
+### UI/UX
+- **System Tray**: Completely removed the right-click context menu from the tray icon for a cleaner experience (Double-click still opens the window).
+
 ## [10.5-beta] - 2026-03-02
 ### NEW
 - **No Internet Tool**: Added a global and individual teacher tool to disable and restore student web access while maintaining local network communication.
