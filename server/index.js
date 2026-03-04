@@ -2883,7 +2883,7 @@ io.on('connection', (socket) => {
   // STARTUP SETTINGS HANDLERS
   socket.on('get-startup-status', (callback) => {
     if (electronApp) {
-      const settings = electronApp.getLoginItemSettings();
+      const settings = electronApp.getLoginItemSettings({ args: ['--hidden'] });
       callback({ success: true, openAtLogin: settings.openAtLogin });
     } else {
       callback({ success: false, message: 'Not supported in browser mode' });

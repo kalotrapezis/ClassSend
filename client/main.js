@@ -2192,6 +2192,24 @@ function switchClass(id) {
     if (currentRole === 'teacher') {
         if (btnDownloadAll) btnDownloadAll.style.display = '';
         if (btnClearMedia) btnClearMedia.style.display = '';
+
+        // Load auto-download settings
+        const savedAutoEnabled = localStorage.getItem('classsend-auto-download-enabled') === 'true';
+        let savedAutoPath = localStorage.getItem('classsend-auto-download-path');
+        if (savedAutoPath === null || savedAutoPath === undefined || savedAutoPath === '') {
+            savedAutoPath = '[Desktop]';
+        }
+
+        const adToggle = document.getElementById('toggle-auto-download');
+        const adPathInput = document.getElementById('auto-download-path');
+        if (adToggle) adToggle.checked = savedAutoEnabled;
+        if (adPathInput) adPathInput.value = savedAutoPath;
+
+        socket.emit('update-auto-download', {
+            classId: currentClassId,
+            autoDownloadEnabled: savedAutoEnabled,
+            autoDownloadPath: savedAutoPath
+        });
     } else {
         if (btnDownloadAll) btnDownloadAll.style.display = 'none';
         if (btnClearMedia) btnClearMedia.style.display = 'none';
@@ -4285,7 +4303,10 @@ if (toggleAutoDownload) {
         console.log('Toggle auto-download change:', e.target.checked, 'CurrentClassId:', currentClassId);
         if (currentClassId && currentRole === 'teacher') {
             const enabled = e.target.checked;
-            const path = autoDownloadPathInput ? autoDownloadPathInput.value.trim() : '';
+            let path = autoDownloadPathInput ? autoDownloadPathInput.value.trim() : '';
+            if (!path) path = '[Desktop]';
+            localStorage.setItem('classsend-auto-download-enabled', enabled);
+            localStorage.setItem('classsend-auto-download-path', path);
             socket.emit('update-auto-download', {
                 classId: currentClassId,
                 autoDownloadEnabled: enabled,
@@ -4298,12 +4319,17 @@ if (toggleAutoDownload) {
 
 if (autoDownloadPathInput) {
     autoDownloadPathInput.addEventListener('change', (e) => {
-        if (currentClassId && currentRole === 'teacher' && toggleAutoDownload.checked) {
-            socket.emit('update-auto-download', {
-                classId: currentClassId,
-                autoDownloadEnabled: true,
-                autoDownloadPath: e.target.value.trim()
-            });
+        if (currentClassId && currentRole === 'teacher') {
+            let path = e.target.value.trim();
+            if (!path) path = '[Desktop]';
+            localStorage.setItem('classsend-auto-download-path', path);
+            if (toggleAutoDownload.checked) {
+                socket.emit('update-auto-download', {
+                    classId: currentClassId,
+                    autoDownloadEnabled: true,
+                    autoDownloadPath: path
+                });
+            }
         }
     });
 }

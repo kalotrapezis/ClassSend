@@ -767,64 +767,6 @@ function createTray() {
         tray = new Tray(icon);
         tray.setToolTip('ClassSend Server');
 
-        const contextMenu = Menu.buildFromTemplate([
-            {
-                label: 'Open',
-                click: () => {
-                    if (mainWindow) {
-                        mainWindow.show();
-                    } else {
-                        createWindow();
-                    }
-                }
-            },
-            {
-                type: 'separator'
-            },
-            {
-                label: 'Start on Login',
-                type: 'checkbox',
-                checked: app.getLoginItemSettings().openAtLogin,
-                click: (menuItem) => {
-                    app.setLoginItemSettings({
-                        openAtLogin: menuItem.checked,
-                        args: menuItem.checked ? ['--hidden'] : []
-                    });
-                }
-            },
-            {
-                type: 'separator'
-            },
-            {
-                label: 'Enable TLS/HTTPS',
-                type: 'checkbox',
-                checked: process.env.USE_TLS === 'true',
-                click: async (menuItem) => {
-                    const { dialog } = require('electron');
-                    const result = await dialog.showMessageBox({
-                        type: 'question',
-                        buttons: ['Yes', 'No'],
-                        title: 'Restart Required',
-                        message: 'Changing TLS settings requires restarting the application. Continue?'
-                    });
-
-                    if (result.response === 0) {
-                        // Set environment variable
-                        process.env.USE_TLS = menuItem.checked ? 'true' : 'false';
-
-                        // Restart app
-                        app.relaunch();
-                        app.exit(0);
-                    } else {
-                        // Revert checkbox
-                        menuItem.checked = !menuItem.checked;
-                    }
-                }
-            }
-        ]);
-
-        tray.setContextMenu(contextMenu);
-
         // Double-click to show window
         tray.on('double-click', () => {
             if (mainWindow) {
