@@ -4930,21 +4930,24 @@ function renderForbiddenWordsList() {
     customForbiddenWords.slice().reverse().forEach(item => {
         const row = document.createElement("div");
         row.className = "blacklist-word-item";
-        row.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #333; margin-bottom: 5px; border-radius: 5px;";
+        row.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); margin-bottom: 5px; border-radius: 8px;";
 
         const dateStr = item.addedAt ? new Date(item.addedAt).toLocaleDateString() : '';
         const sourceIcon = item.source === 'report' ? '🛡️' : '';
 
         row.innerHTML = `
             <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-weight: bold; color: #ff6b6b;">${escapeHtml(item.word)}</span>
+                <span style="font-weight: bold; color: var(--error);">${escapeHtml(item.word)}</span>
                 ${sourceIcon ? `<span title="From Report">${sourceIcon}</span>` : ''}
             </div>
             <div style="display: flex; align-items: center; gap: 15px;">
-                <span style="color: #888; font-size: 0.85rem;">${dateStr}</span>
-                <button class="remove-word-btn" style="background: none; border: none; color: #ff4444; cursor: pointer; font-size: 1.1rem;">✖</button>
+                <span style="color: var(--text-tertiary); font-size: 0.85rem;">${dateStr}</span>
+                <button class="remove-word-btn" style="background: none; border: none; color: var(--error); cursor: pointer; font-size: 1.1rem; opacity: 0.7;">✖</button>
             </div>
         `;
+
+        row.querySelector(".remove-word-btn").addEventListener("mouseover", (e) => e.target.style.opacity = "1");
+        row.querySelector(".remove-word-btn").addEventListener("mouseout", (e) => e.target.style.opacity = "0.7");
 
         row.querySelector(".remove-word-btn").addEventListener("click", () => {
             if (confirm(`Remove '${item.word}' from blacklist?`)) {
@@ -6953,20 +6956,23 @@ function renderWhitelistWordsList() {
     customWhitelistedWords.slice().reverse().forEach(item => {
         const row = document.createElement("div");
         row.className = "blacklist-word-item"; // Reusing Blacklist style class if available, or we will define it
-        row.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #333; margin-bottom: 5px; border-radius: 5px;";
+        row.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); margin-bottom: 5px; border-radius: 8px;";
 
         const dateStr = item.addedAt ? new Date(item.addedAt).toLocaleDateString() : '';
 
         row.innerHTML = `
             <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-weight: bold; color: #fff;">${escapeHtml(item.word)}</span>
+                <span style="font-weight: bold; color: var(--accent-primary);">${escapeHtml(item.word)}</span>
                 ${item.source === 'rejected-report' ? '<span title="Added from Report" style="font-size: 12px;">🛡️</span>' : ''}
             </div>
             <div style="display: flex; align-items: center; gap: 15px;">
-                <span style="color: #888; font-size: 0.85rem;">${dateStr}</span>
-                <button class="remove-word-btn" style="background: none; border: none; color: #ff4444; cursor: pointer; font-size: 1.1rem;">✖</button>
+                <span style="color: var(--text-tertiary); font-size: 0.85rem;">${dateStr}</span>
+                <button class="remove-word-btn" style="background: none; border: none; color: var(--error); cursor: pointer; font-size: 1.1rem; opacity: 0.7;">✖</button>
             </div>
         `;
+
+        row.querySelector(".remove-word-btn").addEventListener("mouseover", (e) => e.target.style.opacity = "1");
+        row.querySelector(".remove-word-btn").addEventListener("mouseout", (e) => e.target.style.opacity = "0.7");
 
         row.querySelector(".remove-word-btn").addEventListener("click", () => {
             if (confirm(t('confirm-remove-whitelist').replace('{word}', item.word))) {
@@ -7273,8 +7279,12 @@ function updateAdvancedModelPreferencesVisibility() {
 // ===== SETTINGS VISIBILITY LOGIC =====
 const settingsStreamingSection = document.getElementById('settings-streaming-section');
 const settingsDataSection = document.getElementById('settings-data-section');
+const moderationTab = document.getElementById('tab-moderation');
+const moderationSection = document.getElementById('settings-moderation-section');
+const classMgmtSection = document.getElementById('settings-class-management-section');
 
 function updateSettingsVisibility() {
+    // Show/hide based on current role
     if (currentRole === 'teacher' || debugModeActive) {
         // Show everything for teacher or debug mode
         if (settingsStreamingSection) settingsStreamingSection.classList.remove('hidden');
@@ -7282,6 +7292,13 @@ function updateSettingsVisibility() {
         if (settingsFilterSection) settingsFilterSection.classList.remove('hidden');
         if (advancedModelPreferences && (filterMode === 'advanced' || debugModeActive)) advancedModelPreferences.classList.remove('hidden');
         if (settingsAdvancedSection) settingsAdvancedSection.classList.remove('hidden');
+
+        if (moderationTab) moderationTab.classList.remove('hidden');
+        if (moderationSection) moderationSection.classList.remove('hidden');
+        if (classMgmtSection) classMgmtSection.classList.remove('hidden');
+        // Show role change button
+        const btnChangeRole = document.getElementById('btn-change-role');
+        if (btnChangeRole) btnChangeRole.classList.remove('hidden');
 
         // Also show all sidebar tabs
         document.querySelectorAll('.settings-tab-btn').forEach(btn => btn.classList.remove('hidden'));
@@ -7298,6 +7315,10 @@ function updateSettingsVisibility() {
         const tabSystem = document.getElementById('tab-system');
         if (tabModeration) tabModeration.classList.add('hidden');
         if (tabSystem) tabSystem.classList.add('hidden');
+
+        // Hide role change button
+        const btnChangeRole = document.getElementById('btn-change-role');
+        if (btnChangeRole) btnChangeRole.classList.add('hidden');
     }
 }
 
@@ -8330,5 +8351,10 @@ setTimeout(() => {
         } else {
             roleSelection.classList.remove('hidden');
         }
+    }
+
+    // Ensure settings visibility and role-button status is correct on boot
+    if (typeof updateSettingsVisibility === 'function') {
+        updateSettingsVisibility();
     }
 }, 2000);
