@@ -7709,23 +7709,28 @@ function closeAllViewers() {
         closeMonitorFocusMode();
     }
 
+    // Clear Web Frame only if Web Viewer was active (prevents ERR_ABORTED on Electron webview)
+    // IMPORTANT: This must run BEFORE activeViewer is set to null
+    if (activeViewer === 'web') {
+        const webFrame = document.getElementById("web-frame");
+        if (webFrame) {
+            try { webFrame.src = "about:blank"; } catch (e) { /* Electron may abort webview navigation */ }
+        }
+    }
+    if (webViewerModal) { webViewerModal.classList.add("hidden"); webViewerModal.classList.remove("fullscreen"); }
+
     // Reset State
     activeViewer = null;
     imageZoomLevel = 1;
     imageTranslateX = 0;
     imageTranslateY = 0;
-
-    // Clear Web Frame
-    const webFrame = document.getElementById("web-frame");
-    if (webFrame) { try { webFrame.src = "about:blank"; } catch (e) { /* Electron may abort webview navigation */ } }
-    if (webViewerModal) { webViewerModal.classList.add("hidden"); webViewerModal.classList.remove("fullscreen"); }
 }
 
 function openPdfViewer(url) {
     closeAllViewers(); // Auto-close others
     if (pdfViewerModal && pdfFrame) {
         activeViewer = 'pdf';
-        pdfFrame.src = '/pdf-viewer.html?file=' + encodeURIComponent(url);
+        pdfFrame.src = url; // Native Chromium/Electron PDF viewer
         pdfViewerModal.classList.remove("hidden");
     }
 }
@@ -7740,50 +7745,6 @@ function openImageViewer(url) {
     }
 }
 
-// Trigger the PDF viewer's own native zoom — same action as Ctrl+/- inside the PDF.
-// Uses mousedown.preventDefault() on the buttons (set up below) so clicking them
-// does not steal focus away from the iframe, then injects a real keyboard event.
-function triggerNativePdfZoom(direction) {
-    if (!pdfFrame) return;
-    const keys = {
-        in: { key: '=', code: 'Equal', keyCode: 187 },
-        out: { key: '-', code: 'Minus', keyCode: 189 },
-        reset: { key: '0', code: 'Digit0', keyCode: 48 }
-    };
-    const k = keys[direction];
-
-    // Give focus to the iframe so the injected event lands in the PDF viewer
-    try { pdfFrame.contentWindow.focus(); } catch (e) { /* cross-origin guard */ }
-
-    // Electron: sendInputEvent creates a genuine OS-level keyboard event
-    if (isElectronApp()) {
-        try {
-            const ipc = window.electron?.ipcRenderer || window.ipcRenderer ||
-                (typeof require !== 'undefined' ? require('electron').ipcRenderer : null);
-            if (ipc) { ipc.invoke('pdf-zoom', { direction }); return; }
-        } catch (e) { /* fall through */ }
-    }
-
-    // Browser fallback: synthetic event dispatched to the iframe window
-    try {
-        pdfFrame.contentWindow.dispatchEvent(
-            new KeyboardEvent('keydown', { ...k, ctrlKey: true, bubbles: true, cancelable: true })
-        );
-    } catch (e) { /* nothing we can do */ }
-}
-
-// When Ctrl+/- is pressed in the PARENT window while the PDF is open, route it
-// to the same native zoom so it doesn't instead zoom the entire Electron app UI.
-document.addEventListener('keydown', (e) => {
-    if (!e.ctrlKey || activeViewer !== 'pdf') return;
-    if (e.key === '=' || e.key === '+' || e.code === 'Equal') {
-        e.preventDefault(); triggerNativePdfZoom('in');
-    } else if (e.key === '-' || e.code === 'Minus') {
-        e.preventDefault(); triggerNativePdfZoom('out');
-    } else if (e.key === '0' || e.code === 'Digit0') {
-        e.preventDefault(); triggerNativePdfZoom('reset');
-    }
-});
 
 function updateImageTransform() {
     if (fullImage) {
@@ -7809,22 +7770,6 @@ if (btnMinimizePdf) {
     });
 }
 
-// Prevent buttons from stealing focus from the PDF iframe on click
-[btnPdfZoomIn, btnPdfZoomOut, btnPdfZoomReset].forEach(btn => {
-    if (btn) btn.addEventListener('mousedown', e => e.preventDefault());
-});
-
-if (btnPdfZoomIn) {
-    btnPdfZoomIn.addEventListener("click", () => triggerNativePdfZoom('in'));
-}
-
-if (btnPdfZoomOut) {
-    btnPdfZoomOut.addEventListener("click", () => triggerNativePdfZoom('out'));
-}
-
-if (btnPdfZoomReset) {
-    btnPdfZoomReset.addEventListener("click", () => triggerNativePdfZoom('reset'));
-}
 
 const btnPdfFullscreen = document.getElementById("btn-pdf-fullscreen");
 if (btnPdfFullscreen) {

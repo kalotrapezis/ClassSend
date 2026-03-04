@@ -1,5 +1,15 @@
 # Release Notes
 
+## [10.5.5-beta] - 2026-03-04
+### NEW
+- **Native PDF Viewer**: Completely removed the custom PDF.js implementation and reverted to Chromium's high-performance native PDF viewer. This resolves all "ERR_ABORTED" and worker-related loading issues.
+- **Lock Screen Labels**: Updated "Lock Screen" buttons to "Lock all screens" (and Greek "Κλείδωμα όλων των οθονών") to better reflect its class-wide functionality.
+- **Translation Restore**: Restored legacy translation keys (`btn-tool-lock-all-screens`, etc.) for better compatibility and consistency.
+
+### FIXES
+- **Viewer Stability**: Added internal guards to prevent unnecessary webview resets, eliminating console noise and potential browser crashes.
+- **Cleanup**: Removed over 150 unused PDF.js library files and obsolete viewer logic.
+
 ## [10.5.2-beta2] - 2026-03-04
 ### FIXES
 - **Settings Persistence**: Fixed "Auto-download" and "Startup" settings not persisting across application restarts.
