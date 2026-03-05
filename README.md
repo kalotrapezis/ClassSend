@@ -1,5 +1,5 @@
-# ClassSend 10.5.2
-![Version](https://img.shields.io/badge/version-v10.5.2--beta2-blue)
+# ClassSend 10.5.5
+![Version](https://img.shields.io/badge/version-v10.5.5--beta2-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
