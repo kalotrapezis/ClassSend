@@ -3,6 +3,15 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
+> [!IMPORTANT]
+> **Initial Teacher Setup**: For security, ClassSend defaults to the Student role on first launch. To set a computer as a **Teacher** for the first time:
+> 1. Open the app and click the **Settings (⚙️)** icon in the header.
+> 2. Select the **About** tab in the sidebar.
+> 3. **Click the ClassSend Logo 5 times** to unlock administrative settings.
+> 4. Go to the **Personalization** tab.
+> 5. Click **Change Role** and select **Teacher**.
+> This setup only needs to be performed once on the teacher's computer.
+
 **ClassSend** is a lightweight, local network file sharing and chat application designed for classrooms. It now features a high-performance **N-gram AI Classifier** for intelligent content filtering without the bloat.
 
 ## 🚀 Features
