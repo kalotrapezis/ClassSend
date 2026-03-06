@@ -195,8 +195,12 @@ function startNetworkDiscovery() {
             // Wait a moment for connection to stabilize
             setTimeout(() => {
                 startProbingSequence();
+                // If socket is disconnected, try connecting
+                if (!socket.connected) {
+                    socket.connect();
+                }
             }, 2000);
-        }, { once: true }); // Only trigger once
+        });
     }
 
     if (isAutoDiscoveryEnabled) {
@@ -1448,17 +1452,12 @@ socket.on("connect", () => {
     // Auto-flow: if role is saved, trigger auto-flow
     if (savedRole && !autoFlowTriggered && !currentClassId) {
         autoFlowTriggered = true;
-        console.log(`Auto-flow: Role is ${savedRole}, starting auto-flow...`);
-
-        if (savedRole === 'teacher') {
-            // Teacher: auto-create class and go to chat
-            triggerTeacherAutoFlow();
-        }
-        // Student auto-flow handled in active-classes event
+        handleAutoFlow();
     }
 });
 
-socket.on("disconnect", () => {
+socket.on("disconnect", (reason) => {
+    console.warn("Socket disconnected:", reason);
     connectionStatus.classList.remove("connected");
     connectionStatus.classList.add("disconnected");
 
@@ -1466,13 +1465,13 @@ socket.on("disconnect", () => {
     connectionStatus.setAttribute('data-i18n', 'status-disconnected');
     const statusText = connectionStatus.querySelector(".status-text");
     if (statusText) {
-        statusText.setAttribute('data-i18n', 'status-disconnected');
-        // If translations available, use them immediately
-        if (typeof translations !== 'undefined' && currentLanguage && translations[currentLanguage]) {
-            statusText.textContent = translations[currentLanguage]['status-disconnected'] || "Disconnected";
-        } else {
-            statusText.textContent = "Disconnected";
-        }
+        const lang = currentLanguage;
+        // Show "Connecting..." if it was an accidental drop, otherwise "Disconnected"
+        const statusMsg = (reason === "transport close" || reason === "ping timeout")
+            ? (translations[lang]?.['status-connecting'] || "Connecting...")
+            : (translations[lang]?.['status-disconnected'] || "Disconnected");
+
+        statusText.textContent = statusMsg;
     }
     connectionStatus.title = "Disconnected";
 
@@ -1482,6 +1481,19 @@ socket.on("disconnect", () => {
     // Stop network discovery
     stopNetworkDiscovery();
     discoveredServers.clear();
+
+    if (reason === "io server disconnect") {
+        // the disconnection was initiated by the server, you need to reconnect manually
+        socket.connect();
+    }
+});
+
+socket.on("network-info", (info) => {
+    console.log("[Network] Received updated server info:", info);
+    serverInfo = info;
+    if (typeof updateConnectionUrl === 'function') {
+        updateConnectionUrl();
+    }
 });
 
 socket.on("active-classes", (classes) => {

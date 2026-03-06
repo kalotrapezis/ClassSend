@@ -1,14 +1,17 @@
 const Bonjour = require('bonjour-service');
 const os = require('os');
+const EventEmitter = require('events');
 
-class NetworkDiscovery {
+class NetworkDiscovery extends EventEmitter {
     constructor() {
+        super();
         this.bonjour = null;
         this.mainService = null;
         this.classServices = new Map(); // classId -> service
         this.localIP = null;
         this.port = null;
         this.getClassesCallback = null;
+        this.monitoringInterval = null;
     }
 
     // Fallback method to get local IP using os.networkInterfaces()
@@ -254,6 +257,11 @@ class NetworkDiscovery {
     }
 
     stop() {
+        if (this.monitoringInterval) {
+            clearInterval(this.monitoringInterval);
+            this.monitoringInterval = null;
+        }
+
         if (this.mainService) {
             this.mainService.stop();
         }
@@ -271,6 +279,32 @@ class NetworkDiscovery {
 
     getLocalIP() {
         return this.localIP;
+    }
+
+    startNetworkMonitoring(intervalMs = 5000) {
+        if (this.monitoringInterval) return;
+
+        console.log('Starting network monitoring...');
+        this.monitoringInterval = setInterval(() => {
+            const currentIP = this.getLocalIPFallback();
+            if (currentIP !== this.localIP) {
+                console.log(`Network Change Detected! Old: ${this.localIP}, New: ${currentIP}`);
+                const oldIP = this.localIP;
+                this.localIP = currentIP;
+
+                // Re-publish services with new IP
+                if (this.bonjour) {
+                    this.publishMainService();
+                    // Re-publish class hostnames if any
+                    for (const [classId, service] of this.classServices.entries()) {
+                        // We don't have the hostname here easily, but publishClassHostname handles it
+                        // For now, re-publishing main is most important for discovery
+                    }
+                }
+
+                this.emit('ip-changed', { newIP: currentIP, oldIP: oldIP });
+            }
+        }, intervalMs);
     }
 }
 

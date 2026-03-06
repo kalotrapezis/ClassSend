@@ -1,5 +1,13 @@
 # Release Notes
 
+## [10.5.7] - 2026-03-06
+### NETWORK RESILIENCE & STARTUP
+- **Wait for Network**: The application now intelligently waits for a valid LAN IP at startup. If the PC is in Airplane mode or still searching for WiFi, the splash screen will display a status message instead of showing a blank screen.
+- **Auto-Restart Recovery**: Implemented a 30-second watchdog that automatically restarts the application if a network connection or local server cannot be established within the timeout period.
+- **Dynamic IP Monitoring**: The server now actively monitors for network interface changes (e.g., switching from WiFi to Ethernet). It automatically updates its IP, re-publishes mDNS services, and notifies all connected clients in real-time.
+- **Connection Error Screen**: Replaced the "blank screen" failure mode with a modern, user-friendly "Connection Lost" recovery page, allowing users to manually retry the connection.
+- **Improved Splash Status**: Added real-time status updates to the splash screen including "Waiting for local server..." and "Waiting for network (WiFi/LAN)...".
+
 ## [10.5.6] - 2026-03-06
 ### FIXES & IMPROVEMENTS
 - **Promptless File Downloads**: Synced the "Predetermined Location" setting to the student app. When the teacher sends a file to the chat, it now automatically downloads in the background for all students without a browser prompt.

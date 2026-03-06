@@ -2927,6 +2927,21 @@ server.listen(PORT, '0.0.0.0', async () => {
 
     console.log(`Server accessible at ${serverProtocol}://${localIP}:${PORT}`);
     console.log(`Broadcasting service on local network...`);
+
+    // Handle dynamic IP changes
+    networkDiscovery.on('ip-changed', ({ newIP, oldIP }) => {
+      console.log(`[Network] IP changed from ${oldIP} to ${newIP}. Updating clients.`);
+      io.emit('network-info', {
+        ip: newIP,
+        port: PORT,
+        hostname: os.hostname(),
+        protocol: serverProtocol
+      });
+    });
+
+    // Start active monitoring for network changes
+    networkDiscovery.startNetworkMonitoring();
+
   } catch (error) {
     console.error('Failed to initialize network discovery:', error);
   }
