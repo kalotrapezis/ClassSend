@@ -1,5 +1,11 @@
 # Release Notes
 
+## [10.5.6] - 2026-03-06
+### FIXES & IMPROVEMENTS
+- **Promptless File Downloads**: Synced the "Predetermined Location" setting to the student app. When the teacher sends a file to the chat, it now automatically downloads in the background for all students without a browser prompt.
+- **App Launch Domains**: The "Advanced" App Launch UI now automatically prefixes basic domain inputs (e.g., `google.gr`) with `http://` so they successfully launch via the default edge browser.
+- **Monitoring PC Names**: Fixed an issue where the student's PC name (`os.hostname()`) was not being correctly passed to the grid, resulting in UI cards only showing the username.
+- **DevTools Error**: Fixed the missing `filterWarning` DOM element reference that was producing a silent console error.
 ## [10.5.5-beta] - 2026-03-04
 ### NEW
 - **Native PDF Viewer**: Completely removed the custom PDF.js implementation and reverted to Chromium's high-performance native PDF viewer. This resolves all "ERR_ABORTED" and worker-related loading issues.

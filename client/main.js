@@ -79,6 +79,19 @@ let socket = io(currentServerUrl);
 let debugModeActive = false;
 let pcName = localStorage.getItem('classsend-pcName') || null;
 
+try {
+    const ipc = window.electron?.ipcRenderer || window.ipcRenderer;
+    if (!pcName && ipc) {
+        ipc.invoke('get-hostname').then(name => {
+            if (name) {
+                pcName = name;
+                localStorage.setItem('classsend-pcName', pcName);
+                console.log(`[Identity] Fetched PC name from system: ${pcName}`);
+            }
+        }).catch(err => console.warn("Could not fetch pc name", err));
+    }
+} catch (e) { }
+
 console.log(`Connecting to ClassSend server at: ${currentServerUrl}`);
 
 // Function to switch to a different server
@@ -228,7 +241,7 @@ socket.on("server-discovered", (serverInfo) => {
 socket.on('execute-open-file', ({ fileId, fileName }) => {
     console.log(`[Remote Action] Teacher requested opening file: ${fileName}`);
     if (typeof downloadFile === 'function') {
-        downloadFile(fileId, fileName);
+        downloadFile(fileId, fileName, true);
     }
 });
 
@@ -1202,8 +1215,8 @@ if (btnAddCustomFavorite && appLaunchCustomInput) {
         const newFav = {
             id: customId,
             label: command.length > 20 ? command.substring(0, 17) + '...' : command,
-            icon: command.toLowerCase().startsWith('http') ? '/assets/browser-svgrepo-com.svg' : '/assets/application-x-executable-svgrepo-com.svg',
-            command: command
+            icon: command.toLowerCase().startsWith('http') || command.includes('.') ? '/assets/browser-svgrepo-com.svg' : '/assets/application-x-executable-svgrepo-com.svg',
+            command: (!command.toLowerCase().startsWith('http') && !command.toLowerCase().endsWith('.exe') && !command.includes('\\') && command.includes('.')) ? 'http://' + command : command
         };
 
         appLaunchFavorites.push(newFav);
@@ -1230,8 +1243,13 @@ socket.on('launch-app', async ({ command }) => {
         console.log('[AppLaunch] IPC result:', result);
     } else {
         // Web fallback: if it's a URL, try opening it
-        const isUrl = /^(https?|ftp):\/\//i.test(command.trim());
-        if (isUrl) window.open(command.trim(), '_blank');
+        const trimmedCmd = command.trim();
+        const isExplicitUrl = /^(https?|ftp):\/\//i.test(trimmedCmd);
+        const isImplicitUrl = !isExplicitUrl && !trimmedCmd.toLowerCase().endsWith('.exe') && !trimmedCmd.includes('\\') && trimmedCmd.includes('.');
+        if (isExplicitUrl || isImplicitUrl) {
+            const finalUrl = isExplicitUrl ? trimmedCmd : 'http://' + trimmedCmd;
+            window.open(finalUrl, '_blank');
+        }
     }
 });
 
@@ -3023,12 +3041,20 @@ document.addEventListener('drop', async (e) => {
 socket.on("new-message", (message) => {
     console.log(`[DEBUG] Received new-message: "${message.content}" from ${message.senderName}`);
     if (joinedClasses.has(message.classId)) {
-        joinedClasses.get(message.classId).messages.push(message);
+        const classData = joinedClasses.get(message.classId);
+        classData.messages.push(message);
         if (currentClassId === message.classId) {
             renderMessage(message);
             scrollToBottom();
             if (message.type === 'file') {
                 renderMediaHistory(); // Update history on new file
+
+                // Auto-download if enabled by the teacher and we are not the sender
+                if (classData.autoDownloadEnabled && message.senderId !== socket.id) {
+                    if (typeof downloadFile === 'function') {
+                        downloadFile(message.fileData.id || message.fileData.data, message.fileData.name);
+                    }
+                }
             }
         }
     }
@@ -3629,7 +3655,7 @@ socket.on("user-joined", ({ user, users: updatedUsers, classId }) => {
 
             // Add new student to monitoring grid if open
             if (currentRole === 'teacher' && user.role === 'student' && classStatusModal && !classStatusModal.classList.contains('hidden')) {
-                const newCard = createEmptyMonitoringCard(user.id, user.name);
+                const newCard = createEmptyMonitoringCard(user.id, user.name, user.pcName);
                 if (newCard) newCard.classList.add('monitoring-skeleton');
             }
 
@@ -3851,7 +3877,7 @@ function escapeHtml(text) {
 }
 
 // Global function for file download with progress
-window.downloadFile = function (fileIdOrData, fileName) {
+window.downloadFile = function (fileIdOrData, fileName, openAfter = false) {
     console.log(`[Download] Initiating download for: ${fileName} (ID/Data: ${fileIdOrData.substring(0, 50)}...)`);
 
     // Check if it's base64 data (legacy)
@@ -3873,8 +3899,9 @@ window.downloadFile = function (fileIdOrData, fileName) {
     // Check if auto-downloads are enabled and we are in Electron
     if (currentClassId && joinedClasses.has(currentClassId) && window.electron) {
         const classData = joinedClasses.get(currentClassId);
-        if (classData.autoDownloadEnabled) {
-            console.log(`[Auto-Download] Enabled. Path: ${classData.autoDownloadPath}`);
+        if (classData.autoDownloadEnabled || openAfter) {
+            const downloadPath = classData.autoDownloadPath || '[Downloads]';
+            console.log(`[Auto-Download] Enabled or Forced. Path: ${downloadPath}`);
             const fullUrl = window.location.origin + url;
 
             // Show brief toast
@@ -3883,7 +3910,8 @@ window.downloadFile = function (fileIdOrData, fileName) {
             window.electron.ipcRenderer.invoke('auto-download', {
                 url: fullUrl,
                 filename: fileName,
-                customPath: classData.autoDownloadPath
+                customPath: downloadPath,
+                openAfter
             }).then(result => {
                 if (result.success) {
                     showToast(`Saved to ${result.path}`, 'success');
@@ -4547,6 +4575,8 @@ function containsInappropriateContent(text) {
 
     return false;
 }
+
+const filterWarning = document.getElementById('filter-warning');
 
 // Real-time input monitoring
 messageInput.addEventListener('input', () => {
@@ -5937,7 +5967,7 @@ function initializeMonitoringGrid() {
 
     // Create an empty card for each student, with skeleton animation until first frame
     students.forEach(student => {
-        const card = createEmptyMonitoringCard(student.id, student.name);
+        const card = createEmptyMonitoringCard(student.id, student.name, student.pcName);
         if (card) card.classList.add('monitoring-skeleton');
     });
 
