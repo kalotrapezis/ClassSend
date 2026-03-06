@@ -3,6 +3,27 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
+<img width="1382" height="701" alt="image" src="https://github.com/user-attachments/assets/6c434b3c-2434-4861-9c14-8704e704b841" />
+<img width="1383" height="751" alt="image" src="https://github.com/user-attachments/assets/4ebffff6-27fa-49aa-b359-bc3b9ba27f60" />
+<img width="1390" height="744" alt="image" src="https://github.com/user-attachments/assets/0f4d2c30-0cca-4ab2-80f9-238148866038" />
+<img width="1385" height="767" alt="image" src="https://github.com/user-attachments/assets/1ec13c56-00c7-4817-af05-5ca16d7a186f" />
+<img width="1384" height="754" alt="image" src="https://github.com/user-attachments/assets/fb9112ff-efab-4871-8c43-92d7720381fb" />
+<img width="1383" height="764" alt="image" src="https://github.com/user-attachments/assets/bde6ebb2-9831-435a-b962-08a0143ff6ad" />
+<img width="1386" height="761" alt="image" src="https://github.com/user-attachments/assets/935433d1-b49c-4011-8f64-085c24a0b7cc" />
+<img width="1386" height="737" alt="image" src="https://github.com/user-attachments/assets/0ed6b6ed-556c-47c3-832f-09214ffcebea" />
+<img width="1383" height="712" alt="image" src="https://github.com/user-attachments/assets/d473d46d-b175-481e-b050-3c54982582a4" />
+<img width="1381" height="754" alt="image" src="https://github.com/user-attachments/assets/22e4d8ad-5fca-41cd-885c-313821e1a2a3" />
+<img width="1387" height="736" alt="image" src="https://github.com/user-attachments/assets/1cab1573-54bd-467c-8f9d-7ac83ff54257" />
+<img width="1382" height="759" alt="image" src="https://github.com/user-attachments/assets/849ba928-c765-41a8-bcf1-82fbe5fc6cd9" />
+<img width="1388" height="742" alt="image" src="https://github.com/user-attachments/assets/654a85ae-de0b-4f79-ad59-382c4ea5d3f4" />
+
+
+
+
+
+
+
+
 > [!IMPORTANT]
 > **Initial Teacher Setup**: For security, ClassSend defaults to the Student role on first launch. To set a computer as a **Teacher** for the first time:
 > 1. Open the app and click the **Settings (⚙️)** icon in the header.
