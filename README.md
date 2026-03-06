@@ -1,5 +1,5 @@
-# ClassSend 10.5.2
-![Version](https://img.shields.io/badge/version-v10.5.2--beta2-blue)
+# ClassSend 10.5.6
+![Version](https://img.shields.io/badge/version-v10.5.6-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -22,7 +22,9 @@
 - **⚙️ Persisted Settings**: Log settings and Advanced Filter configurations are saved securely upon changes.
 - **📌 Pinned Comments**: Improved UI, styling, and action button propagation for pinned messages.
 - **🏷️ Consistent Styling**: Action buttons feature unified labels, hover states, colors, and layout across all message types.
-- **🖥️ (New) Student Monitoring**: Periodic low-resolution screenshots for classroom oversight.
+- **🖥️ (New) Student Monitoring**: Periodic low-resolution screenshots for classroom oversight (Now accurately displays PC Names).
+- **🌐 (New) App Launch Links**: The teacher can now type domain names without "http://" (e.g., google.com) to instantly launch URLs on all student computers at once.
+- **📥 (New) Promptless File Distribution**: Files sent from the teacher automatically bypass browser prompts and save to the default Downloads folder when Enabled.
 - **🔒 (New) Screen Lock**: "Κλείδωμα Οθόνης" to restrict student activity with a full-screen overlay.
 - **⏳ (New) End of Day**: "Τερματισμός Τέλους Ημέρας" for bulk classroom termination.
 - **🎯 (New) Focus Mode**: Automatic window restoration from the system tray.

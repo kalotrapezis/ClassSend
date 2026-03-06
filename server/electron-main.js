@@ -600,13 +600,23 @@ Get-Process | Where-Object {
         return resolved;
     }
 
+    // Get Hostname for monitoring display
+    ipcMain.handle('get-hostname', () => {
+        return os.hostname();
+    });
+
     // ===== REMOTE APP LAUNCH =====
     ipcMain.handle('launch-app', async (event, { command }) => {
         try {
             if (!command) return { success: false, error: 'No command provided' };
 
-            const trimmedCmd = command.trim();
-            const isUrl = /^(https?|ftp):\/\//i.test(trimmedCmd);
+            let trimmedCmd = command.trim();
+            let isUrl = /^(https?|ftp):\/\//i.test(trimmedCmd);
+
+            if (!isUrl && !trimmedCmd.toLowerCase().endsWith('.exe') && !trimmedCmd.includes('\\') && trimmedCmd.includes('.')) {
+                isUrl = true;
+                trimmedCmd = 'http://' + trimmedCmd;
+            }
 
             if (isUrl) {
                 await shell.openExternal(trimmedCmd);
@@ -666,7 +676,7 @@ Get-Process | Where-Object {
     });
 
     // Auto-download file creation
-    ipcMain.handle('auto-download', async (event, { url, filename, customPath }) => {
+    ipcMain.handle('auto-download', async (event, { url, filename, customPath, openAfter }) => {
         try {
             const https = require('https');
             const http = require('http');
@@ -702,6 +712,10 @@ Get-Process | Where-Object {
                     response.pipe(fileStream);
                     fileStream.on('finish', () => {
                         fileStream.close();
+                        if (openAfter) {
+                            console.log(`[Auto-Download] Opening file: ${destPath}`);
+                            shell.openPath(destPath);
+                        }
                         resolve({ success: true, path: destPath });
                     });
                 }).on('error', (err) => {
