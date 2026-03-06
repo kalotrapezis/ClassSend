@@ -1,4 +1,4 @@
-# ClassSend 10.5.6
+# ClassSend 10.5.7
 ![Version](https://img.shields.io/badge/version-v10.5.6-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
