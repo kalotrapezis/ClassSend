@@ -1,5 +1,23 @@
 # Release Notes
 
+## [11.0.0] - 2026-03-08
+### INSTALLER & ROLE MANAGEMENT
+- **Proper Windows Installer**: Migrated from the silent Squirrel installer to a full NSIS wizard (electron-builder). Shows a proper installation dialog with progress and options.
+- **Teacher / Student Role Selection**: The installer now asks "Who will use ClassSend on this computer?" during setup. The selected role is written to the registry and remembered permanently — no more hidden unlock codes or manual role switching after install.
+- **System-wide Installation**: ClassSend now installs to `Program Files` (per-machine) instead of the user's AppData folder, making it available to all accounts on the machine.
+- **No-prompt Auto-start**: Auto-start on login is registered as a Windows Scheduled Task during installation. The app launches at login without any UAC consent popup.
+
+### STUDENT NETWORK PROTECTION
+- **WiFi Guard Service**: Student installations register a background system task (`ClassSend WiFi Guard`) that starts at boot as the SYSTEM account. It silently reverts any attempt to enable Airplane mode or administratively disable the WiFi adapter every 5 seconds. Students cannot stop or modify this process.
+- **Automatic Cleanup**: Uninstalling ClassSend removes both the app startup task and the WiFi Guard task.
+
+## [10.5.7] - 2026-03-06
+### NETWORK RESILIENCE & STARTUP
+- **Wait for Network**: The application now intelligently waits for a valid LAN IP at startup. If the PC is in Airplane mode or still searching for WiFi, the splash screen will display a status message instead of showing a blank screen.
+- **Auto-Restart Recovery**: Implemented a 30-second watchdog that automatically restarts the application if a network connection or local server cannot be established within the timeout period.
+- **Dynamic IP Monitoring**: The server now actively monitors for network interface changes (e.g., switching from WiFi to Ethernet). It automatically updates its IP, re-publishes mDNS services, and notifies all connected clients in real-time.
+- **Connection Error Screen**: Replaced the "blank screen" failure mode with a modern, user-friendly "Connection Lost" recovery page, allowing users to manually retry the connection.
+- **Improved Splash Status**: Added real-time status updates to the splash screen including "Waiting for local server..." and "Waiting for network (WiFi/LAN)...".
 ## [10.5.6] - 2026-03-06
 ### FIXES & IMPROVEMENTS
 - **Promptless File Downloads**: Synced the "Predetermined Location" setting to the student app. When the teacher sends a file to the chat, it now automatically downloads in the background for all students without a browser prompt.

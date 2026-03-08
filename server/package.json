@@ -1,59 +1,58 @@
 {
     "name": "classsend",
+<<<<<<< HEAD
     "version": "10.5.6",
+=======
+    "version": "11.0.0",
+>>>>>>> master
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
     "main": "electron-main.js",
     "scripts": {
-        "start": "electron-forge start",
-        "package": "electron-forge package",
-        "make": "electron-forge make",
-        "make:appimage": "electron-forge make --platform=linux",
-        "make:win32-zip": "electron-forge make --arch=ia32 --platform=win32",
-        "make:win64-zip": "electron-forge make --arch=x64 --platform=win32",
+        "start": "electron .",
+        "make": "electron-builder --win --x64",
+        "make:win32": "electron-builder --win --ia32",
         "generate-icon": "node convert-icon.js",
         "server": "node index.js",
         "dev": "node --watch index.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
-    "config": {
-        "forge": {
-            "packagerConfig": {
-                "name": "ClassSend",
-                "executableName": "ClassSend",
-                "icon": "./assets/icon",
-                "out": "dist_build",
-                "ignore": [
-                    "^/[.]git",
-                    "^/out",
-                    "^/dist_build",
-                    "^/uploads",
-                    "^/node_modules/[.]cache"
-                ],
-                "asar": {
-                    "unpack": "**/*.{node,dll}"
-                },
-                "extraResource": [],
-                "arch": "x64"
-            },
-            "makers": [
-                {
-                    "name": "@electron-forge/maker-zip",
-                    "platforms": [
-                        "win32"
-                    ]
-                },
-                {
-                    "name": "@electron-forge/maker-squirrel",
-                    "config": {
-                        "name": "ClassSend",
-                        "setupIcon": "./assets/icon.ico",
-                        "setupExe": "ClassSend-Setup.exe",
-                        "loadingGif": "./assets/loadingGif.gif"
-                    }
-                }
-            ]
+    "build": {
+        "appId": "com.classsend.app",
+        "productName": "ClassSend",
+        "icon": "./assets/icon.ico",
+        "asar": true,
+        "asarUnpack": "**/*.{node,dll}",
+        "win": {
+            "target": "nsis",
+            "icon": "./assets/icon.ico"
+        },
+        "extraResources": [
+            {
+                "from": "wifi-guard.ps1",
+                "to": "wifi-guard.ps1"
+            }
+        ],
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": false,
+            "perMachine": true,
+            "installerIcon": "./assets/icon.ico",
+            "uninstallerIcon": "./assets/icon.ico",
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "ClassSend",
+            "include": "installer.nsh"
+        },
+        "files": [
+            "**/*",
+            "!uploads/**",
+            "!dist_build/**",
+            "!node_modules/.cache/**"
+        ],
+        "directories": {
+            "output": "dist_build"
         }
     },
     "keywords": [
@@ -81,7 +80,6 @@
         "bayes": "^1.0.0",
         "bonjour-service": "^1.3.0",
         "cors": "^2.8.6",
-        "electron-squirrel-startup": "^1.0.1",
         "express": "^4.19.2",
         "internal-ip": "^7.0.0",
         "multer": "^1.4.5-lts.1",
@@ -89,10 +87,8 @@
         "socket.io": "^4.8.1"
     },
     "devDependencies": {
-        "@electron-forge/cli": "^6.4.2",
-        "@electron-forge/maker-squirrel": "^6.4.2",
-        "@electron-forge/maker-zip": "^6.4.2",
         "electron": "^22.3.27",
+        "electron-builder": "^24.13.3",
         "png-to-ico": "^2.0.4",
         "sharp": "^0.32.6"
     }

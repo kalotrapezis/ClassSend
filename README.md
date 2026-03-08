@@ -1,16 +1,35 @@
-# ClassSend 10.5.6
-![Version](https://img.shields.io/badge/version-v10.5.6-blue)
+# ClassSend 11.0.0
+![Version](https://img.shields.io/badge/version-v11.0.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
+<img width="1382" height="701" alt="image" src="https://github.com/user-attachments/assets/6c434b3c-2434-4861-9c14-8704e704b841" />
+<img width="1383" height="751" alt="image" src="https://github.com/user-attachments/assets/4ebffff6-27fa-49aa-b359-bc3b9ba27f60" />
+<img width="1390" height="744" alt="image" src="https://github.com/user-attachments/assets/0f4d2c30-0cca-4ab2-80f9-238148866038" />
+<img width="1385" height="767" alt="image" src="https://github.com/user-attachments/assets/1ec13c56-00c7-4817-af05-5ca16d7a186f" />
+<img width="1384" height="754" alt="image" src="https://github.com/user-attachments/assets/fb9112ff-efab-4871-8c43-92d7720381fb" />
+<img width="1383" height="764" alt="image" src="https://github.com/user-attachments/assets/bde6ebb2-9831-435a-b962-08a0143ff6ad" />
+<img width="1386" height="761" alt="image" src="https://github.com/user-attachments/assets/935433d1-b49c-4011-8f64-085c24a0b7cc" />
+<img width="1386" height="737" alt="image" src="https://github.com/user-attachments/assets/0ed6b6ed-556c-47c3-832f-09214ffcebea" />
+<img width="1383" height="712" alt="image" src="https://github.com/user-attachments/assets/d473d46d-b175-481e-b050-3c54982582a4" />
+<img width="1381" height="754" alt="image" src="https://github.com/user-attachments/assets/22e4d8ad-5fca-41cd-885c-313821e1a2a3" />
+<img width="1387" height="736" alt="image" src="https://github.com/user-attachments/assets/1cab1573-54bd-467c-8f9d-7ac83ff54257" />
+<img width="1382" height="759" alt="image" src="https://github.com/user-attachments/assets/849ba928-c765-41a8-bcf1-82fbe5fc6cd9" />
+<img width="1388" height="742" alt="image" src="https://github.com/user-attachments/assets/654a85ae-de0b-4f79-ad59-382c4ea5d3f4" />
+
+
+
+
+
+
+
+
 > [!IMPORTANT]
-> **Initial Teacher Setup**: For security, ClassSend defaults to the Student role on first launch. To set a computer as a **Teacher** for the first time:
-> 1. Open the app and click the **Settings (⚙️)** icon in the header.
-> 2. Select the **About** tab in the sidebar.
-> 3. **Click the ClassSend Logo 5 times** to unlock administrative settings.
-> 4. Go to the **Personalization** tab.
-> 5. Click **Change Role** and select **Teacher**.
-> This setup only needs to be performed once on the teacher's computer.
+> **Installation**: ClassSend 11.0.0 uses a proper installer that asks you to choose a role at setup time.
+> - Run `ClassSend Setup.exe` and select **Teacher** or **Student** when prompted.
+> - **Teacher** installs get the full control panel, monitoring, and all classroom tools.
+> - **Student** installs get messaging, file sharing, and personal settings. The installer also silently registers a system-level WiFi guard that prevents students from disabling the network connection.
+> - No per-machine configuration is needed after installation — the role is set once and remembered.
 
 **ClassSend** is a lightweight, local network file sharing and chat application designed for classrooms. It now features a high-performance **N-gram AI Classifier** for intelligent content filtering without the bloat.
 
@@ -55,7 +74,7 @@
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Windows Installer (64-bit)**: `ClassSend-10.4.0 Setup.exe`
+- **Windows Installer (64-bit)**: `ClassSend Setup 11.0.0.exe` — Teacher/Student role selected at install time
 
 
 
@@ -87,24 +106,16 @@ If students cannot see the teacher's class automatically:
     This will launch the Electron application window.
 
 3.  **Build for Production**:
-    To create the `.exe` installer:
+    To create the Windows installer (outputs to `server/dist_build/`):
     ```bash
     cd server
     npm run make
     ```
 
-    **Build Linux AppImage**:
+    To build a 32-bit installer:
     ```bash
     cd server
-    npm run make:appimage
-    ```
-
-    **Build Windows 32-bit Zip** (on Linux):
-    ```bash
-    cd server
-    npx electron-forge package --arch=ia32 --platform=win32
-    mkdir -p out/make/zip/win32-ia32
-    cd out/ClassSend-win32-ia32 && zip -r ../make/zip/win32-ia32/ClassSend-win32-ia32-7.0.0.zip .
+    npm run make:win32
     ```
 
 ## 🏗️ Architecture

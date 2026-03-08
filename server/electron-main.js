@@ -1,16 +1,25 @@
 const { app, BrowserWindow, Tray, Menu, shell, ipcMain, desktopCapturer } = require('electron');
 const path = require('path');
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-// eslint-disable-next-line global-require
-if (require('electron-squirrel-startup')) {
-    app.quit();
-    process.exit(0); // Ensure immediate exit
-}
-
 const fs = require('fs');
 const os = require('os');
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
+
+// --- INSTALL MODE ---
+// Written to HKLM\SOFTWARE\ClassSend\Mode by the installer (Teacher / Student).
+// Defaults to 'teacher' in dev / if the key is missing.
+function getInstallMode() {
+    try {
+        const out = execSync(
+            'reg query "HKLM\\SOFTWARE\\ClassSend" /v Mode',
+            { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }
+        );
+        return out.toLowerCase().includes('student') ? 'student' : 'teacher';
+    } catch {
+        return 'teacher';
+    }
+}
+
 
 // Set USER_DATA_PATH for the server to use (Must be before requiring index.js)
 // This ensures we write to a writable location (e.g. ~/.config/...) instead of the read-only AppImage mount
@@ -126,9 +135,28 @@ function startAppServer() {
 
 const net = require('net');
 
+function getLocalIP() {
+    const interfaces = os.networkInterfaces();
+    const virtualKeywords = ['virtual', 'vmware', 'vbox', 'hyperv', 'vethernet', 'wsl', 'loopback', 'docker', 'radmin', 'vpn', 'hamachi'];
+
+    for (const name of Object.keys(interfaces)) {
+        const lowerName = name.toLowerCase();
+        if (virtualKeywords.some(keyword => lowerName.includes(keyword))) continue;
+
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                if (iface.address.startsWith('169.254.')) continue;
+                return iface.address;
+            }
+        }
+    }
+    return null;
+}
+
 function checkServerReady(port) {
     return new Promise((resolve, reject) => {
         const client = new net.Socket();
+        client.setTimeout(1000);
         client.once('connect', () => {
             client.destroy();
             resolve(true);
@@ -136,6 +164,10 @@ function checkServerReady(port) {
         client.once('error', (err) => {
             client.destroy();
             reject(err);
+        });
+        client.once('timeout', () => {
+            client.destroy();
+            reject(new Error('Timeout'));
         });
         client.connect(port, '127.0.0.1');
     });
@@ -213,19 +245,63 @@ function createWindow() {
     const protocol = process.env.USE_TLS === 'true' ? 'https' : 'http';
     const serverUrl = `${protocol}://localhost:${port}`;
 
-    // Poll for server readiness
-    pollServer(port)
-        .then((isReady) => {
-            if (isReady) {
-                console.log(`Server ready. Loading window from: ${serverUrl}`);
+    // Poll for server readiness AND valid LAN IP
+    const startTime = Date.now();
+    const timeout = 30000; // 30 seconds as requested
+
+    async function waitForStartup() {
+        while (Date.now() - startTime < timeout) {
+            const hasIP = !!getLocalIP();
+            let serverReady = false;
+            try {
+                serverReady = await checkServerReady(port);
+            } catch (e) { }
+
+            if (serverReady && hasIP) {
+                console.log(`Startup successful. IP: ${getLocalIP()}. Loading window.`);
                 mainWindow.loadURL(serverUrl);
-            } else {
-                console.error("Server failed to start within timeout.");
-                // Optionally show an error dialog or quit
-                // mainWindow.loadFile(path.join(__dirname, 'error.html')); // If you had one
+                return;
             }
-        })
-        .catch(err => console.error("Polling error:", err));
+
+            // Update splash status
+            if (splashWindow && !splashWindow.isDestroyed()) {
+                let status = "Starting...";
+                if (!serverReady) status = "Waiting for local server...";
+                else if (!hasIP) status = "Waiting for network (WiFi/LAN)...";
+
+                splashWindow.webContents.executeJavaScript(`
+                    const el = document.querySelector('.status-text');
+                    if (el) el.textContent = "${status}";
+                `).catch(() => { });
+            }
+
+            console.log(`Waiting for startup (Server: ${serverReady}, IP: ${hasIP})...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        console.error("Startup timeout reached. No network or server found.");
+        if (!isHiddenStartup) {
+            const { dialog } = require('electron');
+            // Instead of just quitting, restart as requested
+            console.log("Restarting app after 30s failure...");
+            app.relaunch();
+            app.exit(0);
+        } else {
+            app.quit();
+        }
+    }
+
+    waitForStartup().catch(err => console.error("Startup polling error:", err));
+
+    // Handle load failures
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+        console.error(`Failed to load: ${validatedURL} (${errorCode}: ${errorDescription})`);
+        // If it's our server URL, show error page
+        if (validatedURL.startsWith(serverUrl)) {
+            mainWindow.loadFile(path.join(__dirname, 'error.html'));
+            mainWindow.show();
+        }
+    });
 
 
     // When main window is ready, close splash and show main
@@ -605,6 +681,14 @@ Get-Process | Where-Object {
         return os.hostname();
     });
 
+<<<<<<< HEAD
+=======
+    // Get install mode so the frontend knows which UI to show
+    ipcMain.handle('get-install-mode', () => {
+        return getInstallMode();
+    });
+
+>>>>>>> master
     // ===== REMOTE APP LAUNCH =====
     ipcMain.handle('launch-app', async (event, { command }) => {
         try {
@@ -802,7 +886,13 @@ if (!gotTheLock) {
     });
 
     app.whenReady().then(() => {
-        if (!configManager.get('startupConfigured')) {
+        const installMode = getInstallMode();
+        console.log(`[Mode] Running as: ${installMode}`);
+
+        // In packaged (installed) builds the NSIS installer already registered a
+        // Scheduled Task that starts the app elevated at login — no UAC popup.
+        // Only fall back to the registry Run key in dev / unpackaged mode.
+        if (!app.isPackaged && !configManager.get('startupConfigured')) {
             app.setLoginItemSettings({
                 openAtLogin: true,
                 args: ['--hidden']
