@@ -1,5 +1,5 @@
-# ClassSend 10.5.6
-![Version](https://img.shields.io/badge/version-v10.5.6-blue)
+# ClassSend 11.0.0
+![Version](https://img.shields.io/badge/version-v11.0.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -25,13 +25,11 @@
 
 
 > [!IMPORTANT]
-> **Initial Teacher Setup**: For security, ClassSend defaults to the Student role on first launch. To set a computer as a **Teacher** for the first time:
-> 1. Open the app and click the **Settings (⚙️)** icon in the header.
-> 2. Select the **About** tab in the sidebar.
-> 3. **Click the ClassSend Logo 5 times** to unlock administrative settings.
-> 4. Go to the **Personalization** tab.
-> 5. Click **Change Role** and select **Teacher**.
-> This setup only needs to be performed once on the teacher's computer.
+> **Installation**: ClassSend 11.0.0 uses a proper installer that asks you to choose a role at setup time.
+> - Run `ClassSend Setup.exe` and select **Teacher** or **Student** when prompted.
+> - **Teacher** installs get the full control panel, monitoring, and all classroom tools.
+> - **Student** installs get messaging, file sharing, and personal settings. The installer also silently registers a system-level WiFi guard that prevents students from disabling the network connection.
+> - No per-machine configuration is needed after installation — the role is set once and remembered.
 
 **ClassSend** is a lightweight, local network file sharing and chat application designed for classrooms. It now features a high-performance **N-gram AI Classifier** for intelligent content filtering without the bloat.
 
@@ -76,7 +74,7 @@
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Windows Installer (64-bit)**: `ClassSend-10.4.0 Setup.exe`
+- **Windows Installer (64-bit)**: `ClassSend Setup 11.0.0.exe` — Teacher/Student role selected at install time
 
 
 
@@ -108,24 +106,16 @@ If students cannot see the teacher's class automatically:
     This will launch the Electron application window.
 
 3.  **Build for Production**:
-    To create the `.exe` installer:
+    To create the Windows installer (outputs to `server/dist_build/`):
     ```bash
     cd server
     npm run make
     ```
 
-    **Build Linux AppImage**:
+    To build a 32-bit installer:
     ```bash
     cd server
-    npm run make:appimage
-    ```
-
-    **Build Windows 32-bit Zip** (on Linux):
-    ```bash
-    cd server
-    npx electron-forge package --arch=ia32 --platform=win32
-    mkdir -p out/make/zip/win32-ia32
-    cd out/ClassSend-win32-ia32 && zip -r ../make/zip/win32-ia32/ClassSend-win32-ia32-7.0.0.zip .
+    npm run make:win32
     ```
 
 ## 🏗️ Architecture
