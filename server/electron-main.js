@@ -1,16 +1,25 @@
 const { app, BrowserWindow, Tray, Menu, shell, ipcMain, desktopCapturer } = require('electron');
 const path = require('path');
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-// eslint-disable-next-line global-require
-if (require('electron-squirrel-startup')) {
-    app.quit();
-    process.exit(0); // Ensure immediate exit
-}
-
 const fs = require('fs');
 const os = require('os');
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
+
+// --- INSTALL MODE ---
+// Written to HKLM\SOFTWARE\ClassSend\Mode by the installer (Teacher / Student).
+// Defaults to 'teacher' in dev / if the key is missing.
+function getInstallMode() {
+    try {
+        const out = execSync(
+            'reg query "HKLM\\SOFTWARE\\ClassSend" /v Mode',
+            { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }
+        );
+        return out.toLowerCase().includes('student') ? 'student' : 'teacher';
+    } catch {
+        return 'teacher';
+    }
+}
+
 
 // Set USER_DATA_PATH for the server to use (Must be before requiring index.js)
 // This ensures we write to a writable location (e.g. ~/.config/...) instead of the read-only AppImage mount
@@ -672,6 +681,11 @@ Get-Process | Where-Object {
         return os.hostname();
     });
 
+    // Get install mode so the frontend knows which UI to show
+    ipcMain.handle('get-install-mode', () => {
+        return getInstallMode();
+    });
+
     // ===== REMOTE APP LAUNCH =====
     ipcMain.handle('launch-app', async (event, { command }) => {
         try {
@@ -869,7 +883,13 @@ if (!gotTheLock) {
     });
 
     app.whenReady().then(() => {
-        if (!configManager.get('startupConfigured')) {
+        const installMode = getInstallMode();
+        console.log(`[Mode] Running as: ${installMode}`);
+
+        // In packaged (installed) builds the NSIS installer already registered a
+        // Scheduled Task that starts the app elevated at login — no UAC popup.
+        // Only fall back to the registry Run key in dev / unpackaged mode.
+        if (!app.isPackaged && !configManager.get('startupConfigured')) {
             app.setLoginItemSettings({
                 openAtLogin: true,
                 args: ['--hidden']
