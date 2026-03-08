@@ -1,10 +1,6 @@
 {
     "name": "classsend",
-<<<<<<< HEAD
-    "version": "10.5.6",
-=======
     "version": "11.0.0",
->>>>>>> master
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
