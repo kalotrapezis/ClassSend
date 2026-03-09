@@ -915,6 +915,44 @@
         </div>
       </div>
 
+      <!-- Connection Blocking Modal -->
+      <div id="connection-blocking-modal" class="modal hidden">
+        <div class="modal-content app-launch-modal-content" style="border-top: 4px solid #e8463a;">
+          <div class="popup-header">
+            <h3 class="popup-title-with-icon">
+              <img src="/assets/no-internet-.svg" class="icon-svg" alt="Connection Blocking" />
+              <span data-i18n="modal-connection-blocking-title">Connection Blocking</span>
+            </h3>
+            <button id="btn-close-connection-blocking" class="close-btn">
+              <img src="/assets/close-square-svgrepo-com.svg" class="icon-svg" alt="Close" style="width:20px;height:20px;" />
+            </button>
+          </div>
+          <div class="app-launch-body">
+            <div class="app-launch-section-header">
+              <span data-i18n="label-internet-blocking">Internet Blocking</span>
+              <label class="switch">
+                <input type="checkbox" id="connection-blocking-toggle">
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <div class="app-launch-section-header favorites-header">
+              <span data-i18n="label-url-whitelist">URL Whitelist</span>
+              <span class="favorites-hint" data-i18n="hint-url-whitelist">Domain covers all paths &amp; subdomains</span>
+            </div>
+            <div class="blacklist-add-section">
+              <input type="text" id="url-whitelist-entry-input" placeholder="e.g. code.org" autocomplete="off" data-i18n-placeholder="placeholder-url-whitelist">
+              <button id="btn-add-url-whitelist-entry" class="add-word-btn">
+                <span data-i18n="btn-add-url">Add URL</span>
+                <img src="/assets/plus-circle-svgrepo-com.svg" class="icon-svg" style="width:16px;height:16px;margin-left:4px;" />
+              </button>
+            </div>
+            <div id="url-whitelist-entries-list" class="blacklist-word-list">
+              <div class="empty-blacklist-state" id="url-whitelist-empty-state" data-i18n="url-whitelist-empty">No URLs in whitelist</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- History Modal (IP History) -->
       <div id="history-modal" class="modal hidden">
         <div class="modal-content blacklist-modal-content" style="border-top: 5px solid #4db8ff;">

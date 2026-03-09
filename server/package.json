@@ -1,13 +1,15 @@
 {
     "name": "classsend",
-    "version": "11.0.0",
+    "version": "11.1.2",
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
     "main": "electron-main.js",
     "scripts": {
         "start": "electron .",
+        "premake": "npm --prefix ../client run build",
         "make": "electron-builder --win --x64",
+        "premake:win32": "npm --prefix ../client run build",
         "make:win32": "electron-builder --win --ia32",
         "generate-icon": "node convert-icon.js",
         "server": "node index.js",
@@ -19,7 +21,6 @@
         "productName": "ClassSend",
         "icon": "./assets/icon.ico",
         "asar": true,
-        "asarUnpack": "**/*.{node,dll}",
         "win": {
             "target": "nsis",
             "icon": "./assets/icon.ico"
@@ -42,10 +43,18 @@
             "include": "installer.nsh"
         },
         "files": [
-            "**/*",
-            "!uploads/**",
-            "!dist_build/**",
-            "!node_modules/.cache/**"
+            "electron-main.js",
+            "index.js",
+            "config-manager.js",
+            "network-discovery.js",
+            "file-storage.js",
+            "preload.js",
+            "tls-config.js",
+            "splash.html",
+            "lib/**/*",
+            "public/**/*",
+            "assets/**/*",
+            "data/**/*"
         ],
         "directories": {
             "output": "dist_build"

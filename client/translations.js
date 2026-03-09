@@ -279,7 +279,14 @@ export const translations = {
         "btn-tool-disable-internet": "Disable Internet",
         "btn-tool-enable-internet": "Enable Internet",
         "toast-internet-disabled": "Internet Access Disabled",
-        "toast-internet-enabled": "Internet Access Restored"
+        "toast-internet-enabled": "Internet Access Restored",
+        "modal-connection-blocking-title": "Connection Blocking",
+        "label-internet-blocking": "Internet Blocking",
+        "label-url-whitelist": "URL Whitelist",
+        "hint-url-whitelist": "Domain covers all paths & subdomains",
+        "placeholder-url-whitelist": "e.g. code.org",
+        "btn-add-url": "Add URL",
+        "url-whitelist-empty": "No URLs in whitelist"
     },
 
     el: {
@@ -555,6 +562,13 @@ export const translations = {
         "btn-tool-disable-internet": "Διακοπή Internet",
         "btn-tool-enable-internet": "Επαναφορά Internet",
         "toast-internet-disabled": "Η πρόσβαση στο Internet διακόπηκε",
-        "toast-internet-enabled": "Η πρόσβαση στο Internet αποκαταστάθηκε"
+        "toast-internet-enabled": "Η πρόσβαση στο Internet αποκαταστάθηκε",
+        "modal-connection-blocking-title": "Αποκλεισμός Σύνδεσης",
+        "label-internet-blocking": "Αποκλεισμός Διαδικτύου",
+        "label-url-whitelist": "Λευκή Λίστα URL",
+        "hint-url-whitelist": "Ο τομέας καλύπτει όλα τα μονοπάτια και υποτομείς",
+        "placeholder-url-whitelist": "π.χ. code.org",
+        "btn-add-url": "Προσθήκη URL",
+        "url-whitelist-empty": "Δεν υπάρχουν URL στη λευκή λίστα"
     }
 };

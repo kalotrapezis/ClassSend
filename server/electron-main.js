@@ -314,6 +314,7 @@ function createWindow() {
                 mainWindow.show();
                 mainWindow.focus();
             }
+            restoreInternetBlockingState();
         }, 500);
     });
 
@@ -602,19 +603,35 @@ Get-Process | Where-Object {
     });
 
     // Toggle Internet via Windows Registry (Proxy Method)
-    ipcMain.handle('toggle-internet', async (event, disable) => {
+    // Accepts either a boolean (legacy) or { disable, whitelist[] } object
+    ipcMain.handle('toggle-internet', async (event, data) => {
         return new Promise((resolve) => {
+            let disable, whitelist = [];
+            if (typeof data === 'boolean') {
+                disable = data;
+            } else if (data && typeof data === 'object') {
+                disable = data.disable;
+                whitelist = Array.isArray(data.whitelist) ? data.whitelist : [];
+            }
+
             let cmd = '';
-            // ProxyOverride="<local>" ensures localhost/local IP traffic is not blocked
             if (disable) {
-                // Enable a fake proxy
-                cmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 1 /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyServer /t REG_SZ /d "127.0.0.1:81" /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyOverride /t REG_SZ /d "<local>" /f`;
+                // Build ProxyOverride: <local> + whitelisted domains and their subdomains
+                let proxyOverride = '<local>';
+                whitelist.forEach(entry => {
+                    let d = entry.toLowerCase().trim()
+                        .replace(/^https?:\/\//i, '')
+                        .replace(/\/.*$/, '')
+                        .replace(/\*\./g, '');
+                    if (d) proxyOverride += `;${d};*.${d}`;
+                });
+                cmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 1 /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyServer /t REG_SZ /d "127.0.0.1:81" /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyOverride /t REG_SZ /d "${proxyOverride}" /f`;
             } else {
                 // Disable the proxy
                 cmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f`;
             }
 
-            console.log(`[Toggle Internet] Executing: ${cmd}`);
+            console.log(`[Toggle Internet] Executing (whitelist: ${whitelist.length} entries)`);
             exec(cmd, (error) => {
                 if (error) {
                     console.error('[Toggle Internet] Error:', error.message);
@@ -626,6 +643,40 @@ Get-Process | Where-Object {
             });
         });
     });
+
+    // Get URL whitelist settings (persisted on teacher's machine)
+    ipcMain.handle('get-url-whitelist', async () => {
+        return configManager.get('urlWhitelist') || { enabled: false, whitelist: [] };
+    });
+
+    // Save URL whitelist settings
+    ipcMain.handle('save-url-whitelist', async (event, { enabled, whitelist }) => {
+        configManager.set('urlWhitelist', { enabled, whitelist: Array.isArray(whitelist) ? whitelist : [] });
+        return { success: true };
+    });
+
+    // Restore internet blocking state on startup
+    function restoreInternetBlockingState() {
+        const saved = configManager.get('urlWhitelist');
+        if (!saved || !saved.enabled) return;
+        const whitelist = Array.isArray(saved.whitelist) ? saved.whitelist : [];
+        let proxyOverride = '<local>';
+        whitelist.forEach(entry => {
+            let d = entry.toLowerCase().trim()
+                .replace(/^https?:\/\//i, '')
+                .replace(/\/.*$/, '')
+                .replace(/\*\./g, '');
+            if (d) proxyOverride += `;${d};*.${d}`;
+        });
+        const cmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 1 /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyServer /t REG_SZ /d "127.0.0.1:81" /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyOverride /t REG_SZ /d "${proxyOverride}" /f`;
+        exec(cmd, (error) => {
+            if (error) {
+                console.error('[Startup] Failed to restore internet blocking:', error.message);
+            } else {
+                console.log(`[Startup] Internet blocking restored (${whitelist.length} whitelist entries)`);
+            }
+        });
+    }
 
     // Helper function to resolve paths with environment variables and wildcards
     function resolveRobustPath(p) {
@@ -681,14 +732,12 @@ Get-Process | Where-Object {
         return os.hostname();
     });
 
-<<<<<<< HEAD
-=======
     // Get install mode so the frontend knows which UI to show
     ipcMain.handle('get-install-mode', () => {
         return getInstallMode();
     });
 
->>>>>>> master
+
     // ===== REMOTE APP LAUNCH =====
     ipcMain.handle('launch-app', async (event, { command }) => {
         try {
