@@ -56,3 +56,6 @@ uploads/
 # Exclude large models
 server/models/
 server/media/
+
+# Electron builder output
+server/dist_build/

@@ -1,5 +1,22 @@
 # Release Notes
 
+## [11.1.2] - 2026-03-09
+### FIXES
+- **Auto Client Build**: `npm run make` now automatically builds the client (Vite) before packaging the installer. Previously the client had to be built manually first, causing stale bundles to ship if the step was skipped.
+
+## [11.1.1] - 2026-03-09
+### FIXES
+- **Missing Modules on Install**: `network-discovery.js` and `file-storage.js` were not included in the electron-builder file list, causing the server to fail on startup with "Cannot find module" after installation. Both files are now correctly packed into the app bundle.
+- **Role Not Persisting (Teacher)**: After installation, the Teacher role was not being retained between launches. On every startup the app would show the role selection screen again, forcing the teacher to re-select their role manually. Fixed by routing the `socket.on('connect')` auto-flow to `triggerTeacherAutoFlow()` for teachers instead of the student-only `handleAutoFlow()`.
+- **Wrong Role on First Launch**: Fresh installs always defaulted to the Student role regardless of what was selected during the installer's Teacher/Student setup page. The installer-chosen role (stored in `HKLM\SOFTWARE\ClassSend\Mode`) is now read via IPC on first launch and saved to local storage, so the app opens with the correct role immediately without any user interaction.
+- **EPERM on Startup (Media Directory)**: The server failed to start after installation with `EPERM: operation not permitted, mkdir 'C:\Program Files\ClassSend\media'`. Both `file-storage.js` and `index.js` were trying to create the media folder inside the read-only `Program Files` installation directory. Both now use the writable `userData` path (`AppData\Roaming\ClassSend\`) instead.
+
+## [11.1.0] - 2026-03-08
+### CONNECTION BLOCKING WHITELIST
+- **Whitelist Modal**: The "No Internet" tool is now a persistent modal instead of a simple toggle. Teachers can manage a URL whitelist alongside the on/off switch — adding a domain (e.g. `google.gr`) automatically allows all paths and subdomains without extra configuration.
+- **Persistent State**: Internet blocking state is saved and restored automatically on app restart. If blocking was active when the app closed, it re-applies on next launch with the same whitelist.
+- **Translations**: All modal text is fully translated into English and Greek and respects the app language setting.
+
 ## [11.0.0] - 2026-03-08
 ### INSTALLER & ROLE MANAGEMENT
 - **Proper Windows Installer**: Migrated from the silent Squirrel installer to a full NSIS wizard (electron-builder). Shows a proper installation dialog with progress and options.
@@ -18,7 +35,6 @@
 - **Dynamic IP Monitoring**: The server now actively monitors for network interface changes (e.g., switching from WiFi to Ethernet). It automatically updates its IP, re-publishes mDNS services, and notifies all connected clients in real-time.
 - **Connection Error Screen**: Replaced the "blank screen" failure mode with a modern, user-friendly "Connection Lost" recovery page, allowing users to manually retry the connection.
 - **Improved Splash Status**: Added real-time status updates to the splash screen including "Waiting for local server..." and "Waiting for network (WiFi/LAN)...".
-
 ## [10.5.6] - 2026-03-06
 ### FIXES & IMPROVEMENTS
 - **Promptless File Downloads**: Synced the "Predetermined Location" setting to the student app. When the teacher sends a file to the chat, it now automatically downloads in the background for all students without a browser prompt.

@@ -621,7 +621,7 @@
                     </div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
                     <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
-                        id="app-version-display">10.5.6</span></p>
+                        id="app-version-display">11.0.0</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
@@ -629,15 +629,14 @@
                         data-i18n="recent-improvements">
                         Recent Improvements:</h4>
                       <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.4;">
-                        <li><strong>Fixed:</strong> PDF viewer no longer freezes the app — switched to PDF.js canvas
-                          renderer</li>
-                        <li><strong>Fixed:</strong> Viewer fullscreen state now resets properly on close (no longer
-                          reopens in fullscreen)</li>
-                        <li><strong>Fixed:</strong> Explicit bitrate options (8/16/24/32/64 Mbps) for screen recording
-                          quality</li>
-                        <li>Advanced Filtering &amp; Sensitivity Sliders</li>
-                        <li>Student Monitoring (Low-res JPG)</li>
-                        <li>Screen Lock &amp; Focus Mode</li>
+                        <li><strong>Proper Windows Installer</strong>: NSIS wizard with role selection (Teacher/Student)
+                        </li>
+                        <li><strong>WiFi Guard Service</strong>: Persistent student network protection (Background Task)
+                        </li>
+                        <li><strong>System-wide Install</strong>: Installs to Program Files for all users</li>
+                        <li><strong>No-Prompt Startup</strong>: Auto-launches without UAC popups</li>
+                        <li><strong>Network Resilience</strong>: Smart waiting for LAN IP at startup</li>
+                        <li><strong>Connection Lost Screen</strong>: Modern recovery page with manual retry</li>
                       </ul>
                     </div>
 
@@ -911,6 +910,44 @@
             <div id="whitelist-words-list-modal" class="blacklist-word-list">
               <!-- Words will be dynamically added here -->
               <div class="empty-blacklist-state" data-i18n="whitelist-empty">No safe words added yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection Blocking Modal -->
+      <div id="connection-blocking-modal" class="modal hidden">
+        <div class="modal-content app-launch-modal-content" style="border-top: 4px solid #e8463a;">
+          <div class="popup-header">
+            <h3 class="popup-title-with-icon">
+              <img src="/assets/no-internet-.svg" class="icon-svg" alt="Connection Blocking" />
+              <span data-i18n="modal-connection-blocking-title">Connection Blocking</span>
+            </h3>
+            <button id="btn-close-connection-blocking" class="close-btn">
+              <img src="/assets/close-square-svgrepo-com.svg" class="icon-svg" alt="Close" style="width:20px;height:20px;" />
+            </button>
+          </div>
+          <div class="app-launch-body">
+            <div class="app-launch-section-header">
+              <span data-i18n="label-internet-blocking">Internet Blocking</span>
+              <label class="switch">
+                <input type="checkbox" id="connection-blocking-toggle">
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <div class="app-launch-section-header favorites-header">
+              <span data-i18n="label-url-whitelist">URL Whitelist</span>
+              <span class="favorites-hint" data-i18n="hint-url-whitelist">Domain covers all paths &amp; subdomains</span>
+            </div>
+            <div class="blacklist-add-section">
+              <input type="text" id="url-whitelist-entry-input" placeholder="e.g. code.org" autocomplete="off" data-i18n-placeholder="placeholder-url-whitelist">
+              <button id="btn-add-url-whitelist-entry" class="add-word-btn">
+                <span data-i18n="btn-add-url">Add URL</span>
+                <img src="/assets/plus-circle-svgrepo-com.svg" class="icon-svg" style="width:16px;height:16px;margin-left:4px;" />
+              </button>
+            </div>
+            <div id="url-whitelist-entries-list" class="blacklist-word-list">
+              <div class="empty-blacklist-state" id="url-whitelist-empty-state" data-i18n="url-whitelist-empty">No URLs in whitelist</div>
             </div>
           </div>
         </div>

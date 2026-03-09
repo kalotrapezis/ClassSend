@@ -42,11 +42,8 @@ const fileStorage = new FileStorage();
 app.use(express.static(path.join(__dirname, 'public')));
 // Serve assets directory
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
-// Serve media directory for in-app viewers
-let mediaBaseDir = process.cwd();
-if (electronApp && electronApp.isPackaged) {
-  mediaBaseDir = path.dirname(process.execPath);
-}
+// Serve media directory for in-app viewers (USER_DATA_PATH is set by electron-main.js)
+const mediaBaseDir = process.env.USER_DATA_PATH || process.cwd();
 app.use('/media', express.static(path.join(mediaBaseDir, 'media')));
 
 // TLS/HTTPS support (optional)
@@ -1557,18 +1554,19 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('trigger-disable-internet', ({ classId, targetSocketId }) => {
+  socket.on('trigger-disable-internet', ({ classId, targetSocketId, whitelist }) => {
     if (!activeClasses.has(classId)) return;
     const classData = activeClasses.get(classId);
     if (classData.teacherId !== socket.id) return;
+    const safeWhitelist = Array.isArray(whitelist) ? whitelist : [];
     if (targetSocketId) {
-      io.to(targetSocketId).emit('execute-disable-internet');
+      io.to(targetSocketId).emit('execute-disable-internet', { whitelist: safeWhitelist });
     } else {
       classData.students.forEach(s => {
         const sid = typeof s === 'object' ? s.id : s;
-        io.to(sid).emit('execute-disable-internet');
+        io.to(sid).emit('execute-disable-internet', { whitelist: safeWhitelist });
       });
-      console.log(`[No Internet] Disabling internet for all students in ${classId}`);
+      console.log(`[No Internet] Disabling internet for all students in ${classId} (whitelist: ${safeWhitelist.length} entries)`);
     }
   });
 

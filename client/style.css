@@ -5741,7 +5741,7 @@ input:checked+.slider:before {
   font-size: 0.82rem;
   color: var(--text-secondary);
 
-  em {
+  :is(em) {
     color: var(--text-primary);
     font-style: normal;
     font-weight: 500;

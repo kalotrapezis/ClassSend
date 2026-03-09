@@ -406,29 +406,55 @@ const chatInterface = document.getElementById("chat-interface");
 // Check if we have a saved role
 // savedRole is already declared at top of file
 
-// DEFAULT ROLE LOGIC: If no role is saved, default to 'student'
-// DEFAULT ROLE LOGIC: Force 'student' if no role is saved
+// DEFAULT ROLE LOGIC: If no role is saved, read from installer registry (Electron) or default to 'student'
 if (!savedRole) {
-    console.log("No saved role found. Defaulting to 'student'.");
-    savedRole = 'student';
-    localStorage.setItem('classsend-role', 'student');
-    currentRole = 'student';
-    // Trigger auto-flow immediately
-    setTimeout(() => {
-        if (typeof handleAutoFlow === 'function') handleAutoFlow();
-        // Also ensure UI is correct
+    if (window.electron && window.electron.ipcRenderer) {
+        // Electron: hide role selection immediately, then read the mode the installer wrote to the registry
         roleSelection.classList.add('hidden');
-    }, 100);
+        window.electron.ipcRenderer.invoke('get-install-mode').then(mode => {
+            const role = (mode === 'student') ? 'student' : 'teacher';
+            console.log(`[Identity] Install mode from registry: ${role}`);
+            savedRole = role;
+            currentRole = role;
+            localStorage.setItem('classsend-role', role);
+            autoFlowTriggered = true;
+            if (role === 'teacher') {
+                if (typeof triggerTeacherAutoFlow === 'function') triggerTeacherAutoFlow();
+            } else {
+                if (typeof handleAutoFlow === 'function') handleAutoFlow();
+            }
+        }).catch(() => {
+            // Registry read failed — fall back to student
+            console.warn('[Identity] get-install-mode failed, defaulting to student');
+            savedRole = 'student';
+            currentRole = 'student';
+            localStorage.setItem('classsend-role', 'student');
+            setTimeout(() => {
+                if (typeof handleAutoFlow === 'function') handleAutoFlow();
+            }, 100);
+        });
+    } else {
+        // Browser / dev mode: default to student
+        console.log("No saved role found. Defaulting to 'student'.");
+        savedRole = 'student';
+        localStorage.setItem('classsend-role', 'student');
+        currentRole = 'student';
+        setTimeout(() => {
+            if (typeof handleAutoFlow === 'function') handleAutoFlow();
+            roleSelection.classList.add('hidden');
+        }, 100);
+    }
 }
 
 if (savedRole) {
-    // We have a role (from localStorage, URL params, or default), proceed automatically
+    // We have a role (from localStorage or URL params), proceed automatically
     roleSelection.classList.add('hidden');
-} else {
-    // Fallback (should not happen with default logic above)
+} else if (!window.electron || !window.electron.ipcRenderer) {
+    // No saved role and not in Electron — show role selection as fallback
     roleSelection.classList.remove('hidden');
     chatInterface.classList.add('hidden');
 }
+// else: Electron first launch — role selection already hidden above, waiting for IPC response
 
 
 
@@ -1452,7 +1478,11 @@ socket.on("connect", () => {
     // Auto-flow: if role is saved, trigger auto-flow
     if (savedRole && !autoFlowTriggered && !currentClassId) {
         autoFlowTriggered = true;
-        handleAutoFlow();
+        if (savedRole === 'teacher') {
+            triggerTeacherAutoFlow();
+        } else {
+            handleAutoFlow();
+        }
     }
 });
 
@@ -4299,35 +4329,155 @@ if (btnToolCloseAllApps) {
     });
 }
 
-// No Internet Tool Logic
+// No Internet Tool Logic — opens Connection Blocking modal
 const btnToolNoInternet = document.getElementById('btn-tool-no-internet');
 if (btnToolNoInternet) {
     btnToolNoInternet.addEventListener('click', () => {
         if (currentClassId && currentRole === 'teacher') {
-            const isCurrentlyDisabled = btnToolNoInternet.classList.contains('active');
-            if (isCurrentlyDisabled) {
-                // Currently Disabled -> Enable Internet
-                showToast('Restoring internet connection...', 'info');
-                socket.emit('trigger-enable-internet', { classId: currentClassId });
-                // We assume immediate success for UI
-                btnToolNoInternet.classList.remove('active');
-                const span = btnToolNoInternet.querySelector('span');
-                if (span) span.textContent = t('btn-tool-disable-internet') || 'Disable Internet';
-                btnToolNoInternet.title = t('btn-tool-disable-internet') || 'Disable Internet';
-            } else {
-                // Currently Enabled -> Disable Internet
-                if (confirm('Are you sure you want to disable internet access for all students? They will be disconnected from the internet but not from this local session.')) {
-                    showToast('Disabling internet connection...', 'warning');
-                    socket.emit('trigger-disable-internet', { classId: currentClassId });
-                    btnToolNoInternet.classList.add('active');
-                    const span = btnToolNoInternet.querySelector('span');
-                    if (span) span.textContent = t('btn-tool-enable-internet') || 'Enable Internet';
-                    btnToolNoInternet.title = t('btn-tool-enable-internet') || 'Enable Internet';
-                }
-            }
+            openConnectionBlockingModal();
         }
     });
 }
+
+// ─── Connection Blocking Modal ────────────────────────────────────────────────
+let urlWhitelist = [];
+let blockingEnabled = false;
+
+function loadBlockingSettings() {
+    if (!window.electron) return;
+    window.electron.ipcRenderer.invoke('get-url-whitelist').then((data) => {
+        if (!data) return;
+        urlWhitelist = Array.isArray(data.whitelist) ? data.whitelist : [];
+        blockingEnabled = !!data.enabled;
+        renderUrlWhitelistEntries();
+        syncBlockingButtonState();
+    }).catch((e) => console.error('[ConnectionBlocking] loadBlockingSettings error', e));
+}
+
+function saveBlockingSettings() {
+    if (!window.electron) return;
+    window.electron.ipcRenderer.invoke('save-url-whitelist', {
+        enabled: blockingEnabled,
+        whitelist: urlWhitelist
+    }).catch((e) => console.error('[ConnectionBlocking] saveBlockingSettings error', e));
+}
+
+function renderUrlWhitelistEntries() {
+    const list = document.getElementById('url-whitelist-entries-list');
+    const empty = document.getElementById('url-whitelist-empty-state');
+    if (!list) return;
+    Array.from(list.children).forEach((el) => {
+        if (el.id !== 'url-whitelist-empty-state') el.remove();
+    });
+    if (urlWhitelist.length === 0) {
+        if (empty) empty.style.display = '';
+        return;
+    }
+    if (empty) empty.style.display = 'none';
+    urlWhitelist.forEach((entry, idx) => {
+        const item = document.createElement('div');
+        item.className = 'blacklist-word-item';
+
+        const text = document.createElement('span');
+        text.className = 'blacklist-word-text';
+        text.textContent = entry;
+
+        const btn = document.createElement('button');
+        btn.className = 'blacklist-delete-btn';
+        btn.title = 'Remove';
+        const img = document.createElement('img');
+        img.src = '/assets/minus-circle-svgrepo-com.svg';
+        img.className = 'icon-svg';
+        img.alt = 'Remove';
+        img.style.width = '18px';
+        img.style.height = '18px';
+        btn.appendChild(img);
+        btn.addEventListener('click', () => {
+            urlWhitelist.splice(idx, 1);
+            saveBlockingSettings();
+            renderUrlWhitelistEntries();
+            if (blockingEnabled && currentClassId) {
+                socket.emit('trigger-disable-internet', { classId: currentClassId, whitelist: urlWhitelist });
+            }
+        });
+
+        item.appendChild(text);
+        item.appendChild(btn);
+        list.appendChild(item);
+    });
+}
+
+function syncBlockingButtonState() {
+    const toggle = document.getElementById('connection-blocking-toggle');
+    if (toggle) toggle.checked = blockingEnabled;
+    const btn = document.getElementById('btn-tool-no-internet');
+    if (btn) {
+        if (blockingEnabled) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    }
+}
+
+function applyBlocking(enable) {
+    blockingEnabled = enable;
+    saveBlockingSettings();
+    syncBlockingButtonState();
+    if (!currentClassId || currentRole !== 'teacher') return;
+    if (enable) {
+        showToast('Disabling internet connection...', 'warning');
+        socket.emit('trigger-disable-internet', { classId: currentClassId, whitelist: urlWhitelist });
+    } else {
+        showToast('Restoring internet connection...', 'info');
+        socket.emit('trigger-enable-internet', { classId: currentClassId });
+    }
+}
+
+function openConnectionBlockingModal() {
+    const modal = document.getElementById('connection-blocking-modal');
+    if (modal) modal.classList.remove('hidden');
+    loadBlockingSettings();
+}
+
+function closeConnectionBlockingModal() {
+    const modal = document.getElementById('connection-blocking-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+(function initConnectionBlockingModal() {
+    const modal = document.getElementById('connection-blocking-modal');
+    const toggle = document.getElementById('connection-blocking-toggle');
+    const addBtn = document.getElementById('btn-add-url-whitelist-entry');
+    const input = document.getElementById('url-whitelist-entry-input');
+    const closeBtn = document.getElementById('btn-close-connection-blocking');
+
+    if (closeBtn) closeBtn.addEventListener('click', closeConnectionBlockingModal);
+    if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeConnectionBlockingModal(); });
+    if (toggle) toggle.addEventListener('change', () => applyBlocking(toggle.checked));
+
+    function addEntry() {
+        if (!input) return;
+        const val = input.value.trim().toLowerCase()
+            .replace(/^https?:\/\//i, '')
+            .replace(/\/.*$/, '')
+            .replace(/\*\./g, '');
+        if (val && !urlWhitelist.includes(val)) {
+            urlWhitelist.push(val);
+            saveBlockingSettings();
+            renderUrlWhitelistEntries();
+            if (blockingEnabled && currentClassId) {
+                socket.emit('trigger-disable-internet', { classId: currentClassId, whitelist: urlWhitelist });
+            }
+        }
+        input.value = '';
+    }
+    if (addBtn) addBtn.addEventListener('click', addEntry);
+    if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') addEntry(); });
+
+    loadBlockingSettings();
+})();
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Integrated Monitoring Minimize/Restore Logic from index.html (Already exists below at line 5518)
 
@@ -4434,9 +4584,10 @@ socket.on('execute-close-all-apps', () => {
     }
 });
 
-socket.on('execute-disable-internet', () => {
+socket.on('execute-disable-internet', (data) => {
     if (window.electron) {
-        window.electron.ipcRenderer.invoke('toggle-internet', true)
+        const payload = data && data.whitelist ? { disable: true, whitelist: data.whitelist } : true;
+        window.electron.ipcRenderer.invoke('toggle-internet', payload)
             .then(() => console.log('Internet disabled successfully'))
             .catch(e => console.error('Failed to disable internet', e));
     }
@@ -6514,7 +6665,7 @@ function openMonitorFocusMode(targetUserId, studentName) {
         } else {
             if (confirm(`Are you sure you want to disable internet access for ${studentName}?`)) {
                 showToast('Disabling internet connection for student...', 'warning');
-                socket.emit('trigger-disable-internet', { classId: currentClassId, targetSocketId: targetUserId });
+                socket.emit('trigger-disable-internet', { classId: currentClassId, targetSocketId: targetUserId, whitelist: urlWhitelist });
                 btnFocusNoInternet.classList.add('active');
                 btnFocusNoInternet.title = t('btn-tool-enable-internet') || 'Enable Internet';
                 if (netIcon) netIcon.src = '/assets/no-internet-.svg';
