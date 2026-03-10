@@ -1,5 +1,5 @@
-# ClassSend 11.0.0
-![Version](https://img.shields.io/badge/version-v11.0.0-blue)
+# ClassSend 11.2.0
+![Version](https://img.shields.io/badge/version-v11.2.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -25,7 +25,7 @@
 
 
 > [!IMPORTANT]
-> **Installation**: ClassSend 11.0.0 uses a proper installer that asks you to choose a role at setup time.
+> **Installation**: ClassSend 11.2.0 uses a proper installer that asks you to choose a role at setup time.
 > - Run `ClassSend Setup.exe` and select **Teacher** or **Student** when prompted.
 > - **Teacher** installs get the full control panel, monitoring, and all classroom tools.
 > - **Student** installs get messaging, file sharing, and personal settings. The installer also silently registers a system-level WiFi guard that prevents students from disabling the network connection.
@@ -61,6 +61,77 @@
 - **🧠 Enhanced AI (N-gram)**: Upgraded Naive Bayes classifier with N-gram tokenization.
 - **📋 List Management**: Full control over Blacklist (Forbidden words) and Whitelist (Good list) with Import/Export capabilities.
 
+## 🆕 What's New in 11.2.0
+
+### Configuration File (`classsend.conf`)
+ClassSend now ships with a plain-text configuration file placed next to the executable — similar to `/etc/` config files on Linux. IT administrators can edit it with any text editor before or after deployment; a restart applies the changes.
+
+**Location after install:** `C:\Program Files\ClassSend\resources\classsend.conf`
+**Location in development:** project root `classsend.conf`
+
+All settings are documented with inline comments. Key options:
+
+| Setting | Default | Description |
+|---|---|---|
+| `role` | `teacher` | Override installation role without reinstalling |
+| `port` | `3000` | Server port |
+| `use_tls` | `false` | Enable HTTPS |
+| `autostart` | `true` | Windows startup registration |
+| `restore_internet_on_startup` | `true` | Re-apply internet block after restart |
+| `max_file_size_mb` | `1536` | Max upload size |
+| `screen_capture_quality` | `low` | Overview grid resolution |
+| `screen_capture_hires_quality` | `1080p` | Focused student resolution |
+| `screen_capture_speed_mbit` | `16` | Streaming bandwidth target |
+| `socket_buffer_size_mb` | `2048` | Socket.IO internal buffer |
+| `enable_logging` | `false` | Console diagnostics |
+| `auto_export_logs` | `false` | Save session logs to file |
+| `block_threshold` | `90` | AI blocking sensitivity (0–100) |
+| `report_threshold` | `20` | AI report flagging sensitivity (0–100) |
+
+### Improved Screen Monitoring Quality
+The student screen capture system now supports multiple resolutions and configurable JPEG compression:
+
+**Resolutions:** `low` (320×180) · `1080p` (1920×1080) · `1440p` (2560×1440) · `4k` (3840×2160)
+
+**Streaming speeds (Mbit/s → JPEG quality):**
+- `8 Mbit` → quality 25 (light bandwidth, compressed)
+- `16 Mbit` → quality 50 *(default)*
+- `32 Mbit` → quality 72
+- `64 Mbit` → quality 88 (near-lossless)
+
+Captures are now sent as JPEG instead of PNG, significantly reducing per-frame payload.
+
+### Bug Fixes
+
+#### Tool Button Reliability
+Teacher tools (Lock Screen, Internet Cutoff, Shutdown, Focus App, Close All Apps) would silently do nothing after a brief network reconnect because the internal class connection state was cleared but the buttons stayed active.
+
+**Root cause:** A logic inversion in the auto-join recovery path set `autoFlowTriggered = true` (blocking retries) instead of resetting it. This left `currentClassId` as `null` indefinitely.
+
+**Fix:** The flag is now correctly reset to `false`, the teacher triggers an auto-recovery after 2 seconds, and all five affected buttons now show a clear warning toast ("Not connected to a class – please wait for reconnection.") instead of silently doing nothing.
+
+#### Window Focus Restoration
+On Windows, clicking the ClassSend window with the mouse would not restore keyboard focus after the window lost it. Alt-Tab or closing and reopening via the tray icon was the only workaround.
+
+**Root causes:**
+- `app.disableHardwareAcceleration()` was applied on all platforms despite a "Linux only" comment — on Windows this forces software (WARP) rendering which disrupts `WM_MOUSEACTIVATE` handling.
+- The tray icon's double-click handler called `show()` but not `focus()`.
+- The `unlock-screen` handler destroyed the lock overlay but did not refocus the main window.
+- No `show` event handler ensured focus when the window was programmatically shown.
+
+**Fix:** Hardware acceleration is now disabled only on Linux. `focus()` is called after `show()` in the tray handler, in the `show` event, and after the lock screen is dismissed.
+
+#### TAB Keyboard Navigation Order
+When navigating with the keyboard, TAB would reach the buttons *inside* the Tools menu before reaching the toggle button that opens it. Keyboard-only users would move through all hidden tool buttons without the menu ever opening.
+
+**Root causes:**
+- The `#tools-menu` element appeared before `#btn-tools-toggle` in the DOM.
+- Menu buttons had no `tabindex` attribute, so they were always focusable regardless of visibility.
+
+**Fix:** The toggle button is now first in DOM order. All tool menu buttons carry `tabindex="-1"` by default and are promoted to `tabindex="0"` only while the menu is open, then reset when it closes.
+
+---
+
 ## 📖 How to Use
 1.  **Start the App**: Open ClassSend on the teacher's computer.
 2.  **Create a Class**: Enter a Class ID (e.g., "Math") and your name.
@@ -74,7 +145,7 @@
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Windows Installer (64-bit)**: `ClassSend Setup 11.0.0.exe` — Teacher/Student role selected at install time
+- **Windows Installer (64-bit)**: `ClassSend Setup 11.2.0.exe` — Teacher/Student role selected at install time
 
 
 

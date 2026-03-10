@@ -2,6 +2,7 @@
 // mammoth and xlsx are now dynamically imported
 import { translations } from "./translations.js";
 import { generateRandomName } from "./name-generator.js";
+import { releaseNotes } from "./release-notes.js";
 
 // Logger for Advanced Settings
 const capturedLogs = [];
@@ -820,12 +821,21 @@ if (btnMenuToggle) {
     });
 }
 
+// Helper: set tabindex on all tool-menu-btn elements to allow/block keyboard navigation
+function setToolMenuTabIndex(isOpen) {
+    if (!toolsMenu) return;
+    toolsMenu.querySelectorAll('.tool-menu-btn').forEach(btn => {
+        btn.tabIndex = isOpen ? 0 : -1;
+    });
+}
+
 // Teacher Tools Menu Toggle
 if (btnToolsToggle) {
     btnToolsToggle.addEventListener("click", (e) => {
         e.stopPropagation();
         btnToolsToggle.classList.toggle("active");
         toolsMenu.classList.toggle("active");
+        setToolMenuTabIndex(toolsMenu.classList.contains("active"));
     });
 }
 
@@ -834,6 +844,7 @@ document.addEventListener("click", (e) => {
     if (toolsMenu && !toolsMenu.contains(e.target) && !btnToolsToggle.contains(e.target)) {
         toolsMenu.classList.remove("active");
         btnToolsToggle.classList.remove("active");
+        setToolMenuTabIndex(false);
     }
 });
 
@@ -1204,6 +1215,7 @@ if (btnToolRemoteLaunch) {
         appLaunchModal.classList.remove("hidden");
         toolsMenu.classList.remove("active");
         btnToolsToggle.classList.remove("active");
+        setToolMenuTabIndex(false);
     });
 }
 
@@ -2200,13 +2212,14 @@ function joinClass(classIdToJoin, nameToUse, isAutoJoin = false) {
                 // But only if we were trying to rejoin the current class
                 if (classIdToJoin === currentClassId) {
                     currentClassId = null;
-                    if (handleAutoFlow && typeof handleAutoFlow === 'function') {
-                        // Resetting currentClassId allows handleAutoFlow to run again
-                        window.joiningInProgress = false; // Reset flag so auto-flow can run
-                        autoFlowTriggered = true; // FORCE auto-flow to retry since we are "starting fresh"
-
-                        // SILENT RETRY: Just log and wait for next active-classes or server-discovery
-                        console.log("Auto-join failed, waiting for next discovery cycle...");
+                    window.joiningInProgress = false;
+                    autoFlowTriggered = false; // Allow auto-flow to retry on next reconnect
+                    console.log("Auto-join failed, will retry auto-flow on reconnect...");
+                    // For teachers: schedule an immediate retry to recreate/rejoin the class
+                    if (currentRole === 'teacher' && typeof triggerTeacherAutoFlow === 'function') {
+                        setTimeout(() => {
+                            if (!currentClassId) triggerTeacherAutoFlow();
+                        }, 2000);
                     }
                 }
             } else {
@@ -4260,6 +4273,10 @@ let isClassLocked = false;
 
 if (btnToolLockScreen) {
     btnToolLockScreen.addEventListener('click', () => {
+        if (currentRole === 'teacher' && !currentClassId) {
+            showToast("Not connected to a class – please wait for reconnection.", "warning");
+            return;
+        }
         if (currentClassId && currentRole === 'teacher') {
             isClassLocked = !isClassLocked;
 
@@ -4300,6 +4317,10 @@ if (btnToolLockScreen) {
 
 if (btnToolShutdownPc) {
     btnToolShutdownPc.addEventListener('click', () => {
+        if (currentRole === 'teacher' && !currentClassId) {
+            showToast("Not connected to a class – please wait for reconnection.", "warning");
+            return;
+        }
         if (currentClassId && currentRole === 'teacher') {
             if (confirm(t('confirm-shutdown-pc'))) {
                 showToast(t("toast-shutdown-sent"), "warning");
@@ -4311,6 +4332,10 @@ if (btnToolShutdownPc) {
 
 if (btnToolFocusApp) {
     btnToolFocusApp.addEventListener('click', () => {
+        if (currentRole === 'teacher' && !currentClassId) {
+            showToast("Not connected to a class – please wait for reconnection.", "warning");
+            return;
+        }
         if (currentClassId && currentRole === 'teacher') {
             showToast(t("toast-focus-sent"), "info");
             socket.emit('trigger-focus', { classId: currentClassId });
@@ -4320,6 +4345,10 @@ if (btnToolFocusApp) {
 
 if (btnToolCloseAllApps) {
     btnToolCloseAllApps.addEventListener('click', () => {
+        if (currentRole === 'teacher' && !currentClassId) {
+            showToast("Not connected to a class – please wait for reconnection.", "warning");
+            return;
+        }
         if (currentClassId && currentRole === 'teacher') {
             if (confirm(t('confirm-close-all-apps') || 'Close all applications on all student PCs?')) {
                 showToast(t('toast-close-all-apps-sent') || 'Closing all apps on student PCs…', 'warning');
@@ -4333,6 +4362,10 @@ if (btnToolCloseAllApps) {
 const btnToolNoInternet = document.getElementById('btn-tool-no-internet');
 if (btnToolNoInternet) {
     btnToolNoInternet.addEventListener('click', () => {
+        if (currentRole === 'teacher' && !currentClassId) {
+            showToast("Not connected to a class – please wait for reconnection.", "warning");
+            return;
+        }
         if (currentClassId && currentRole === 'teacher') {
             openConnectionBlockingModal();
         }
@@ -6190,6 +6223,7 @@ if (btnToolClassStatus) {
         // Ensure tools menu is closed
         if (toolsMenu) toolsMenu.classList.remove("active");
         if (btnToolsToggle) btnToolsToggle.classList.remove("active");
+        setToolMenuTabIndex(false);
 
         // Ensure monitoring is active if enabled
         if (currentRole === 'teacher' && isMonitoringEnabled && currentClassId) {
@@ -6208,6 +6242,7 @@ if (btnToolMonitoring) {
         // Ensure tools menu is closed
         if (toolsMenu) toolsMenu.classList.remove("active");
         if (btnToolsToggle) btnToolsToggle.classList.remove("active");
+        setToolMenuTabIndex(false);
 
         // Force start monitoring for everyone in class when opened
         if (currentRole === 'teacher' && isMonitoringEnabled && currentClassId) {
@@ -7834,6 +7869,14 @@ if (btnSettingsToggle) {
 const versionDisplay = document.getElementById('app-version-display');
 if (versionDisplay && typeof __APP_VERSION__ !== 'undefined') {
     versionDisplay.textContent = __APP_VERSION__;
+}
+
+// Populate About page release notes from release-notes.js
+const aboutNotesList = document.getElementById('about-notes-list');
+if (aboutNotesList) {
+    aboutNotesList.innerHTML = releaseNotes
+        .map(n => `<li><strong>${n.title}</strong>: ${n.desc}</li>`)
+        .join('');
 }
 
 // Expose for testing

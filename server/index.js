@@ -67,7 +67,7 @@ const io = new Server(server, {
     origin: "*", // Allow all origins for local network dev
     methods: ["GET", "POST"]
   },
-  maxHttpBufferSize: 2 * 1024 * 1024 * 1024 // 2GB max message size (accounts for base64 encoding ~33% overhead)
+  maxHttpBufferSize: configManager.get('socketBufferSizeMb') * 1024 * 1024
 });
 
 // Configure multer for file uploads
@@ -85,7 +85,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 1.5 * 1024 * 1024 * 1024 // 1.5GB limit
+    fileSize: configManager.get('maxFileSizeMb') * 1024 * 1024
   }
 });
 

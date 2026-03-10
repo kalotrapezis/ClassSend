@@ -1,5 +1,17 @@
 # Release Notes
 
+## [11.2.0] - 2026-03-10
+
+### NEW
+- **Config File (`classsend.conf`)**: A plain-text configuration file is now placed next to the executable after installation (`C:\Program Files\ClassSend\resources\classsend.conf`). IT administrators can edit it with any text editor before or after deployment; a restart applies the changes. Configurable options include: role, port, TLS, auto-start, internet restore on startup, max file size, screen capture quality and resolution, socket buffer size, logging, and AI thresholds.
+- **Improved Monitoring Quality**: Student screen capture now supports configurable resolution (`low` 320×180 · `1080p` · `1440p` · `4k`) and JPEG compression tied to streaming bandwidth (8 / 16 / 32 / 64 Mbit → quality 25 / 50 / 72 / 88). Frames are sent as JPEG instead of PNG, significantly reducing per-frame payload.
+- **Dynamic About Page**: The version number and "Recent Improvements" list in Settings → About are now injected at build time from `client/package.json` and `client/release-notes.js` respectively — no more manual HTML edits per release.
+
+### FIXES
+- **Tool Button Reliability**: Teacher tools (Lock Screen, Internet Cutoff, Shutdown, Focus App, Close All Apps) would silently do nothing after a brief network reconnect because an internal logic inversion (`autoFlowTriggered = true` instead of `false`) left `currentClassId` as `null` indefinitely. The flag is now correctly reset, the teacher triggers auto-recovery after 2 seconds, and all five affected buttons show a clear warning toast instead of silently failing.
+- **Window Focus Restoration**: Clicking the ClassSend window with the mouse no longer fails to restore keyboard focus on Windows. Root causes fixed: `app.disableHardwareAcceleration()` is now Linux-only (on Windows it forced software/WARP rendering which broke `WM_MOUSEACTIVATE`); `focus()` is now called after tray `show()`, on the `show` event, and after the lock screen overlay is dismissed.
+- **TAB Keyboard Navigation**: TAB order corrected — the Tools toggle button is now first in DOM order and reached before the hidden menu items inside it. Tool menu buttons carry `tabindex="-1"` by default and are promoted to `tabindex="0"` only while the menu is open.
+
 ## [11.1.2] - 2026-03-09
 ### FIXES
 - **Auto Client Build**: `npm run make` now automatically builds the client (Vite) before packaging the installer. Previously the client had to be built manually first, causing stale bundles to ship if the step was skipped.
