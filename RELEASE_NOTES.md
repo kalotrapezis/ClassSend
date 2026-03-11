@@ -1,5 +1,20 @@
 # Release Notes
 
+## [11.2.1] - 2026-03-11
+
+### NEW
+- **Internet Whitelist Quick-Add Presets**: New "Quick add" buttons (Google, YouTube, Microsoft) in the Internet Cutoff whitelist automatically add all domains a service needs — fixing cases where google.gr worked but Google still failed due to missing gstatic.com and googleapis.com.
+- **Internet Whitelist www. Fix**: Entering a domain with a www. prefix (e.g. www.google.com) now correctly strips it to google.com, ensuring the proxy bypass covers the bare domain and all subdomains.
+- **Auto-Recovery from Frozen App**: The app now detects when its renderer process becomes unresponsive and reloads itself automatically — no teacher or student action needed.
+- **Monitoring: Sequential Image Sending**: Student PCs now send screenshots in a staggered sequence (1.2 s apart) instead of all at once, eliminating network bursts that caused slow or missing thumbnails in large classes.
+- **Monitoring: Late-Joining Students**: Students who join a class after monitoring is already enabled now receive screenshots automatically — previously they were silently skipped until the teacher restarted monitoring.
+- **Monitoring: Thumbnail Quality Setting**: A new "Thumbnail Quality" selector in Settings → Screen Sharing lets the teacher choose between Very Low (160×90) and Low (320×180). The setting syncs to all connected students instantly.
+- **Focus View Without Prior Image**: The teacher can now click any student card to open the focus/high-res view even if no thumbnail has arrived yet — the high-res frame is requested immediately on click.
+- **Internet Cutoff Persistence Toggle**: A new toggle in Settings → Connection lets the teacher control whether internet blocking is restored on student PCs after a reboot. Syncs to all connected students.
+
+### FIXES
+- **Advanced Filter Fix**: Fixed a bug where the AI content filter blocked every message regardless of the sensitivity threshold. Words not in the classifier's vocabulary no longer fall back to the skewed training prior.
+
 ## [11.2.0] - 2026-03-10
 
 ### NEW
