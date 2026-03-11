@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap"
     rel="stylesheet">
   
-  <script type="module" crossorigin src="/assets/index-b647fe38.js"></script>
+  <script type="module" crossorigin src="/assets/index-b26e8811.js"></script>
   <link rel="stylesheet" href="/assets/index-3260cedc.css">
 </head>
 
@@ -410,6 +410,22 @@
                       <span data-i18n="btn-manage-history">Manage History</span>
                     </button>
                   </div>
+
+                  <!-- Internet Blocking Persistence -->
+                  <div class="setting-item" style="margin-top: 20px;">
+                    <div class="setting-header-row">
+                      <div>
+                        <label class="setting-label-tight" data-i18n="label-internet-persist">Persist Internet Cutoff After Reboot</label>
+                        <p class="setting-description" data-i18n="desc-internet-persist">When ON, internet blocking is automatically restored on student PCs after a reboot. Syncs to all connected students.</p>
+                      </div>
+                      <label class="switch">
+                        <input type="checkbox" id="internet-persist-toggle">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+                  <p class="setting-hint" style="margin-top: -8px; margin-bottom: 6px;" data-i18n="hint-internet-persist">If internet does not restore correctly after boot, run this command on the student PC:</p>
+                  <pre style="font-size: 0.7rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px 10px; user-select: all; white-space: pre-wrap; word-break: break-all; color: #a3e635; margin: 0 0 8px 0;">reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f</pre>
                 </div>
 
                 <!-- Streaming Page -->
@@ -456,6 +472,13 @@
                       <option value="8000">8 seconds</option>
                       <option value="15000">15 seconds (Auto)</option>
                       <option value="20000">20 seconds</option>
+                    </select>
+                  </div>
+                  <div class="setting-item hidden" id="monitoring-quality-setting">
+                    <label for="monitoring-quality" data-i18n="monitoring-quality">Thumbnail Quality</label>
+                    <select id="monitoring-quality" class="setting-select">
+                      <option value="verylow">Very Low — 160×90 (slowest networks)</option>
+                      <option value="low">Low — 320×180 (default)</option>
                     </select>
                   </div>
                 </div>
@@ -623,7 +646,7 @@
                     </div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
                     <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
-                        id="app-version-display">11.2.0</span></p>
+                        id="app-version-display">11.2.1</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
@@ -931,6 +954,12 @@
             <div class="app-launch-section-header favorites-header">
               <span data-i18n="label-url-whitelist">URL Whitelist</span>
               <span class="favorites-hint" data-i18n="hint-url-whitelist">Domain covers all paths &amp; subdomains</span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+              <span style="font-size:0.72rem;color:rgba(255,255,255,0.4);white-space:nowrap;" data-i18n="label-quick-add">Quick add:</span>
+              <button class="whitelist-preset-btn" data-preset="google" data-i18n="btn-preset-google" style="font-size:0.8rem;padding:4px 11px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.75);cursor:pointer;">+ Google</button>
+              <button class="whitelist-preset-btn" data-preset="youtube" data-i18n="btn-preset-youtube" style="font-size:0.8rem;padding:4px 11px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.75);cursor:pointer;">+ YouTube</button>
+              <button class="whitelist-preset-btn" data-preset="microsoft" data-i18n="btn-preset-microsoft" style="font-size:0.8rem;padding:4px 11px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.75);cursor:pointer;">+ Microsoft</button>
             </div>
             <div class="blacklist-add-section">
               <input type="text" id="url-whitelist-entry-input" placeholder="e.g. code.org" autocomplete="off" data-i18n-placeholder="placeholder-url-whitelist">

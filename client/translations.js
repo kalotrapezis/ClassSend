@@ -286,7 +286,11 @@ export const translations = {
         "hint-url-whitelist": "Domain covers all paths & subdomains",
         "placeholder-url-whitelist": "e.g. code.org",
         "btn-add-url": "Add URL",
-        "url-whitelist-empty": "No URLs in whitelist"
+        "url-whitelist-empty": "No URLs in whitelist",
+        "label-quick-add": "Quick add:",
+        "btn-preset-google": "+ Google",
+        "btn-preset-youtube": "+ YouTube",
+        "btn-preset-microsoft": "+ Microsoft"
     },
 
     el: {
@@ -569,6 +573,10 @@ export const translations = {
         "hint-url-whitelist": "Ο τομέας καλύπτει όλα τα μονοπάτια και υποτομείς",
         "placeholder-url-whitelist": "π.χ. code.org",
         "btn-add-url": "Προσθήκη URL",
-        "url-whitelist-empty": "Δεν υπάρχουν URL στη λευκή λίστα"
+        "url-whitelist-empty": "Δεν υπάρχουν URL στη λευκή λίστα",
+        "label-quick-add": "Γρήγορη προσθήκη:",
+        "btn-preset-google": "+ Google",
+        "btn-preset-youtube": "+ YouTube",
+        "btn-preset-microsoft": "+ Microsoft"
     }
 };

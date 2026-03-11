@@ -365,6 +365,17 @@ function createWindow() {
         mainWindow.focus();
     });
 
+    // ===== RENDERER WATCHDOG =====
+    // Electron fires 'unresponsive' when the renderer process stops responding to input
+    // (the same frozen state that Ctrl+R fixes manually). Auto-reload to recover.
+    mainWindow.webContents.on('unresponsive', () => {
+        console.warn('[Watchdog] Renderer became unresponsive — reloading automatically.');
+        mainWindow.webContents.reload();
+    });
+    mainWindow.webContents.on('responsive', () => {
+        console.log('[Watchdog] Renderer is responsive again.');
+    });
+
     // Intercept window.open calls (e.g. for mailto links)
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         if (url.startsWith('mailto:')) {
@@ -708,10 +719,23 @@ Get-Process | Where-Object {
         return { success: true };
     });
 
+    // Save internet blocking persistence preference (pushed from teacher to students)
+    ipcMain.handle('set-internet-persist', async (event, { persist }) => {
+        configManager.set('persistInternetBlock', !!persist);
+        console.log(`[InternetPersist] Saved persistInternetBlock = ${!!persist}`);
+        return { success: true };
+    });
+
     // Restore internet blocking state on startup
     function restoreInternetBlockingState() {
         const saved = configManager.get('urlWhitelist');
         if (!saved || !saved.enabled) return;
+        // Honour the teacher's persistence preference (defaults to true for backward compat)
+        const persist = configManager.get('persistInternetBlock') !== false;
+        if (!persist) {
+            console.log('[Startup] Internet blocking NOT restored — persistence is disabled by teacher.');
+            return;
+        }
         const whitelist = Array.isArray(saved.whitelist) ? saved.whitelist : [];
         let proxyOverride = '<local>';
         whitelist.forEach(entry => {
@@ -923,10 +947,11 @@ Get-Process | Where-Object {
 
             // Resolution table
             const resolutions = {
-                'low':   { width: 320,  height: 180  },
-                '1080p': { width: 1920, height: 1080 },
-                '1440p': { width: 2560, height: 1440 },
-                '4k':    { width: 3840, height: 2160 },
+                'verylow': { width: 160,  height: 90   },
+                'low':     { width: 320,  height: 180  },
+                '1080p':   { width: 1920, height: 1080 },
+                '1440p':   { width: 2560, height: 1440 },
+                '4k':      { width: 3840, height: 2160 },
             };
 
             // Map 'low'/'high' from the frontend to the configured resolution names

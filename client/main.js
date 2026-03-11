@@ -561,6 +561,8 @@ const checkAutoCloseConnection = document.getElementById("auto-close-connection"
 const monitoringToggle = document.getElementById("monitoring-toggle");
 const monitoringIntervalSetting = document.getElementById("monitoring-interval-setting");
 const monitoringIntervalSelect = document.getElementById("monitoring-interval");
+const monitoringQualitySetting = document.getElementById("monitoring-quality-setting");
+const monitoringQualitySelect = document.getElementById("monitoring-quality");
 
 // Advanced Settings Elements
 const settingsAdvancedSection = document.getElementById("settings-advanced-section");
@@ -4191,6 +4193,7 @@ if (screenShareBitrateSelect) {
 // Monitoring Settings Logic
 let isMonitoringEnabled = localStorage.getItem('classsend-monitoring-enabled') === 'true';
 let monitoringInterval = parseInt(localStorage.getItem('classsend-monitoring-interval')) || 15000;
+let monitoringQuality = localStorage.getItem('classsend-monitoring-quality') || 'low';
 
 if (monitoringToggle) {
     monitoringToggle.checked = isMonitoringEnabled;
@@ -4198,9 +4201,11 @@ if (monitoringToggle) {
     // Initial state reflection
     if (isMonitoringEnabled) {
         monitoringIntervalSetting.classList.remove('hidden');
+        monitoringQualitySetting.classList.remove('hidden');
         if (btnToolClassStatus) btnToolClassStatus.classList.remove('hidden');
     } else {
         monitoringIntervalSetting.classList.add('hidden');
+        monitoringQualitySetting.classList.add('hidden');
         if (btnToolClassStatus) btnToolClassStatus.classList.add('hidden');
     }
 
@@ -4210,13 +4215,15 @@ if (monitoringToggle) {
 
         if (isMonitoringEnabled) {
             monitoringIntervalSetting.classList.remove('hidden');
+            monitoringQualitySetting.classList.remove('hidden');
             if (btnToolClassStatus) btnToolClassStatus.classList.remove('hidden');
             // If we are the teacher, tell students to start sending frames
             if (currentRole === 'teacher' && currentClassId) {
-                socket.emit('start-monitoring', { interval: monitoringInterval });
+                socket.emit('start-monitoring', { interval: monitoringInterval, quality: monitoringQuality });
             }
         } else {
             monitoringIntervalSetting.classList.add('hidden');
+            monitoringQualitySetting.classList.add('hidden');
             if (btnToolClassStatus) btnToolClassStatus.classList.add('hidden');
 
             // Hide the modal if it's open
@@ -4239,7 +4246,20 @@ if (monitoringIntervalSelect) {
 
         // If monitoring is active, restart it with new interval
         if (isMonitoringEnabled && currentRole === 'teacher' && currentClassId) {
-            socket.emit('start-monitoring', { interval: monitoringInterval });
+            socket.emit('start-monitoring', { interval: monitoringInterval, quality: monitoringQuality });
+        }
+    });
+}
+
+if (monitoringQualitySelect) {
+    monitoringQualitySelect.value = monitoringQuality;
+    monitoringQualitySelect.addEventListener('change', (e) => {
+        monitoringQuality = e.target.value;
+        localStorage.setItem('classsend-monitoring-quality', monitoringQuality);
+
+        // If monitoring is active, restart it with new quality
+        if (isMonitoringEnabled && currentRole === 'teacher' && currentClassId) {
+            socket.emit('start-monitoring', { interval: monitoringInterval, quality: monitoringQuality });
         }
     });
 }
@@ -4489,22 +4509,54 @@ function closeConnectionBlockingModal() {
     if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeConnectionBlockingModal(); });
     if (toggle) toggle.addEventListener('change', () => applyBlocking(toggle.checked));
 
-    function addEntry() {
-        if (!input) return;
-        const val = input.value.trim().toLowerCase()
-            .replace(/^https?:\/\//i, '')
-            .replace(/\/.*$/, '')
-            .replace(/\*\./g, '');
+    function normalizeWhitelistEntry(raw) {
+        return raw.trim().toLowerCase()
+            .replace(/^https?:\/\//i, '')   // strip protocol
+            .replace(/\/.*$/, '')           // strip path
+            .replace(/\*\./g, '')           // strip *. wildcard prefix
+            .replace(/^www\./, '');         // strip www. so google.com covers *.google.com properly
+    }
+
+    function addEntryValue(val) {
         if (val && !urlWhitelist.includes(val)) {
             urlWhitelist.push(val);
-            saveBlockingSettings();
-            renderUrlWhitelistEntries();
-            if (blockingEnabled && currentClassId) {
-                socket.emit('trigger-disable-internet', { classId: currentClassId, whitelist: urlWhitelist });
-            }
+        }
+    }
+
+    function commitEntries() {
+        saveBlockingSettings();
+        renderUrlWhitelistEntries();
+        if (blockingEnabled && currentClassId) {
+            socket.emit('trigger-disable-internet', { classId: currentClassId, whitelist: urlWhitelist });
+        }
+    }
+
+    function addEntry() {
+        if (!input) return;
+        const val = normalizeWhitelistEntry(input.value);
+        if (val) {
+            addEntryValue(val);
+            commitEntries();
         }
         input.value = '';
     }
+    // Preset bundles — these cover all domains a service actually needs to load
+    const WHITELIST_PRESETS = {
+        google:    ['google.com', 'gstatic.com', 'googleapis.com', 'googleusercontent.com'],
+        youtube:   ['youtube.com', 'youtu.be', 'ytimg.com', 'googlevideo.com', 'ggpht.com', 'gstatic.com'],
+        microsoft: ['microsoft.com', 'microsoftonline.com', 'office.com', 'live.com', 'bing.com', 'msftconnecttest.com'],
+    };
+
+    if (modal) {
+        modal.querySelectorAll('.whitelist-preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const domains = WHITELIST_PRESETS[btn.dataset.preset] || [];
+                domains.forEach(d => addEntryValue(d));
+                commitEntries();
+            });
+        });
+    }
+
     if (addBtn) addBtn.addEventListener('click', addEntry);
     if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') addEntry(); });
 
@@ -4631,6 +4683,30 @@ socket.on('execute-enable-internet', () => {
         window.electron.ipcRenderer.invoke('toggle-internet', false)
             .then(() => console.log('Internet enabled successfully'))
             .catch(e => console.error('Failed to enable internet', e));
+    }
+});
+
+// Internet cutoff persistence toggle (teacher-side UI + student receiver)
+const internetPersistToggle = document.getElementById('internet-persist-toggle');
+let internetPersist = localStorage.getItem('classsend-internet-persist') !== 'false'; // default: ON
+
+if (internetPersistToggle) {
+    internetPersistToggle.checked = internetPersist;
+    internetPersistToggle.addEventListener('change', (e) => {
+        internetPersist = e.target.checked;
+        localStorage.setItem('classsend-internet-persist', String(internetPersist));
+        if (currentRole === 'teacher' && currentClassId) {
+            socket.emit('set-internet-persist', { classId: currentClassId, persist: internetPersist });
+        }
+    });
+}
+
+// Student: receive and apply persistence setting from teacher
+socket.on('execute-set-internet-persist', ({ persist }) => {
+    if (window.electron) {
+        window.electron.ipcRenderer.invoke('set-internet-persist', { persist })
+            .then(() => console.log(`[InternetPersist] Set to: ${persist}`))
+            .catch(e => console.error('Failed to set internet persist', e));
     }
 });
 
@@ -6322,7 +6398,7 @@ function isElectronApp() {
 }
 
 // Student: Start capturing screen
-socket.on('start-monitoring', async ({ interval }) => {
+socket.on('start-monitoring', async ({ interval, offset = 0, quality = 'low' }) => {
     // We do NOT check isMonitoringEnabled on the student side, we obey the teacher!
     if (currentRole !== 'student') {
         return;
@@ -6354,10 +6430,12 @@ socket.on('start-monitoring', async ({ interval }) => {
 
         // Stop any existing interval
         if (captureIntervalId) clearInterval(captureIntervalId);
-        // Start new interval
-        captureIntervalId = setInterval(() => captureAndSendScreen('low'), interval);
-        // Send one immediately
-        captureAndSendScreen('low');
+        // Stagger start: wait for the assigned offset before beginning captures.
+        // This spreads students out so they don't all hit the network at the same moment.
+        setTimeout(() => {
+            captureAndSendScreen(quality);
+            captureIntervalId = setInterval(() => captureAndSendScreen(quality), interval);
+        }, offset);
     } else {
         console.log('Screen monitoring is only supported in the ClassSend desktop application.');
     }
@@ -6468,23 +6546,21 @@ function createEmptyMonitoringCard(userId, studentName, studentPcName) {
 
         const openFullscreen = (e) => {
             e.stopPropagation();
-            if (!img.src || img.src.includes(window.location.host) || img.src === window.location.href) {
-                // Ignore fullscreen clicks if we don't have a frame yet
-                return;
-            }
 
             // --- FOCUS MODE START ---
             // Tell server we are focusing on this student
             socket.emit('focus-monitoring', { targetUserId: userId });
 
-            // Show current (low-res) frame immediately in image viewer
+            // Show current (low-res) frame immediately in image viewer (if one exists)
             const imageViewerModal = document.getElementById('image-viewer-modal');
             const viewerImg = document.getElementById('full-image');
             const viewerTitle = document.getElementById('image-title');
             const btnMinimizeViewer = document.getElementById('btn-minimize-image');
 
+            const hasFrame = img.src && !img.src.includes(window.location.host) && img.src !== window.location.href;
+
             if (viewerImg && imageViewerModal) {
-                viewerImg.src = img.src; // Show low res immediately
+                viewerImg.src = hasFrame ? img.src : ''; // Show low res if available, else blank (high-res will arrive shortly)
 
                 // Fill available space
                 viewerImg.style.width = '100%';

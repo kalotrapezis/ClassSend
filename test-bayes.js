@@ -36,12 +36,37 @@ async function run() {
         await classifier.learn('κανονική λέξη ' + i, 'clean');
     }
 
-    // Now test an unknown word
-    const testWord = "αυτοκινητοδρομος";
-    const result = await categorizeWithConfidence(testWord);
-    console.log(`Test Word: ${testWord}`);
-    console.log(`Profane Confidence: ${result.confidence}%`);
-    console.log(`Category: ${result.category}`);
+    const BLOCK_THRESHOLD = 50;
+
+    const tests = [
+        // All-OOV words — the bug: these used to return ~87% (blocked). Should now be 0%.
+        { label: 'OOV clean word (Greek)',   text: 'αυτοκινητοδρομος',      expectBelow: BLOCK_THRESHOLD },
+        { label: 'OOV clean sentence (EN)',  text: 'what is the homework',   expectBelow: BLOCK_THRESHOLD },
+        { label: 'OOV clean sentence (GR)',  text: 'ποια ειναι η απαντηση', expectBelow: BLOCK_THRESHOLD },
+        // Known profane words — should still be detected.
+        { label: 'Known profane word (EN)',  text: 'idiot',                  expectAbove: BLOCK_THRESHOLD },
+        { label: 'Known profane word (GR)',  text: 'βλάκας',                 expectAbove: BLOCK_THRESHOLD },
+        // Known clean words — should stay well below threshold.
+        { label: 'Known clean word (EN)',    text: 'hello',                  expectBelow: BLOCK_THRESHOLD },
+        { label: 'Known clean word (GR)',    text: 'καλημέρα',               expectBelow: BLOCK_THRESHOLD },
+    ];
+
+    let passed = 0;
+    for (const t of tests) {
+        const result = await categorizeWithConfidence(t.text);
+        const conf = result.confidence.toFixed(1);
+        let ok;
+        if (t.expectBelow !== undefined) {
+            ok = result.confidence < t.expectBelow;
+            console.log(`${ok ? '✅ PASS' : '❌ FAIL'}  [${t.label}]  "${t.text}"  →  ${conf}%  (expected < ${t.expectBelow}%)`);
+        } else {
+            ok = result.confidence > t.expectAbove;
+            console.log(`${ok ? '✅ PASS' : '❌ FAIL'}  [${t.label}]  "${t.text}"  →  ${conf}%  (expected > ${t.expectAbove}%)`);
+        }
+        if (ok) passed++;
+    }
+
+    console.log(`\n${passed}/${tests.length} tests passed`);
 }
 
 async function categorizeWithConfidence(text) {
@@ -54,11 +79,20 @@ async function categorizeWithConfidence(text) {
     let logProbs = {};
     let maxLogProb = -Infinity;
 
+    // FIX: bail out when no tokens are in the trained vocabulary.
+    // Without this, the classifier falls back to the prior (~87% profane due to
+    // training imbalance) and blocks every message with unknown words.
+    const knownTokens = Object.keys(frequencyTable).filter(t => classifier.vocabulary[t]);
+    if (knownTokens.length === 0) {
+        return { category: 'clean', confidence: 0 };
+    }
+
     categories.forEach(category => {
         let categoryProbability = classifier.docCount[category] / classifier.totalDocuments;
         let logProbability = Math.log(categoryProbability);
 
         Object.keys(frequencyTable).forEach(token => {
+            if (!classifier.vocabulary[token]) return; // skip OOV tokens
             const frequencyInText = frequencyTable[token];
             const tokenProbability = classifier.tokenProbability(token, category);
             logProbability += frequencyInText * Math.log(tokenProbability);
@@ -92,7 +126,7 @@ async function categorizeWithConfidence(text) {
 
     return {
         category: winner,
-        confidence: profaneConfidence, // 0-100
+        confidence: profaneConfidence,
         details: probs
     };
 }
