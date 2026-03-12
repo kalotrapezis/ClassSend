@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const installConfig = require('./install-config');
 let app = null;
 try {
     app = require('electron').app;
@@ -36,13 +37,20 @@ class ConfigManager {
     getDefaults() {
         return {
             startupConfigured: false,
-            enableLogging: false, // Default: Off
-            autoExportLogs: false, // Default: Off
+            autoRestartOnUnresponsive: true,
+            persistInternetBlock: false,
+            enableLogging:    installConfig.get('enable_logging',    false),
+            autoExportLogs:   installConfig.get('auto_export_logs',  false),
+            maxFileSizeMb:    installConfig.get('max_file_size_mb',  1536),
+            socketBufferSizeMb: installConfig.get('socket_buffer_size_mb', 2048),
+            screenCaptureQuality:      installConfig.get('screen_capture_quality',       'low'),
+            screenCaptureHiresQuality: installConfig.get('screen_capture_hires_quality', '1080p'),
+            screenCaptureSpeedMbit:    installConfig.get('screen_capture_speed_mbit',    16),
             advancedSettings: {
-                blockEnabled: true,
-                blockThreshold: 90, // Low Sensitivity (10%) = High Threshold
-                reportEnabled: true,
-                reportThreshold: 20
+                blockEnabled:    installConfig.get('block_enabled',    true),
+                blockThreshold:  installConfig.get('block_threshold',  90),
+                reportEnabled:   installConfig.get('report_enabled',   true),
+                reportThreshold: installConfig.get('report_threshold', 20)
             }
         };
     }

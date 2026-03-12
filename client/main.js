@@ -2,6 +2,7 @@
 // mammoth and xlsx are now dynamically imported
 import { translations } from "./translations.js";
 import { generateRandomName } from "./name-generator.js";
+import { releaseNotes } from "./release-notes.js";
 
 // Logger for Advanced Settings
 const capturedLogs = [];
@@ -560,6 +561,8 @@ const checkAutoCloseConnection = document.getElementById("auto-close-connection"
 const monitoringToggle = document.getElementById("monitoring-toggle");
 const monitoringIntervalSetting = document.getElementById("monitoring-interval-setting");
 const monitoringIntervalSelect = document.getElementById("monitoring-interval");
+const monitoringQualitySetting = document.getElementById("monitoring-quality-setting");
+const monitoringQualitySelect = document.getElementById("monitoring-quality");
 
 // Advanced Settings Elements
 const settingsAdvancedSection = document.getElementById("settings-advanced-section");
@@ -820,12 +823,21 @@ if (btnMenuToggle) {
     });
 }
 
+// Helper: set tabindex on all tool-menu-btn elements to allow/block keyboard navigation
+function setToolMenuTabIndex(isOpen) {
+    if (!toolsMenu) return;
+    toolsMenu.querySelectorAll('.tool-menu-btn').forEach(btn => {
+        btn.tabIndex = isOpen ? 0 : -1;
+    });
+}
+
 // Teacher Tools Menu Toggle
 if (btnToolsToggle) {
     btnToolsToggle.addEventListener("click", (e) => {
         e.stopPropagation();
         btnToolsToggle.classList.toggle("active");
         toolsMenu.classList.toggle("active");
+        setToolMenuTabIndex(toolsMenu.classList.contains("active"));
     });
 }
 
@@ -834,6 +846,7 @@ document.addEventListener("click", (e) => {
     if (toolsMenu && !toolsMenu.contains(e.target) && !btnToolsToggle.contains(e.target)) {
         toolsMenu.classList.remove("active");
         btnToolsToggle.classList.remove("active");
+        setToolMenuTabIndex(false);
     }
 });
 
@@ -1204,6 +1217,7 @@ if (btnToolRemoteLaunch) {
         appLaunchModal.classList.remove("hidden");
         toolsMenu.classList.remove("active");
         btnToolsToggle.classList.remove("active");
+        setToolMenuTabIndex(false);
     });
 }
 
@@ -2200,13 +2214,14 @@ function joinClass(classIdToJoin, nameToUse, isAutoJoin = false) {
                 // But only if we were trying to rejoin the current class
                 if (classIdToJoin === currentClassId) {
                     currentClassId = null;
-                    if (handleAutoFlow && typeof handleAutoFlow === 'function') {
-                        // Resetting currentClassId allows handleAutoFlow to run again
-                        window.joiningInProgress = false; // Reset flag so auto-flow can run
-                        autoFlowTriggered = true; // FORCE auto-flow to retry since we are "starting fresh"
-
-                        // SILENT RETRY: Just log and wait for next active-classes or server-discovery
-                        console.log("Auto-join failed, waiting for next discovery cycle...");
+                    window.joiningInProgress = false;
+                    autoFlowTriggered = false; // Allow auto-flow to retry on next reconnect
+                    console.log("Auto-join failed, will retry auto-flow on reconnect...");
+                    // For teachers: schedule an immediate retry to recreate/rejoin the class
+                    if (currentRole === 'teacher' && typeof triggerTeacherAutoFlow === 'function') {
+                        setTimeout(() => {
+                            if (!currentClassId) triggerTeacherAutoFlow();
+                        }, 2000);
                     }
                 }
             } else {
@@ -4178,6 +4193,7 @@ if (screenShareBitrateSelect) {
 // Monitoring Settings Logic
 let isMonitoringEnabled = localStorage.getItem('classsend-monitoring-enabled') === 'true';
 let monitoringInterval = parseInt(localStorage.getItem('classsend-monitoring-interval')) || 15000;
+let monitoringQuality = localStorage.getItem('classsend-monitoring-quality') || 'low';
 
 if (monitoringToggle) {
     monitoringToggle.checked = isMonitoringEnabled;
@@ -4185,9 +4201,11 @@ if (monitoringToggle) {
     // Initial state reflection
     if (isMonitoringEnabled) {
         monitoringIntervalSetting.classList.remove('hidden');
+        monitoringQualitySetting.classList.remove('hidden');
         if (btnToolClassStatus) btnToolClassStatus.classList.remove('hidden');
     } else {
         monitoringIntervalSetting.classList.add('hidden');
+        monitoringQualitySetting.classList.add('hidden');
         if (btnToolClassStatus) btnToolClassStatus.classList.add('hidden');
     }
 
@@ -4197,13 +4215,15 @@ if (monitoringToggle) {
 
         if (isMonitoringEnabled) {
             monitoringIntervalSetting.classList.remove('hidden');
+            monitoringQualitySetting.classList.remove('hidden');
             if (btnToolClassStatus) btnToolClassStatus.classList.remove('hidden');
             // If we are the teacher, tell students to start sending frames
             if (currentRole === 'teacher' && currentClassId) {
-                socket.emit('start-monitoring', { interval: monitoringInterval });
+                socket.emit('start-monitoring', { interval: monitoringInterval, quality: monitoringQuality });
             }
         } else {
             monitoringIntervalSetting.classList.add('hidden');
+            monitoringQualitySetting.classList.add('hidden');
             if (btnToolClassStatus) btnToolClassStatus.classList.add('hidden');
 
             // Hide the modal if it's open
@@ -4226,7 +4246,20 @@ if (monitoringIntervalSelect) {
 
         // If monitoring is active, restart it with new interval
         if (isMonitoringEnabled && currentRole === 'teacher' && currentClassId) {
-            socket.emit('start-monitoring', { interval: monitoringInterval });
+            socket.emit('start-monitoring', { interval: monitoringInterval, quality: monitoringQuality });
+        }
+    });
+}
+
+if (monitoringQualitySelect) {
+    monitoringQualitySelect.value = monitoringQuality;
+    monitoringQualitySelect.addEventListener('change', (e) => {
+        monitoringQuality = e.target.value;
+        localStorage.setItem('classsend-monitoring-quality', monitoringQuality);
+
+        // If monitoring is active, restart it with new quality
+        if (isMonitoringEnabled && currentRole === 'teacher' && currentClassId) {
+            socket.emit('start-monitoring', { interval: monitoringInterval, quality: monitoringQuality });
         }
     });
 }
@@ -4260,6 +4293,10 @@ let isClassLocked = false;
 
 if (btnToolLockScreen) {
     btnToolLockScreen.addEventListener('click', () => {
+        if (currentRole === 'teacher' && !currentClassId) {
+            showToast("Not connected to a class – please wait for reconnection.", "warning");
+            return;
+        }
         if (currentClassId && currentRole === 'teacher') {
             isClassLocked = !isClassLocked;
 
@@ -4300,6 +4337,10 @@ if (btnToolLockScreen) {
 
 if (btnToolShutdownPc) {
     btnToolShutdownPc.addEventListener('click', () => {
+        if (currentRole === 'teacher' && !currentClassId) {
+            showToast("Not connected to a class – please wait for reconnection.", "warning");
+            return;
+        }
         if (currentClassId && currentRole === 'teacher') {
             if (confirm(t('confirm-shutdown-pc'))) {
                 showToast(t("toast-shutdown-sent"), "warning");
@@ -4311,6 +4352,10 @@ if (btnToolShutdownPc) {
 
 if (btnToolFocusApp) {
     btnToolFocusApp.addEventListener('click', () => {
+        if (currentRole === 'teacher' && !currentClassId) {
+            showToast("Not connected to a class – please wait for reconnection.", "warning");
+            return;
+        }
         if (currentClassId && currentRole === 'teacher') {
             showToast(t("toast-focus-sent"), "info");
             socket.emit('trigger-focus', { classId: currentClassId });
@@ -4320,6 +4365,10 @@ if (btnToolFocusApp) {
 
 if (btnToolCloseAllApps) {
     btnToolCloseAllApps.addEventListener('click', () => {
+        if (currentRole === 'teacher' && !currentClassId) {
+            showToast("Not connected to a class – please wait for reconnection.", "warning");
+            return;
+        }
         if (currentClassId && currentRole === 'teacher') {
             if (confirm(t('confirm-close-all-apps') || 'Close all applications on all student PCs?')) {
                 showToast(t('toast-close-all-apps-sent') || 'Closing all apps on student PCs…', 'warning');
@@ -4333,6 +4382,10 @@ if (btnToolCloseAllApps) {
 const btnToolNoInternet = document.getElementById('btn-tool-no-internet');
 if (btnToolNoInternet) {
     btnToolNoInternet.addEventListener('click', () => {
+        if (currentRole === 'teacher' && !currentClassId) {
+            showToast("Not connected to a class – please wait for reconnection.", "warning");
+            return;
+        }
         if (currentClassId && currentRole === 'teacher') {
             openConnectionBlockingModal();
         }
@@ -4456,22 +4509,54 @@ function closeConnectionBlockingModal() {
     if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeConnectionBlockingModal(); });
     if (toggle) toggle.addEventListener('change', () => applyBlocking(toggle.checked));
 
-    function addEntry() {
-        if (!input) return;
-        const val = input.value.trim().toLowerCase()
-            .replace(/^https?:\/\//i, '')
-            .replace(/\/.*$/, '')
-            .replace(/\*\./g, '');
+    function normalizeWhitelistEntry(raw) {
+        return raw.trim().toLowerCase()
+            .replace(/^https?:\/\//i, '')   // strip protocol
+            .replace(/\/.*$/, '')           // strip path
+            .replace(/\*\./g, '')           // strip *. wildcard prefix
+            .replace(/^www\./, '');         // strip www. so google.com covers *.google.com properly
+    }
+
+    function addEntryValue(val) {
         if (val && !urlWhitelist.includes(val)) {
             urlWhitelist.push(val);
-            saveBlockingSettings();
-            renderUrlWhitelistEntries();
-            if (blockingEnabled && currentClassId) {
-                socket.emit('trigger-disable-internet', { classId: currentClassId, whitelist: urlWhitelist });
-            }
+        }
+    }
+
+    function commitEntries() {
+        saveBlockingSettings();
+        renderUrlWhitelistEntries();
+        if (blockingEnabled && currentClassId) {
+            socket.emit('trigger-disable-internet', { classId: currentClassId, whitelist: urlWhitelist });
+        }
+    }
+
+    function addEntry() {
+        if (!input) return;
+        const val = normalizeWhitelistEntry(input.value);
+        if (val) {
+            addEntryValue(val);
+            commitEntries();
         }
         input.value = '';
     }
+    // Preset bundles — these cover all domains a service actually needs to load
+    const WHITELIST_PRESETS = {
+        google:    ['google.com', 'gstatic.com', 'googleapis.com', 'googleusercontent.com'],
+        youtube:   ['youtube.com', 'youtu.be', 'ytimg.com', 'googlevideo.com', 'ggpht.com', 'gstatic.com'],
+        microsoft: ['microsoft.com', 'microsoftonline.com', 'office.com', 'live.com', 'bing.com', 'msftconnecttest.com'],
+    };
+
+    if (modal) {
+        modal.querySelectorAll('.whitelist-preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const domains = WHITELIST_PRESETS[btn.dataset.preset] || [];
+                domains.forEach(d => addEntryValue(d));
+                commitEntries();
+            });
+        });
+    }
+
     if (addBtn) addBtn.addEventListener('click', addEntry);
     if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') addEntry(); });
 
@@ -4598,6 +4683,43 @@ socket.on('execute-enable-internet', () => {
         window.electron.ipcRenderer.invoke('toggle-internet', false)
             .then(() => console.log('Internet enabled successfully'))
             .catch(e => console.error('Failed to enable internet', e));
+    }
+});
+
+// Internet cutoff persistence toggle (teacher-side UI + student receiver)
+const internetPersistToggle = document.getElementById('internet-persist-toggle');
+let internetPersist = localStorage.getItem('classsend-internet-persist') === 'true'; // default: OFF
+
+if (internetPersistToggle) {
+    internetPersistToggle.checked = internetPersist;
+    internetPersistToggle.addEventListener('change', (e) => {
+        internetPersist = e.target.checked;
+        localStorage.setItem('classsend-internet-persist', String(internetPersist));
+        if (currentRole === 'teacher' && currentClassId) {
+            socket.emit('set-internet-persist', { classId: currentClassId, persist: internetPersist });
+        }
+    });
+}
+
+// Copy button for the persist command
+const btnCopyPersistCmd = document.getElementById('btn-copy-persist-cmd');
+if (btnCopyPersistCmd) {
+    btnCopyPersistCmd.addEventListener('click', () => {
+        const cmd = document.getElementById('persist-cmd').textContent;
+        copyToClipboard(cmd, () => {
+            const orig = btnCopyPersistCmd.innerHTML;
+            btnCopyPersistCmd.innerHTML = '<img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 14px; height: 14px;" />';
+            setTimeout(() => { btnCopyPersistCmd.innerHTML = orig; }, 1500);
+        });
+    });
+}
+
+// Student: receive and apply persistence setting from teacher
+socket.on('execute-set-internet-persist', ({ persist }) => {
+    if (window.electron) {
+        window.electron.ipcRenderer.invoke('set-internet-persist', { persist })
+            .then(() => console.log(`[InternetPersist] Set to: ${persist}`))
+            .catch(e => console.error('Failed to set internet persist', e));
     }
 });
 
@@ -6190,6 +6312,7 @@ if (btnToolClassStatus) {
         // Ensure tools menu is closed
         if (toolsMenu) toolsMenu.classList.remove("active");
         if (btnToolsToggle) btnToolsToggle.classList.remove("active");
+        setToolMenuTabIndex(false);
 
         // Ensure monitoring is active if enabled
         if (currentRole === 'teacher' && isMonitoringEnabled && currentClassId) {
@@ -6208,6 +6331,7 @@ if (btnToolMonitoring) {
         // Ensure tools menu is closed
         if (toolsMenu) toolsMenu.classList.remove("active");
         if (btnToolsToggle) btnToolsToggle.classList.remove("active");
+        setToolMenuTabIndex(false);
 
         // Force start monitoring for everyone in class when opened
         if (currentRole === 'teacher' && isMonitoringEnabled && currentClassId) {
@@ -6287,7 +6411,7 @@ function isElectronApp() {
 }
 
 // Student: Start capturing screen
-socket.on('start-monitoring', async ({ interval }) => {
+socket.on('start-monitoring', async ({ interval, offset = 0, quality = 'low' }) => {
     // We do NOT check isMonitoringEnabled on the student side, we obey the teacher!
     if (currentRole !== 'student') {
         return;
@@ -6319,10 +6443,12 @@ socket.on('start-monitoring', async ({ interval }) => {
 
         // Stop any existing interval
         if (captureIntervalId) clearInterval(captureIntervalId);
-        // Start new interval
-        captureIntervalId = setInterval(() => captureAndSendScreen('low'), interval);
-        // Send one immediately
-        captureAndSendScreen('low');
+        // Stagger start: wait for the assigned offset before beginning captures.
+        // This spreads students out so they don't all hit the network at the same moment.
+        setTimeout(() => {
+            captureAndSendScreen(quality);
+            captureIntervalId = setInterval(() => captureAndSendScreen(quality), interval);
+        }, offset);
     } else {
         console.log('Screen monitoring is only supported in the ClassSend desktop application.');
     }
@@ -6433,23 +6559,21 @@ function createEmptyMonitoringCard(userId, studentName, studentPcName) {
 
         const openFullscreen = (e) => {
             e.stopPropagation();
-            if (!img.src || img.src.includes(window.location.host) || img.src === window.location.href) {
-                // Ignore fullscreen clicks if we don't have a frame yet
-                return;
-            }
 
             // --- FOCUS MODE START ---
             // Tell server we are focusing on this student
             socket.emit('focus-monitoring', { targetUserId: userId });
 
-            // Show current (low-res) frame immediately in image viewer
+            // Show current (low-res) frame immediately in image viewer (if one exists)
             const imageViewerModal = document.getElementById('image-viewer-modal');
             const viewerImg = document.getElementById('full-image');
             const viewerTitle = document.getElementById('image-title');
             const btnMinimizeViewer = document.getElementById('btn-minimize-image');
 
+            const hasFrame = img.src && !img.src.includes(window.location.host) && img.src !== window.location.href;
+
             if (viewerImg && imageViewerModal) {
-                viewerImg.src = img.src; // Show low res immediately
+                viewerImg.src = hasFrame ? img.src : ''; // Show low res if available, else blank (high-res will arrive shortly)
 
                 // Fill available space
                 viewerImg.style.width = '100%';
@@ -7816,6 +7940,22 @@ if (startupToggle) {
     });
 }
 
+// AUTO-RESTART ON UNRESPONSIVE HANDLING
+const autoRestartToggle = document.getElementById("auto-restart-toggle");
+
+if (autoRestartToggle) {
+    autoRestartToggle.addEventListener("change", async (e) => {
+        if (!window.electron?.ipcRenderer) return;
+        try {
+            await window.electron.ipcRenderer.invoke('set-auto-restart', { enabled: e.target.checked });
+            console.log("Auto-restart set to:", e.target.checked);
+        } catch (err) {
+            console.error("Failed to set auto-restart:", err);
+            e.target.checked = !e.target.checked; // Revert on error
+        }
+    });
+}
+
 // Fetch startup status when opening settings
 if (btnSettingsToggle) {
     btnSettingsToggle.addEventListener("click", () => {
@@ -7827,6 +7967,11 @@ if (btnSettingsToggle) {
                 }
             });
         }
+        if (autoRestartToggle && window.electron?.ipcRenderer) {
+            window.electron.ipcRenderer.invoke('get-auto-restart').then((data) => {
+                autoRestartToggle.checked = !!data.enabled;
+            }).catch(() => {});
+        }
     });
 }
 
@@ -7834,6 +7979,14 @@ if (btnSettingsToggle) {
 const versionDisplay = document.getElementById('app-version-display');
 if (versionDisplay && typeof __APP_VERSION__ !== 'undefined') {
     versionDisplay.textContent = __APP_VERSION__;
+}
+
+// Populate About page release notes from release-notes.js
+const aboutNotesList = document.getElementById('about-notes-list');
+if (aboutNotesList) {
+    aboutNotesList.innerHTML = releaseNotes
+        .map(n => `<li><strong>${n.title}</strong>: ${n.desc}</li>`)
+        .join('');
 }
 
 // Expose for testing

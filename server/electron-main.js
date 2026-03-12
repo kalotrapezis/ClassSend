@@ -7,15 +7,24 @@ const { exec, execSync } = require('child_process');
 
 // --- INSTALL MODE ---
 // Written to HKLM\SOFTWARE\ClassSend\Mode by the installer (Teacher / Student).
+// Can also be overridden in classsend.conf via the 'role' key.
 // Defaults to 'teacher' in dev / if the key is missing.
 function getInstallMode() {
+    // classsend.conf takes priority if explicitly set (not the default 'teacher')
+    const confRole = installConfig.get('role', null);
+
     try {
         const out = execSync(
             'reg query "HKLM\\SOFTWARE\\ClassSend" /v Mode',
             { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }
         );
-        return out.toLowerCase().includes('student') ? 'student' : 'teacher';
+        const regRole = out.toLowerCase().includes('student') ? 'student' : 'teacher';
+        // conf file wins if it explicitly says 'student'
+        if (confRole === 'student') return 'student';
+        return regRole;
     } catch {
+        // No registry key – use conf file value or default to 'teacher'
+        if (confRole === 'student') return 'student';
         return 'teacher';
     }
 }
@@ -27,34 +36,51 @@ function getInstallMode() {
 // Actually, app.getPath is available immediately in main process.
 if (app) {
     process.env.USER_DATA_PATH = app.getPath('userData');
+
+    // Resolve classsend.conf path before any require() reads it via install-config.js
+    if (app.isPackaged) {
+        // Packaged: lives in resources/ next to the exe (added via extraResources)
+        process.env.INSTALL_CONFIG_PATH = path.join(process.resourcesPath, 'classsend.conf');
+    } else {
+        // Dev: project root, one level above server/
+        process.env.INSTALL_CONFIG_PATH = path.join(__dirname, '..', 'classsend.conf');
+    }
 }
 
 // --- CRASH REPORTING & LOGGING ---
-const configManager = require('./config-manager'); // Import ConfigManager
+// installConfig is loaded FIRST so that logging can be initialised before configManager.
+// If the app won't open, set  auto_export_logs = true  (and optionally enable_logging = true)
+// in classsend.conf, restart, then check ~/classSendReport.txt for the startup error.
+const installConfig = require('./install-config');
 
-// --- CRASH REPORTING & LOGGING ---
+// configManager is intentionally loaded AFTER logging is set up so that any error
+// during its initialisation is captured in the log file.
+let configManager = null;
+
 const logFilePath = path.join(app.getPath('home'), 'classSendReport.txt');
 
-// Initialize logs: Overwrite if enabled, otherwise do nothing
+// Initialise the log file immediately from classsend.conf (configManager not ready yet)
 try {
-    if (configManager.get('autoExportLogs')) {
+    if (installConfig.get('auto_export_logs', false)) {
         const sessionHeader = `=== ClassSend Session Started: ${new Date().toISOString()} ===\n`;
-        fs.writeFileSync(logFilePath, sessionHeader); // Overwrite mode
+        fs.writeFileSync(logFilePath, sessionHeader);
     }
 } catch (e) {
-    // Ignore if fails (permissions etc)
+    // Ignore permission errors
 }
 
 function logToFile(type, args) {
-    // Check config before writing to disk
-    if (!configManager.get('autoExportLogs')) return;
+    // Use runtime configManager once available; fall back to installConfig during early startup
+    const exportLogs = configManager
+        ? configManager.get('autoExportLogs')
+        : installConfig.get('auto_export_logs', false);
+    if (!exportLogs) return;
 
     try {
         const message = args.map(arg =>
             typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
         ).join(' ');
-        const logLine = `[${new Date().toISOString()}] [${type}] ${message}\n`;
-        fs.appendFileSync(logFilePath, logLine);
+        fs.appendFileSync(logFilePath, `[${new Date().toISOString()}] [${type}] ${message}\n`);
     } catch (e) {
         // Fallback
     }
@@ -80,15 +106,29 @@ console.warn = (...args) => {
     originalWarn.apply(console, args);
 };
 
-// Catch unhandled exceptions
+// Register crash handlers BEFORE loading configManager so startup errors are always captured
 process.on('uncaughtException', (err) => {
-    console.error('UNCAUGHT EXCEPTION:', err);
-    logToFile('FATAL', ['UNCAUGHT EXCEPTION:', err]);
+    const stack = err?.stack || String(err);
+    logToFile('FATAL', ['UNCAUGHT EXCEPTION:', stack]);
+    originalError.apply(console, ['UNCAUGHT EXCEPTION:', err]);
 });
+
+process.on('unhandledRejection', (reason) => {
+    const detail = reason?.stack || String(reason);
+    logToFile('FATAL', ['UNHANDLED REJECTION:', detail]);
+    originalError.apply(console, ['UNHANDLED REJECTION:', reason]);
+});
+
+// Load configManager — any error here is now captured by the handlers above
+configManager = require('./config-manager');
 // --------------------------------
 
 // Disable hardware acceleration to prevent GPU process crashes on Linux
-app.disableHardwareAcceleration();
+// Only disable on Linux — disabling on Windows causes software rendering which
+// breaks window focus/click handling on some systems.
+if (process.platform === 'linux') {
+    app.disableHardwareAcceleration();
+}
 
 // Ignore certificate errors for self-signed certificates (development only)
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
@@ -241,7 +281,8 @@ function createWindow() {
     });
 
     // Load URL with Polling Mechanism to prevent crash
-    const port = 3000; // Standard port
+    const port = installConfig.get('port', 3000);
+    process.env.PORT = String(port); // pass to index.js via env
     const protocol = process.env.USE_TLS === 'true' ? 'https' : 'http';
     const serverUrl = `${protocol}://localhost:${port}`;
 
@@ -315,7 +356,27 @@ function createWindow() {
                 mainWindow.focus();
             }
             restoreInternetBlockingState();
+            if (configManager.get('autoRestartOnUnresponsive')) {
+                applyAutoRestartSetting(true);
+            }
         }, 500);
+    });
+
+    // Re-focus whenever the window is shown (e.g. restored from tray, un-hidden).
+    // On Windows with software rendering disabled, show() alone may not give input focus.
+    mainWindow.on('show', () => {
+        mainWindow.focus();
+    });
+
+    // ===== RENDERER WATCHDOG =====
+    // Electron fires 'unresponsive' when the renderer process stops responding to input
+    // (the same frozen state that Ctrl+R fixes manually). Auto-reload to recover.
+    mainWindow.webContents.on('unresponsive', () => {
+        console.warn('[Watchdog] Renderer became unresponsive — reloading automatically.');
+        mainWindow.webContents.reload();
+    });
+    mainWindow.webContents.on('responsive', () => {
+        console.log('[Watchdog] Renderer is responsive again.');
     });
 
     // Intercept window.open calls (e.g. for mailto links)
@@ -535,6 +596,12 @@ function createWindow() {
             lockWindow = null;
             console.log('[Lock Screen] Overlay window closed');
         }
+        // Restore focus to the main window after the lock overlay is removed.
+        // On Windows, destroying a kiosk/alwaysOnTop window can leave the main
+        // window visible but unresponsive to clicks until explicitly focused.
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.focus();
+        }
         return { success: true };
     });
 
@@ -655,10 +722,34 @@ Get-Process | Where-Object {
         return { success: true };
     });
 
+    // Save internet blocking persistence preference (pushed from teacher to students)
+    ipcMain.handle('set-internet-persist', async (event, { persist }) => {
+        configManager.set('persistInternetBlock', !!persist);
+        console.log(`[InternetPersist] Saved persistInternetBlock = ${!!persist}`);
+        return { success: true };
+    });
+
+    // Auto-restart on unresponsive setting
+    ipcMain.handle('get-auto-restart', () => {
+        return { enabled: !!configManager.get('autoRestartOnUnresponsive') };
+    });
+
+    ipcMain.handle('set-auto-restart', async (event, { enabled }) => {
+        configManager.set('autoRestartOnUnresponsive', !!enabled);
+        applyAutoRestartSetting(!!enabled);
+        return { success: true };
+    });
+
     // Restore internet blocking state on startup
     function restoreInternetBlockingState() {
         const saved = configManager.get('urlWhitelist');
         if (!saved || !saved.enabled) return;
+        // Honour the teacher's persistence preference (defaults to true for backward compat)
+        const persist = configManager.get('persistInternetBlock') !== false;
+        if (!persist) {
+            console.log('[Startup] Internet blocking NOT restored — persistence is disabled by teacher.');
+            return;
+        }
         const whitelist = Array.isArray(saved.whitelist) ? saved.whitelist : [];
         let proxyOverride = '<local>';
         whitelist.forEach(entry => {
@@ -676,6 +767,33 @@ Get-Process | Where-Object {
                 console.log(`[Startup] Internet blocking restored (${whitelist.length} whitelist entries)`);
             }
         });
+    }
+
+    // Register (or unregister) the app with Windows Error Reporting so that
+    // Windows automatically restarts it when it is terminated as unresponsive.
+    // Uses PowerShell -EncodedCommand to call RegisterApplicationRestart via P/Invoke
+    // with no shell-escaping issues.
+    function applyAutoRestartSetting(enable) {
+        if (process.platform !== 'win32') return;
+        try {
+            const typeDef = 'using System; using System.Runtime.InteropServices; ' +
+                'public class WinRestart { ' +
+                '[DllImport("kernel32.dll", CharSet = CharSet.Unicode)] ' +
+                'public static extern uint RegisterApplicationRestart(string c, uint f); ' +
+                '[DllImport("kernel32.dll")] ' +
+                'public static extern uint UnregisterApplicationRestart(); }';
+            const call = enable
+                ? '[WinRestart]::RegisterApplicationRestart("", 0)'
+                : '[WinRestart]::UnregisterApplicationRestart()';
+            const psScript = `Add-Type -TypeDefinition '${typeDef}'\n${call}`;
+            const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
+            execSync(`powershell -NoProfile -NonInteractive -EncodedCommand ${encoded}`, {
+                timeout: 15000, windowsHide: true
+            });
+            console.log(`[AutoRestart] RegisterApplicationRestart: ${enable}`);
+        } catch (err) {
+            console.error('[AutoRestart] Failed to apply restart registration:', err.message);
+        }
     }
 
     // Helper function to resolve paths with environment variables and wildcards
@@ -867,9 +985,32 @@ Get-Process | Where-Object {
     ipcMain.handle('capture-screen', async (event, options) => {
         try {
             const { quality = 'low' } = options || {};
-            // Determine size based on requested quality
-            const width = quality === 'low' ? 320 : 1920;
-            const height = quality === 'low' ? 180 : 1080;
+
+            // Resolution table
+            const resolutions = {
+                'verylow': { width: 160,  height: 90   },
+                'low':     { width: 320,  height: 180  },
+                '1080p':   { width: 1920, height: 1080 },
+                '1440p':   { width: 2560, height: 1440 },
+                '4k':      { width: 3840, height: 2160 },
+            };
+
+            // Map 'low'/'high' from the frontend to the configured resolution names
+            let resName;
+            if (quality === 'low') {
+                resName = configManager.get('screenCaptureQuality') || 'low';
+            } else {
+                // 'high' or any explicit name ('1080p', '1440p', '4k')
+                resName = (quality === 'high')
+                    ? (configManager.get('screenCaptureHiresQuality') || '1080p')
+                    : quality;
+            }
+            const { width, height } = resolutions[resName] || resolutions['1080p'];
+
+            // Mbit/s → JPEG quality (0–100). Higher = sharper, larger payload.
+            const mbit = configManager.get('screenCaptureSpeedMbit') || 16;
+            const mbitToJpeg = { 8: 25, 16: 50, 32: 72, 64: 88 };
+            const jpegQuality = mbitToJpeg[mbit] ?? 50;
 
             const sources = await desktopCapturer.getSources({
                 types: ['screen'],
@@ -877,8 +1018,8 @@ Get-Process | Where-Object {
             });
 
             if (sources.length > 0) {
-                // Returns a base64 string of the JPEG thumbnail
-                return sources[0].thumbnail.toDataURL();
+                const buf = sources[0].thumbnail.toJPEG(jpegQuality);
+                return 'data:image/jpeg;base64,' + buf.toString('base64');
             }
             return null;
         } catch (err) {
@@ -910,6 +1051,7 @@ function createTray() {
         tray.on('double-click', () => {
             if (mainWindow) {
                 mainWindow.show();
+                mainWindow.focus();
             } else {
                 createWindow();
             }

@@ -408,6 +408,25 @@
                       <span data-i18n="btn-manage-history">Manage History</span>
                     </button>
                   </div>
+
+                  <!-- Internet Blocking Persistence -->
+                  <div class="setting-item" style="margin-top: 20px;">
+                    <div class="setting-header-row">
+                      <div>
+                        <label class="setting-label-tight" data-i18n="label-internet-persist">Persist Internet Cutoff After Reboot</label>
+                        <p class="setting-description" data-i18n="desc-internet-persist">When ON, internet blocking is restored on student PCs after a reboot.</p>
+                      </div>
+                      <label class="switch">
+                        <input type="checkbox" id="internet-persist-toggle">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+                  <p class="setting-hint" style="margin-top: -8px; margin-bottom: 6px;" data-i18n="hint-internet-persist">If internet does not restore correctly after boot, run this command on the student PC:</p>
+                  <div style="position: relative; margin: 0 0 8px 0;">
+                    <pre id="persist-cmd" style="font-size: 0.7rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px 10px; padding-right: 40px; user-select: all; white-space: pre-wrap; word-break: break-all; color: #a3e635; margin: 0;">reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f</pre>
+                    <button id="btn-copy-persist-cmd" class="action-btn" title="Copy" style="position: absolute; top: 4px; right: 4px; width: 28px; height: 28px;"><img src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy" style="width: 14px; height: 14px;" /></button>
+                  </div>
                 </div>
 
                 <!-- Streaming Page -->
@@ -456,6 +475,13 @@
                       <option value="20000">20 seconds</option>
                     </select>
                   </div>
+                  <div class="setting-item hidden" id="monitoring-quality-setting">
+                    <label for="monitoring-quality" data-i18n="monitoring-quality">Thumbnail Quality</label>
+                    <select id="monitoring-quality" class="setting-select">
+                      <option value="verylow">Very Low — 160×90 (slowest networks)</option>
+                      <option value="low">Low — 320×180 (default)</option>
+                    </select>
+                  </div>
                 </div>
 
                 <!-- Administration Page -->
@@ -484,6 +510,20 @@
                       </div>
                       <label class="switch">
                         <input type="checkbox" id="startup-toggle">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Auto-Restart on Unresponsive -->
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <div>
+                        <label for="auto-restart-toggle" class="setting-label-tight" data-i18n="label-auto-restart">Restart if Unresponsive</label>
+                        <p class="setting-description" data-i18n="auto-restart-description">Ask Windows to restart ClassSend automatically if it is terminated for being unresponsive.</p>
+                      </div>
+                      <label class="switch">
+                        <input type="checkbox" id="auto-restart-toggle">
                         <span class="slider round"></span>
                       </label>
                     </div>
@@ -621,23 +661,14 @@
                     </div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
                     <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
-                        id="app-version-display">11.0.0</span></p>
+                        id="app-version-display">11.2.1</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
                       <h4 style="margin-top: 0; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;"
                         data-i18n="recent-improvements">
                         Recent Improvements:</h4>
-                      <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.4;">
-                        <li><strong>Proper Windows Installer</strong>: NSIS wizard with role selection (Teacher/Student)
-                        </li>
-                        <li><strong>WiFi Guard Service</strong>: Persistent student network protection (Background Task)
-                        </li>
-                        <li><strong>System-wide Install</strong>: Installs to Program Files for all users</li>
-                        <li><strong>No-Prompt Startup</strong>: Auto-launches without UAC popups</li>
-                        <li><strong>Network Resilience</strong>: Smart waiting for LAN IP at startup</li>
-                        <li><strong>Connection Lost Screen</strong>: Modern recovery page with manual retry</li>
-                      </ul>
+                      <ul id="about-notes-list" style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.4;"></ul>
                     </div>
 
                     <a href="https://github.com/kalotrapezis/ClassSend/releases" target="_blank"
@@ -939,6 +970,12 @@
               <span data-i18n="label-url-whitelist">URL Whitelist</span>
               <span class="favorites-hint" data-i18n="hint-url-whitelist">Domain covers all paths &amp; subdomains</span>
             </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+              <span style="font-size:0.72rem;color:rgba(255,255,255,0.4);white-space:nowrap;">Quick add:</span>
+              <button class="whitelist-preset-btn" data-preset="google" style="font-size:0.72rem;padding:3px 9px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.75);cursor:pointer;">+ Google</button>
+              <button class="whitelist-preset-btn" data-preset="youtube" style="font-size:0.72rem;padding:3px 9px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.75);cursor:pointer;">+ YouTube</button>
+              <button class="whitelist-preset-btn" data-preset="microsoft" style="font-size:0.72rem;padding:3px 9px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.75);cursor:pointer;">+ Microsoft</button>
+            </div>
             <div class="blacklist-add-section">
               <input type="text" id="url-whitelist-entry-input" placeholder="e.g. code.org" autocomplete="off" data-i18n-placeholder="placeholder-url-whitelist">
               <button id="btn-add-url-whitelist-entry" class="add-word-btn">
@@ -1116,31 +1153,36 @@
                 <img src="/assets/emoji-funny-square-svgrepo-com.svg" class="icon-svg" alt="Emoji" />
               </button>
               <div id="teacher-tools-section" class="teacher-tools-section hidden">
+                <button id="btn-tools-toggle" class="btn-tools-toggle header-btn" title="Teacher Tools"
+                  data-i18n-title="btn-teacher-tools-title">
+                  <img src="/assets/menu-navigation-Grid.svg" class="icon-svg" alt="Tools" />
+                  <span data-i18n="label-tools" class="desktop-only">Tools</span>
+                </button>
                 <div id="tools-menu" class="tools-menu">
                   <!-- Communications Column -->
                   <div class="tool-column">
                     <div class="tool-column-header" data-i18n="label-communications">Communications</div>
-                    <button id="btn-tool-share-screen" class="tool-menu-btn" title="Share Screen"
+                    <button id="btn-tool-share-screen" class="tool-menu-btn" tabindex="-1" title="Share Screen"
                       data-i18n-title="btn-share-screen">
                       <img src="/assets/screen-mirror-svgrepo-com.svg" class="icon-svg" alt="Share" />
                       <span data-i18n="btn-share-screen" class="btn-label">Share Screen</span>
                     </button>
-                    <button id="btn-tool-block-messages" class="tool-menu-btn" title="Block Messages"
+                    <button id="btn-tool-block-messages" class="tool-menu-btn" tabindex="-1" title="Block Messages"
                       data-i18n-title="btn-block-all">
                       <img src="/assets/block-1-svgrepo-com.svg" class="icon-svg" alt="Block" />
                       <span data-i18n="label-block-all">Block Messages</span>
                     </button>
-                    <button id="btn-tool-block-uploads" class="tool-menu-btn" title="Block Uploads"
+                    <button id="btn-tool-block-uploads" class="tool-menu-btn" tabindex="-1" title="Block Uploads"
                       data-i18n-title="btn-block-uploads">
                       <img src="/assets/files-svgrepo-com.svg" class="icon-svg" alt="Block Uploads" />
                       <span data-i18n="label-block-uploads">Block Uploads</span>
                     </button>
-                    <button id="btn-tool-allow-hands" class="tool-menu-btn" title="Allow Hands"
+                    <button id="btn-tool-allow-hands" class="tool-menu-btn" tabindex="-1" title="Allow Hands"
                       data-i18n-title="btn-raise-hand">
                       <img src="/assets/Allow-Hands-Up.svg" class="icon-svg" alt="Allow Hands" />
                       <span data-i18n="btn-raise-hand">Allow Hands</span>
                     </button>
-                    <button id="btn-tool-hands-down" class="tool-menu-btn" title="Lower Hands"
+                    <button id="btn-tool-hands-down" class="tool-menu-btn" tabindex="-1" title="Lower Hands"
                       data-i18n-title="btn-hands-down">
                       <img src="/assets/hands-Down.svg" class="icon-svg" alt="Hands Down" />
                       <span data-i18n="btn-hands-down">Hands Down</span>
@@ -1150,40 +1192,40 @@
                   <!-- Administration Column -->
                   <div class="tool-column">
                     <div class="tool-column-header" data-i18n="label-administration">Administration</div>
-                    <button id="btn-tool-monitoring" class="tool-menu-btn" title="Monitoring"
+                    <button id="btn-tool-monitoring" class="tool-menu-btn" tabindex="-1" title="Monitoring"
                       data-i18n-title="btn-monitoring">
                       <img src="/assets/monitoring.svg" class="icon-svg" alt="Monitoring" />
                       <span data-i18n="btn-monitoring">Monitoring</span>
                     </button>
-                    <button id="btn-tool-lock-screen-custom" class="tool-menu-btn" title="Lock all screens"
+                    <button id="btn-tool-lock-screen-custom" class="tool-menu-btn" tabindex="-1" title="Lock all screens"
                       data-i18n-title="btn-tool-lock-screen">
                       <img src="/assets/lock-svgrepo-com.svg" class="icon-svg" onerror="this.src='/assets/lock.svg'"
                         alt="Lock" />
                       <span data-i18n="btn-tool-lock-screen">Lock all screens</span>
                     </button>
-                    <button id="btn-tool-close-all-apps" class="tool-menu-btn" title="Close All Apps"
+                    <button id="btn-tool-close-all-apps" class="tool-menu-btn" tabindex="-1" title="Close All Apps"
                       data-i18n-title="btn-tool-close-all-apps">
                       <img src="/assets/close-all.svg" class="icon-svg" alt="Close All Apps" />
                       <span data-i18n="btn-tool-close-all-apps">Close All Apps</span>
                     </button>
-                    <button id="btn-tool-no-internet" class="tool-menu-btn" title="Disable Internet"
+                    <button id="btn-tool-no-internet" class="tool-menu-btn" tabindex="-1" title="Disable Internet"
                       data-i18n-title="btn-tool-disable-internet">
                       <img src="/assets/no-internet-.svg" class="icon-svg" alt="No Internet" />
                       <span data-i18n="btn-tool-disable-internet">Disable Internet</span>
                     </button>
-                    <button id="btn-tool-shutdown-pc" class="tool-menu-btn" title="Shutdown PC"
+                    <button id="btn-tool-shutdown-pc" class="tool-menu-btn" tabindex="-1" title="Shutdown PC"
                       data-i18n-title="btn-tool-shutdown-pc">
                       <img src="/assets/shutdown.svg" class="icon-svg" onerror="this.src='/assets/power.svg'"
                         alt="Shutdown" />
                       <span data-i18n="btn-tool-shutdown-pc">Shutdown PC</span>
                     </button>
-                    <button id="btn-tool-focus-app" class="tool-menu-btn" title="Focus App"
+                    <button id="btn-tool-focus-app" class="tool-menu-btn" tabindex="-1" title="Focus App"
                       data-i18n-title="btn-tool-focus-app">
                       <img src="/assets/focus.svg" class="icon-svg"
                         onerror="this.src='/assets/screen-mirror-svgrepo-com.svg'" alt="Focus App" />
                       <span data-i18n="btn-focus">Focus Window</span>
                     </button>
-                    <button id="btn-tool-remote-launch" class="tool-menu-btn" title="Remote Launch"
+                    <button id="btn-tool-remote-launch" class="tool-menu-btn" tabindex="-1" title="Remote Launch"
                       data-i18n-title="btn-remote-launch">
                       <img src="/assets/AppLaunch.svg" class="icon-svg"
                         onerror="this.src='/assets/plus-circle-svgrepo-com.svg'" alt="Launch" />
@@ -1191,11 +1233,6 @@
                     </button>
                   </div>
                 </div>
-                <button id="btn-tools-toggle" class="btn-tools-toggle header-btn" title="Teacher Tools"
-                  data-i18n-title="btn-teacher-tools-title">
-                  <img src="/assets/menu-navigation-Grid.svg" class="icon-svg" alt="Tools" />
-                  <span data-i18n="label-tools" class="desktop-only">Tools</span>
-                </button>
               </div>
               <button id="btn-report-toggle" class="report-toggle-btn hidden" title="Word Reports"
                 data-i18n-title="btn-reports-title">

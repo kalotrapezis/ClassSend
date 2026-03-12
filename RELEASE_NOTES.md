@@ -1,5 +1,42 @@
 # Release Notes
 
+## [11.2.2] - 2026-03-12
+
+### NEW
+- **Restart if Unresponsive**: A new toggle in Settings → Administration lets you register ClassSend with Windows Error Reporting so that Windows automatically relaunches the app if it is terminated for being unresponsive. Enabled by default on new installs.
+
+### CHANGES
+- **Internet Cutoff Persistence: Off by Default**: The "Persist Internet Cutoff After Reboot" toggle now defaults to OFF on new installs. Internet blocking is no longer automatically restored after a student PC reboots unless the teacher explicitly enables the setting.
+
+---
+
+## [11.2.1] - 2026-03-11
+
+### NEW
+- **Internet Whitelist Quick-Add Presets**: New "Quick add" buttons (Google, YouTube, Microsoft) in the Internet Cutoff whitelist automatically add all domains a service needs — fixing cases where google.gr worked but Google still failed due to missing gstatic.com and googleapis.com.
+- **Internet Whitelist www. Fix**: Entering a domain with a www. prefix (e.g. www.google.com) now correctly strips it to google.com, ensuring the proxy bypass covers the bare domain and all subdomains.
+- **Auto-Recovery from Frozen App**: The app now detects when its renderer process becomes unresponsive and reloads itself automatically — no teacher or student action needed.
+- **Monitoring: Sequential Image Sending**: Student PCs now send screenshots in a staggered sequence (1.2 s apart) instead of all at once, eliminating network bursts that caused slow or missing thumbnails in large classes.
+- **Monitoring: Late-Joining Students**: Students who join a class after monitoring is already enabled now receive screenshots automatically — previously they were silently skipped until the teacher restarted monitoring.
+- **Monitoring: Thumbnail Quality Setting**: A new "Thumbnail Quality" selector in Settings → Screen Sharing lets the teacher choose between Very Low (160×90) and Low (320×180). The setting syncs to all connected students instantly.
+- **Focus View Without Prior Image**: The teacher can now click any student card to open the focus/high-res view even if no thumbnail has arrived yet — the high-res frame is requested immediately on click.
+- **Internet Cutoff Persistence Toggle**: A new toggle in Settings → Connection lets the teacher control whether internet blocking is restored on student PCs after a reboot. Syncs to all connected students.
+
+### FIXES
+- **Advanced Filter Fix**: Fixed a bug where the AI content filter blocked every message regardless of the sensitivity threshold. Words not in the classifier's vocabulary no longer fall back to the skewed training prior.
+
+## [11.2.0] - 2026-03-10
+
+### NEW
+- **Config File (`classsend.conf`)**: A plain-text configuration file is now placed next to the executable after installation (`C:\Program Files\ClassSend\resources\classsend.conf`). IT administrators can edit it with any text editor before or after deployment; a restart applies the changes. Configurable options include: role, port, TLS, auto-start, internet restore on startup, max file size, screen capture quality and resolution, socket buffer size, logging, and AI thresholds.
+- **Improved Monitoring Quality**: Student screen capture now supports configurable resolution (`low` 320×180 · `1080p` · `1440p` · `4k`) and JPEG compression tied to streaming bandwidth (8 / 16 / 32 / 64 Mbit → quality 25 / 50 / 72 / 88). Frames are sent as JPEG instead of PNG, significantly reducing per-frame payload.
+- **Dynamic About Page**: The version number and "Recent Improvements" list in Settings → About are now injected at build time from `client/package.json` and `client/release-notes.js` respectively — no more manual HTML edits per release.
+
+### FIXES
+- **Tool Button Reliability**: Teacher tools (Lock Screen, Internet Cutoff, Shutdown, Focus App, Close All Apps) would silently do nothing after a brief network reconnect because an internal logic inversion (`autoFlowTriggered = true` instead of `false`) left `currentClassId` as `null` indefinitely. The flag is now correctly reset, the teacher triggers auto-recovery after 2 seconds, and all five affected buttons show a clear warning toast instead of silently failing.
+- **Window Focus Restoration**: Clicking the ClassSend window with the mouse no longer fails to restore keyboard focus on Windows. Root causes fixed: `app.disableHardwareAcceleration()` is now Linux-only (on Windows it forced software/WARP rendering which broke `WM_MOUSEACTIVATE`); `focus()` is now called after tray `show()`, on the `show` event, and after the lock screen overlay is dismissed.
+- **TAB Keyboard Navigation**: TAB order corrected — the Tools toggle button is now first in DOM order and reached before the hidden menu items inside it. Tool menu buttons carry `tabindex="-1"` by default and are promoted to `tabindex="0"` only while the menu is open.
+
 ## [11.1.2] - 2026-03-09
 ### FIXES
 - **Auto Client Build**: `npm run make` now automatically builds the client (Vite) before packaging the installer. Previously the client had to be built manually first, causing stale bundles to ship if the step was skipped.

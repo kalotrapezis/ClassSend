@@ -1,6 +1,6 @@
 {
     "name": "classsend",
-    "version": "11.1.2",
+    "version": "11.2.2",
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
@@ -29,6 +29,10 @@
             {
                 "from": "wifi-guard.ps1",
                 "to": "wifi-guard.ps1"
+            },
+            {
+                "from": "../classsend.conf",
+                "to": "classsend.conf"
             }
         ],
         "nsis": {
@@ -46,6 +50,7 @@
             "electron-main.js",
             "index.js",
             "config-manager.js",
+            "install-config.js",
             "network-discovery.js",
             "file-storage.js",
             "preload.js",

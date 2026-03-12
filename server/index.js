@@ -67,7 +67,7 @@ const io = new Server(server, {
     origin: "*", // Allow all origins for local network dev
     methods: ["GET", "POST"]
   },
-  maxHttpBufferSize: 2 * 1024 * 1024 * 1024 // 2GB max message size (accounts for base64 encoding ~33% overhead)
+  maxHttpBufferSize: configManager.get('socketBufferSizeMb') * 1024 * 1024
 });
 
 // Configure multer for file uploads
@@ -85,7 +85,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 1.5 * 1024 * 1024 * 1024 // 1.5GB limit
+    fileSize: configManager.get('maxFileSizeMb') * 1024 * 1024
   }
 });
 
@@ -300,15 +300,21 @@ async function categorizeWithConfidence(text) {
   let logProbs = {};
   let maxLogProb = -Infinity;
 
+  // If no tokens from the message appear in the trained vocabulary, the classifier
+  // can only return the prior probability (~87% profane due to training imbalance),
+  // which would block every unknown/clean message. Return neutral instead.
+  const knownTokens = Object.keys(frequencyTable).filter(t => classifier.vocabulary[t]);
+  if (knownTokens.length === 0) {
+    return { category: 'clean', confidence: 0 };
+  }
+
   categories.forEach(category => {
     let categoryProbability = classifier.docCount[category] / classifier.totalDocuments;
     let logProbability = Math.log(categoryProbability);
 
     Object.keys(frequencyTable).forEach(token => {
-      // FIX: Ignore Out-Of-Vocabulary tokens to prevent Laplace smoothing from skewing 
-      // probabilities towards categories with fewer overall tokens (typically "profane").
       if (!classifier.vocabulary[token]) {
-        return; // Skip token completely if unseen
+        return; // Skip OOV tokens
       }
 
       const frequencyInText = frequencyTable[token];
@@ -1259,6 +1265,16 @@ io.on('connection', (socket) => {
 
     // Broadcast update to everyone (to update user counts)
     broadcastActiveClasses();
+
+    // If monitoring is already running, bring this new student into it
+    // (otherwise they silently miss it if they joined after the teacher enabled monitoring)
+    if (role === 'student' && classData.monitoringInterval) {
+      const studentIdx = classData.students.findIndex(s => (typeof s === 'object' ? s.id : s) === socket.id);
+      const offset = Math.max(0, studentIdx) * 1200;
+      const quality = classData.monitoringQuality || 'low';
+      socket.emit('start-monitoring', { interval: classData.monitoringInterval, quality, offset });
+      console.log(`Sent start-monitoring to late-joining student ${userName} (offset ${offset}ms, quality ${quality})`);
+    }
   });
 
   // Leave class
@@ -1583,6 +1599,17 @@ io.on('connection', (socket) => {
       });
       console.log(`[No Internet] Enabling internet for all students in ${classId}`);
     }
+  });
+
+  socket.on('set-internet-persist', ({ classId, persist }) => {
+    if (!activeClasses.has(classId)) return;
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) return;
+    classData.students.forEach(s => {
+      const sid = typeof s === 'object' ? s.id : s;
+      io.to(sid).emit('execute-set-internet-persist', { persist });
+    });
+    console.log(`[InternetPersist] Set persist=${persist} for all students in ${classId}`);
   });
 
   socket.on('open-file-on-students', ({ classId, fileId, fileName }) => {
@@ -2704,21 +2731,30 @@ io.on('connection', (socket) => {
   });
 
   // ===== MONITORING (TEACHER -> STUDENT SCREENS) =====
-  socket.on('start-monitoring', ({ interval, targetUserId }) => {
+  socket.on('start-monitoring', ({ interval, quality = 'low', targetUserId }) => {
     const classId = getTeacherClassId(socket.id);
     if (classId) {
       const classData = activeClasses.get(classId);
-      if (classData) classData.monitoringInterval = interval; // Store it for resumption
+      if (classData) {
+        classData.monitoringInterval = interval; // Store it for resumption
+        classData.monitoringQuality = quality;   // Store quality for late-joiners
+      }
 
       if (targetUserId) {
         const targetSocket = io.sockets.sockets.get(targetUserId);
         if (targetSocket) {
-          targetSocket.emit('start-monitoring', { interval });
-          console.log(`Teacher started monitoring specific student ${targetUserId} with interval ${interval}`);
+          targetSocket.emit('start-monitoring', { interval, quality });
+          console.log(`Teacher started monitoring specific student ${targetUserId} with interval ${interval}, quality ${quality}`);
         }
       } else {
-        console.log(`Teacher started monitoring class ${classId} with interval ${interval}`);
-        io.to(classId).emit('start-monitoring', { interval });
+        console.log(`Teacher started monitoring class ${classId} with interval ${interval}, quality ${quality}`);
+        // Send individually with a 1.2 s stagger so students don't all capture at the same instant
+        // (avoids simultaneous network bursts when there are many laptops)
+        classData.students.forEach((s, idx) => {
+          const sid = typeof s === 'object' ? s.id : s;
+          const targetSock = io.sockets.sockets.get(sid);
+          if (targetSock) targetSock.emit('start-monitoring', { interval, quality, offset: idx * 1200 });
+        });
       }
     }
   });
@@ -2759,9 +2795,14 @@ io.on('connection', (socket) => {
       console.log(`Teacher unfocused monitoring in class ${classId}`);
       const classData = activeClasses.get(classId);
       const interval = classData.monitoringInterval || 15000;
+      const quality = classData.monitoringQuality || 'low';
 
-      // Resume normal monitoring for everyone
-      io.to(classId).emit('start-monitoring', { interval });
+      // Resume normal monitoring for everyone (re-stagger after focus mode)
+      classData.students.forEach((s, idx) => {
+        const sid = typeof s === 'object' ? s.id : s;
+        const targetSock = io.sockets.sockets.get(sid);
+        if (targetSock) targetSock.emit('start-monitoring', { interval, quality, offset: idx * 1200 });
+      });
     }
   });
 
