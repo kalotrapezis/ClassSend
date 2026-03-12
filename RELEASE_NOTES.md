@@ -1,5 +1,15 @@
 # Release Notes
 
+## [11.2.2] - 2026-03-12
+
+### NEW
+- **Restart if Unresponsive**: A new toggle in Settings → Administration lets you register ClassSend with Windows Error Reporting so that Windows automatically relaunches the app if it is terminated for being unresponsive. Enabled by default on new installs.
+
+### CHANGES
+- **Internet Cutoff Persistence: Off by Default**: The "Persist Internet Cutoff After Reboot" toggle now defaults to OFF on new installs. Internet blocking is no longer automatically restored after a student PC reboots unless the teacher explicitly enables the setting.
+
+---
+
 ## [11.2.1] - 2026-03-11
 
 ### NEW

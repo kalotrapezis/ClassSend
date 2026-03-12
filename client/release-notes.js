@@ -14,6 +14,14 @@
 
 export const releaseNotes = [
     {
+        title: 'Restart if Unresponsive',
+        desc: 'New toggle in Settings → Administration registers ClassSend with Windows so that it is automatically relaunched if Windows terminates it for being unresponsive. Enabled by default.',
+    },
+    {
+        title: 'Internet Cutoff Persistence: Off by Default',
+        desc: 'The "Persist Internet Cutoff After Reboot" toggle now defaults to OFF. Internet blocking is no longer automatically restored after a student PC reboots unless the teacher explicitly enables it.',
+    },
+    {
         title: 'Internet Whitelist: Quick-Add Presets',
         desc: 'New "Quick add" buttons (Google, YouTube, Microsoft) in the Internet Cutoff whitelist automatically add all domains a service needs to load — fixing cases where google.gr worked but Google still failed due to missing gstatic.com and googleapis.com.',
     },

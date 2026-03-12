@@ -414,7 +414,7 @@
                     <div class="setting-header-row">
                       <div>
                         <label class="setting-label-tight" data-i18n="label-internet-persist">Persist Internet Cutoff After Reboot</label>
-                        <p class="setting-description" data-i18n="desc-internet-persist">When ON, internet blocking is automatically restored on student PCs after a reboot. Syncs to all connected students.</p>
+                        <p class="setting-description" data-i18n="desc-internet-persist">When ON, internet blocking is restored on student PCs after a reboot.</p>
                       </div>
                       <label class="switch">
                         <input type="checkbox" id="internet-persist-toggle">
@@ -423,7 +423,10 @@
                     </div>
                   </div>
                   <p class="setting-hint" style="margin-top: -8px; margin-bottom: 6px;" data-i18n="hint-internet-persist">If internet does not restore correctly after boot, run this command on the student PC:</p>
-                  <pre style="font-size: 0.7rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px 10px; user-select: all; white-space: pre-wrap; word-break: break-all; color: #a3e635; margin: 0 0 8px 0;">reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f</pre>
+                  <div style="position: relative; margin: 0 0 8px 0;">
+                    <pre id="persist-cmd" style="font-size: 0.7rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px 10px; padding-right: 40px; user-select: all; white-space: pre-wrap; word-break: break-all; color: #a3e635; margin: 0;">reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f</pre>
+                    <button id="btn-copy-persist-cmd" class="action-btn" title="Copy" style="position: absolute; top: 4px; right: 4px; width: 28px; height: 28px;"><img src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy" style="width: 14px; height: 14px;" /></button>
+                  </div>
                 </div>
 
                 <!-- Streaming Page -->
@@ -507,6 +510,20 @@
                       </div>
                       <label class="switch">
                         <input type="checkbox" id="startup-toggle">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Auto-Restart on Unresponsive -->
+                  <div class="setting-item">
+                    <div class="setting-header-row">
+                      <div>
+                        <label for="auto-restart-toggle" class="setting-label-tight" data-i18n="label-auto-restart">Restart if Unresponsive</label>
+                        <p class="setting-description" data-i18n="auto-restart-description">Ask Windows to restart ClassSend automatically if it is terminated for being unresponsive.</p>
+                      </div>
+                      <label class="switch">
+                        <input type="checkbox" id="auto-restart-toggle">
                         <span class="slider round"></span>
                       </label>
                     </div>

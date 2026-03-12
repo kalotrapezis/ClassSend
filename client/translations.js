@@ -114,6 +114,8 @@ export const translations = {
         "rename-class-hint": "Change the name of your current class.",
         "label-startup": "Start on Login",
         "startup-description": "Automatically start ClassSend when you log in.",
+        "label-auto-restart": "Restart if Unresponsive",
+        "auto-restart-description": "Ask Windows to restart ClassSend automatically if it is terminated for being unresponsive.",
         "data-management": "Data Management",
         "data-management-hint": "Import/Export both Blacklist and Whitelist data.",
         "btn-import": "Import",
@@ -290,7 +292,10 @@ export const translations = {
         "label-quick-add": "Quick add:",
         "btn-preset-google": "+ Google",
         "btn-preset-youtube": "+ YouTube",
-        "btn-preset-microsoft": "+ Microsoft"
+        "btn-preset-microsoft": "+ Microsoft",
+        "label-internet-persist": "Persist Internet Cutoff After Reboot",
+        "desc-internet-persist": "When ON, internet blocking is restored on student PCs after a reboot.",
+        "hint-internet-persist": "If internet does not restore correctly after boot, run this command on the student PC:"
     },
 
     el: {
@@ -404,6 +409,8 @@ export const translations = {
         "rename-class-hint": "Αλλάξτε το όνομα της τρέχουσας τάξης σας.",
         "label-startup": "Έναρξη κατά την Είσοδο",
         "startup-description": "Αυτόματη εκκίνηση του ClassSend κατά τη σύνδεσή σας.",
+        "label-auto-restart": "Επανεκκίνηση αν Δεν Αποκρίνεται",
+        "auto-restart-description": "Ζητά από τα Windows να επανεκκινήσουν αυτόματα το ClassSend αν τερματιστεί λόγω μη απόκρισης.",
         "data-management": "Διαχείριση Δεδομένων",
         "data-management-hint": "Εισαγωγή/Εξαγωγή δεδομένων Μαύρης και Λευκής λίστας.",
         "btn-import": "Εισαγωγή",
@@ -577,6 +584,9 @@ export const translations = {
         "label-quick-add": "Γρήγορη προσθήκη:",
         "btn-preset-google": "+ Google",
         "btn-preset-youtube": "+ YouTube",
-        "btn-preset-microsoft": "+ Microsoft"
+        "btn-preset-microsoft": "+ Microsoft",
+        "label-internet-persist": "Διατήρηση Αποκοπής Διαδικτύου Μετά Επανεκκίνηση",
+        "desc-internet-persist": "Όταν είναι ΕΝΕΡΓΟ, ο αποκλεισμός διαδικτύου αποκαθίσταται \n στους Η/Υ των μαθητών μετά επανεκκίνηση.",
+        "hint-internet-persist": "Αν το διαδίκτυο δεν αποκατασταθεί σωστά μετά την εκκίνηση, εκτελέστε αυτή την εντολή στον Η/Υ του μαθητή:"
     }
 };

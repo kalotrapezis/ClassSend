@@ -37,6 +37,8 @@ class ConfigManager {
     getDefaults() {
         return {
             startupConfigured: false,
+            autoRestartOnUnresponsive: true,
+            persistInternetBlock: false,
             enableLogging:    installConfig.get('enable_logging',    false),
             autoExportLogs:   installConfig.get('auto_export_logs',  false),
             maxFileSizeMb:    installConfig.get('max_file_size_mb',  1536),

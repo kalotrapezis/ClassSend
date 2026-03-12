@@ -356,6 +356,9 @@ function createWindow() {
                 mainWindow.focus();
             }
             restoreInternetBlockingState();
+            if (configManager.get('autoRestartOnUnresponsive')) {
+                applyAutoRestartSetting(true);
+            }
         }, 500);
     });
 
@@ -726,6 +729,17 @@ Get-Process | Where-Object {
         return { success: true };
     });
 
+    // Auto-restart on unresponsive setting
+    ipcMain.handle('get-auto-restart', () => {
+        return { enabled: !!configManager.get('autoRestartOnUnresponsive') };
+    });
+
+    ipcMain.handle('set-auto-restart', async (event, { enabled }) => {
+        configManager.set('autoRestartOnUnresponsive', !!enabled);
+        applyAutoRestartSetting(!!enabled);
+        return { success: true };
+    });
+
     // Restore internet blocking state on startup
     function restoreInternetBlockingState() {
         const saved = configManager.get('urlWhitelist');
@@ -753,6 +767,33 @@ Get-Process | Where-Object {
                 console.log(`[Startup] Internet blocking restored (${whitelist.length} whitelist entries)`);
             }
         });
+    }
+
+    // Register (or unregister) the app with Windows Error Reporting so that
+    // Windows automatically restarts it when it is terminated as unresponsive.
+    // Uses PowerShell -EncodedCommand to call RegisterApplicationRestart via P/Invoke
+    // with no shell-escaping issues.
+    function applyAutoRestartSetting(enable) {
+        if (process.platform !== 'win32') return;
+        try {
+            const typeDef = 'using System; using System.Runtime.InteropServices; ' +
+                'public class WinRestart { ' +
+                '[DllImport("kernel32.dll", CharSet = CharSet.Unicode)] ' +
+                'public static extern uint RegisterApplicationRestart(string c, uint f); ' +
+                '[DllImport("kernel32.dll")] ' +
+                'public static extern uint UnregisterApplicationRestart(); }';
+            const call = enable
+                ? '[WinRestart]::RegisterApplicationRestart("", 0)'
+                : '[WinRestart]::UnregisterApplicationRestart()';
+            const psScript = `Add-Type -TypeDefinition '${typeDef}'\n${call}`;
+            const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
+            execSync(`powershell -NoProfile -NonInteractive -EncodedCommand ${encoded}`, {
+                timeout: 15000, windowsHide: true
+            });
+            console.log(`[AutoRestart] RegisterApplicationRestart: ${enable}`);
+        } catch (err) {
+            console.error('[AutoRestart] Failed to apply restart registration:', err.message);
+        }
     }
 
     // Helper function to resolve paths with environment variables and wildcards

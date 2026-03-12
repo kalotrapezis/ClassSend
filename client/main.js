@@ -4688,7 +4688,7 @@ socket.on('execute-enable-internet', () => {
 
 // Internet cutoff persistence toggle (teacher-side UI + student receiver)
 const internetPersistToggle = document.getElementById('internet-persist-toggle');
-let internetPersist = localStorage.getItem('classsend-internet-persist') !== 'false'; // default: ON
+let internetPersist = localStorage.getItem('classsend-internet-persist') === 'true'; // default: OFF
 
 if (internetPersistToggle) {
     internetPersistToggle.checked = internetPersist;
@@ -4698,6 +4698,19 @@ if (internetPersistToggle) {
         if (currentRole === 'teacher' && currentClassId) {
             socket.emit('set-internet-persist', { classId: currentClassId, persist: internetPersist });
         }
+    });
+}
+
+// Copy button for the persist command
+const btnCopyPersistCmd = document.getElementById('btn-copy-persist-cmd');
+if (btnCopyPersistCmd) {
+    btnCopyPersistCmd.addEventListener('click', () => {
+        const cmd = document.getElementById('persist-cmd').textContent;
+        copyToClipboard(cmd, () => {
+            const orig = btnCopyPersistCmd.innerHTML;
+            btnCopyPersistCmd.innerHTML = '<img src="/assets/tick-circle-svgrepo-com.svg" class="icon-svg" style="width: 14px; height: 14px;" />';
+            setTimeout(() => { btnCopyPersistCmd.innerHTML = orig; }, 1500);
+        });
     });
 }
 
@@ -7927,6 +7940,22 @@ if (startupToggle) {
     });
 }
 
+// AUTO-RESTART ON UNRESPONSIVE HANDLING
+const autoRestartToggle = document.getElementById("auto-restart-toggle");
+
+if (autoRestartToggle) {
+    autoRestartToggle.addEventListener("change", async (e) => {
+        if (!window.electron?.ipcRenderer) return;
+        try {
+            await window.electron.ipcRenderer.invoke('set-auto-restart', { enabled: e.target.checked });
+            console.log("Auto-restart set to:", e.target.checked);
+        } catch (err) {
+            console.error("Failed to set auto-restart:", err);
+            e.target.checked = !e.target.checked; // Revert on error
+        }
+    });
+}
+
 // Fetch startup status when opening settings
 if (btnSettingsToggle) {
     btnSettingsToggle.addEventListener("click", () => {
@@ -7937,6 +7966,11 @@ if (btnSettingsToggle) {
                     console.log("Startup status loaded:", response.openAtLogin);
                 }
             });
+        }
+        if (autoRestartToggle && window.electron?.ipcRenderer) {
+            window.electron.ipcRenderer.invoke('get-auto-restart').then((data) => {
+                autoRestartToggle.checked = !!data.enabled;
+            }).catch(() => {});
         }
     });
 }
