@@ -1,5 +1,25 @@
 # Release Notes
 
+## [12.0.0] - 2026-03-15
+
+### NEW
+- **Linux Support (Linux Mint / Ubuntu)**: ClassSend now runs natively on Linux. All classroom tools previously available only on Windows have Linux-native equivalents, gated by platform detection — no separate codebase needed.
+- **Linux Lock Screen**: The "Lock Screen" tool now uses `cinnamon-screensaver-command --lock` (Linux Mint) with automatic fallback to `loginctl lock-session` and then `xdg-screensaver lock`.
+- **Linux Internet Cutoff**: Internet blocking on Linux uses the GNOME/Cinnamon system proxy (`gsettings`, `org.gnome.system.proxy`), including full whitelist support as ignore-hosts. State is automatically restored on startup just like on Windows.
+- **Linux Close All Apps**: The "Close All Apps" tool on Linux uses `wmctrl` to enumerate and close visible windows, skipping known desktop shell processes (Cinnamon, Muffin, Marco, Nemo, etc.).
+- **Linux Shutdown**: "End of Day" shutdown calls `shutdown -h now` on Linux.
+- **Linux Install Mode**: The installer now writes the teacher/student role to `/etc/classsend/mode` (a plain text file) instead of the Windows registry. The app reads this on every launch, same as the registry approach.
+- **Linux Auto-Restart Watchdog**: The "Restart if Unresponsive" setting on Linux creates a systemd user service (`classsend-watchdog.service`) that monitors the process and relaunches ClassSend if it disappears. Enabled and disabled via `systemctl --user`.
+- **WiFi Guard — Linux**: Student installations include a new `wifi-guard.sh` script (bash equivalent of `wifi-guard.ps1`) installed as a root-level systemd system service (`classsend-wifi-guard.service`). It runs every 5 seconds, calls `rfkill unblock wifi`, and re-enables any downed wireless interface via `ip link set up` and `nmcli device connect`.
+- **Linux `.deb` Installer**: The build now targets AppImage and `.deb` packages for Linux (x64 and arm64). The `.deb` includes a `postinstall.sh` script that interactively asks teacher/student mode during installation, sets up the autostart and WiFi guard systemd services automatically — equivalent to the NSIS `installer.nsh` on Windows.
+- **Linux Path Resolution**: The `launch-app` path resolver now expands `$VAR` and `${VAR}` style environment variables on Linux, and URL detection uses Linux path conventions (`/`, `~`, `./`) instead of `.exe`/`\` heuristics.
+
+### CHANGES
+- **`wifi-guard.ps1` now Windows-only in build output**: Moved to `win.extraResources` so it is not bundled into Linux packages.
+- **`buildInternetCmd` helper**: The internet toggle and startup-restore logic now share a single platform-aware helper function, removing duplicated command strings.
+
+---
+
 ## [11.2.2] - 2026-03-12
 
 ### NEW
