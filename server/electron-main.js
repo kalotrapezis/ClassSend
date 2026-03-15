@@ -13,20 +13,41 @@ function getInstallMode() {
     // classsend.conf takes priority if explicitly set (not the default 'teacher')
     const confRole = installConfig.get('role', null);
 
-    try {
-        const out = execSync(
-            'reg query "HKLM\\SOFTWARE\\ClassSend" /v Mode',
-            { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }
-        );
-        const regRole = out.toLowerCase().includes('student') ? 'student' : 'teacher';
-        // conf file wins if it explicitly says 'student'
-        if (confRole === 'student') return 'student';
-        return regRole;
-    } catch {
-        // No registry key – use conf file value or default to 'teacher'
+    if (process.platform === 'win32') {
+        try {
+            const out = execSync(
+                'reg query "HKLM\\SOFTWARE\\ClassSend" /v Mode',
+                { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }
+            );
+            const regRole = out.toLowerCase().includes('student') ? 'student' : 'teacher';
+            // conf file wins if it explicitly says 'student'
+            if (confRole === 'student') return 'student';
+            return regRole;
+        } catch {
+            // No registry key – use conf file value or default to 'teacher'
+            if (confRole === 'student') return 'student';
+            return 'teacher';
+        }
+    }
+
+    if (process.platform === 'linux') {
+        // Mode written to /etc/classsend/mode by the postinstall.sh script
+        try {
+            const modeFile = '/etc/classsend/mode';
+            if (fs.existsSync(modeFile)) {
+                const fileRole = fs.readFileSync(modeFile, 'utf8').trim().toLowerCase() === 'student'
+                    ? 'student' : 'teacher';
+                if (confRole === 'student') return 'student';
+                return fileRole;
+            }
+        } catch { /* fall through */ }
         if (confRole === 'student') return 'student';
         return 'teacher';
     }
+
+    // Fallback for other platforms (macOS, etc.)
+    if (confRole === 'student') return 'student';
+    return 'teacher';
 }
 
 
@@ -569,9 +590,16 @@ function createWindow() {
                 console.log('[Lock Screen] Custom overlay window created with translations');
             }
 
-            // 2. Also trigger system LockWorkStation every 5 seconds as unbypassable fallback
+            // 2. Also trigger system lock every 5 seconds as unbypassable fallback
             if (!lockIntervalId) {
-                const lockSystem = () => exec('rundll32.exe user32.dll,LockWorkStation');
+                const lockSystem = () => {
+                    if (process.platform === 'win32') {
+                        exec('rundll32.exe user32.dll,LockWorkStation');
+                    } else if (process.platform === 'linux') {
+                        // Try Cinnamon (Linux Mint), then generic loginctl, then xdg fallback
+                        exec('cinnamon-screensaver-command --lock 2>/dev/null || loginctl lock-session 2>/dev/null || xdg-screensaver lock');
+                    }
+                };
                 lockSystem(); // immediate first lock
                 lockIntervalId = setInterval(lockSystem, 5000);
                 console.log('[Lock Screen] Repeat system lock started (every 5s)');
@@ -605,11 +633,13 @@ function createWindow() {
         return { success: true };
     });
 
-    // Windows End of Day Shutdown
+    // End of Day Shutdown (cross-platform)
     ipcMain.handle('shutdown-pc', async () => {
         return new Promise((resolve) => {
-            // Shutdown immediately
-            exec('shutdown /s /t 0', (error) => {
+            const cmd = process.platform === 'win32'
+                ? 'shutdown /s /t 0'
+                : 'shutdown -h now';
+            exec(cmd, (error) => {
                 if (error) {
                     console.error('Failed to shutdown PC:', error);
                     resolve({ success: false, error: error.message });
@@ -643,10 +673,33 @@ function createWindow() {
         return new Promise((resolve) => {
             // Get ClassSend's own PID so we can exclude it
             const selfPid = process.pid;
-            // Use taskkill to kill all user processes except system and ClassSend
-            // /F = force, /T = include child processes
-            // We enumerate visible windows via a PowerShell one-liner and kill their owning processes
-            const ps = `
+
+            if (process.platform === 'linux') {
+                // Use wmctrl to enumerate visible windows, then close them (graceful ICCCM delete).
+                // Skip known DE/system processes to avoid killing the desktop shell.
+                const script = `
+wmctrl -lp | awk '{print $1, $3}' | while read wid pid; do
+  [ "$pid" = "${selfPid}" ] && continue
+  [ "$pid" = "0" ] && continue
+  ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+  [ "$ppid" = "${selfPid}" ] && continue
+  comm=$(ps -p "$pid" -o comm= 2>/dev/null)
+  echo "$comm" | grep -qiE '^(Xorg|X|gnome-shell|kwin_x11|kwin_wayland|plasmashell|nautilus|nemo|cinnamon|muffin|marco|xfce4-panel|xfwm4|mutter|compiz|lightdm)$' && continue
+  wmctrl -ic "$wid" 2>/dev/null
+done
+`.trim();
+                exec(`bash -c '${script}'`, (error) => {
+                    if (error) {
+                        console.error('[Close All Apps] Error:', error.message);
+                        resolve({ success: false, error: error.message });
+                    } else {
+                        console.log('[Close All Apps] Completed');
+                        resolve({ success: true });
+                    }
+                });
+            } else {
+                // Windows: enumerate visible windows via PowerShell and kill their owning processes
+                const ps = `
 $selfPid = ${selfPid};
 Get-Process | Where-Object {
     $_.MainWindowHandle -ne 0 -and
@@ -657,19 +710,65 @@ Get-Process | Where-Object {
     try { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue } catch {}
 }
 `.trim();
-            exec(`powershell -NoProfile -NonInteractive -Command "${ps.replace(/\n/g, ' ')}"`, (error) => {
-                if (error) {
-                    console.error('[Close All Apps] Error:', error.message);
-                    resolve({ success: false, error: error.message });
-                } else {
-                    console.log('[Close All Apps] Completed');
-                    resolve({ success: true });
-                }
-            });
+                exec(`powershell -NoProfile -NonInteractive -Command "${ps.replace(/\n/g, ' ')}"`, (error) => {
+                    if (error) {
+                        console.error('[Close All Apps] Error:', error.message);
+                        resolve({ success: false, error: error.message });
+                    } else {
+                        console.log('[Close All Apps] Completed');
+                        resolve({ success: true });
+                    }
+                });
+            }
         });
     });
 
-    // Toggle Internet via Windows Registry (Proxy Method)
+    // Build the shell command that enables or disables internet access.
+    // Windows: registry proxy method. Linux: gsettings GNOME/Cinnamon proxy.
+    function buildInternetCmd(disable, whitelist) {
+        if (process.platform === 'linux') {
+            if (disable) {
+                // Build gsettings ignore-hosts list: always include loopback, add whitelist entries
+                const ignoreHosts = ['localhost', '127.0.0.0/8', '::1'];
+                whitelist.forEach(entry => {
+                    let d = entry.toLowerCase().trim()
+                        .replace(/^https?:\/\//i, '')
+                        .replace(/\/.*$/, '')
+                        .replace(/\*\./g, '');
+                    if (d) { ignoreHosts.push(d); ignoreHosts.push(`*.${d}`); }
+                });
+                // GStrv format expected by gsettings: ['host1','host2',...]
+                const hostsGStr = "['" + ignoreHosts.join("','") + "']";
+                return [
+                    `gsettings set org.gnome.system.proxy mode 'manual'`,
+                    `gsettings set org.gnome.system.proxy.http host '127.0.0.1'`,
+                    `gsettings set org.gnome.system.proxy.http port 81`,
+                    `gsettings set org.gnome.system.proxy.https host '127.0.0.1'`,
+                    `gsettings set org.gnome.system.proxy.https port 81`,
+                    `gsettings set org.gnome.system.proxy ignore-hosts "${hostsGStr}"`,
+                ].join(' && ');
+            } else {
+                return `gsettings set org.gnome.system.proxy mode 'none'`;
+            }
+        }
+
+        // Windows (default)
+        if (disable) {
+            let proxyOverride = '<local>';
+            whitelist.forEach(entry => {
+                let d = entry.toLowerCase().trim()
+                    .replace(/^https?:\/\//i, '')
+                    .replace(/\/.*$/, '')
+                    .replace(/\*\./g, '');
+                if (d) proxyOverride += `;${d};*.${d}`;
+            });
+            return `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 1 /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyServer /t REG_SZ /d "127.0.0.1:81" /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyOverride /t REG_SZ /d "${proxyOverride}" /f`;
+        } else {
+            return `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f`;
+        }
+    }
+
+    // Toggle Internet — cross-platform proxy method
     // Accepts either a boolean (legacy) or { disable, whitelist[] } object
     ipcMain.handle('toggle-internet', async (event, data) => {
         return new Promise((resolve) => {
@@ -681,23 +780,7 @@ Get-Process | Where-Object {
                 whitelist = Array.isArray(data.whitelist) ? data.whitelist : [];
             }
 
-            let cmd = '';
-            if (disable) {
-                // Build ProxyOverride: <local> + whitelisted domains and their subdomains
-                let proxyOverride = '<local>';
-                whitelist.forEach(entry => {
-                    let d = entry.toLowerCase().trim()
-                        .replace(/^https?:\/\//i, '')
-                        .replace(/\/.*$/, '')
-                        .replace(/\*\./g, '');
-                    if (d) proxyOverride += `;${d};*.${d}`;
-                });
-                cmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 1 /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyServer /t REG_SZ /d "127.0.0.1:81" /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyOverride /t REG_SZ /d "${proxyOverride}" /f`;
-            } else {
-                // Disable the proxy
-                cmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f`;
-            }
-
+            const cmd = buildInternetCmd(disable, whitelist);
             console.log(`[Toggle Internet] Executing (whitelist: ${whitelist.length} entries)`);
             exec(cmd, (error) => {
                 if (error) {
@@ -740,7 +823,7 @@ Get-Process | Where-Object {
         return { success: true };
     });
 
-    // Restore internet blocking state on startup
+    // Restore internet blocking state on startup (cross-platform via buildInternetCmd)
     function restoreInternetBlockingState() {
         const saved = configManager.get('urlWhitelist');
         if (!saved || !saved.enabled) return;
@@ -751,15 +834,7 @@ Get-Process | Where-Object {
             return;
         }
         const whitelist = Array.isArray(saved.whitelist) ? saved.whitelist : [];
-        let proxyOverride = '<local>';
-        whitelist.forEach(entry => {
-            let d = entry.toLowerCase().trim()
-                .replace(/^https?:\/\//i, '')
-                .replace(/\/.*$/, '')
-                .replace(/\*\./g, '');
-            if (d) proxyOverride += `;${d};*.${d}`;
-        });
-        const cmd = `reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyEnable /t REG_DWORD /d 1 /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyServer /t REG_SZ /d "127.0.0.1:81" /f && reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings" /v ProxyOverride /t REG_SZ /d "${proxyOverride}" /f`;
+        const cmd = buildInternetCmd(true, whitelist);
         exec(cmd, (error) => {
             if (error) {
                 console.error('[Startup] Failed to restore internet blocking:', error.message);
@@ -769,30 +844,69 @@ Get-Process | Where-Object {
         });
     }
 
-    // Register (or unregister) the app with Windows Error Reporting so that
-    // Windows automatically restarts it when it is terminated as unresponsive.
-    // Uses PowerShell -EncodedCommand to call RegisterApplicationRestart via P/Invoke
-    // with no shell-escaping issues.
+    // Register (or unregister) automatic restart on crash/kill.
+    // Windows: RegisterApplicationRestart via PowerShell P/Invoke.
+    // Linux: systemd user service watchdog that relaunches ClassSend if the process disappears.
     function applyAutoRestartSetting(enable) {
-        if (process.platform !== 'win32') return;
-        try {
-            const typeDef = 'using System; using System.Runtime.InteropServices; ' +
-                'public class WinRestart { ' +
-                '[DllImport("kernel32.dll", CharSet = CharSet.Unicode)] ' +
-                'public static extern uint RegisterApplicationRestart(string c, uint f); ' +
-                '[DllImport("kernel32.dll")] ' +
-                'public static extern uint UnregisterApplicationRestart(); }';
-            const call = enable
-                ? '[WinRestart]::RegisterApplicationRestart("", 0)'
-                : '[WinRestart]::UnregisterApplicationRestart()';
-            const psScript = `Add-Type -TypeDefinition '${typeDef}'\n${call}`;
-            const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
-            execSync(`powershell -NoProfile -NonInteractive -EncodedCommand ${encoded}`, {
-                timeout: 15000, windowsHide: true
-            });
-            console.log(`[AutoRestart] RegisterApplicationRestart: ${enable}`);
-        } catch (err) {
-            console.error('[AutoRestart] Failed to apply restart registration:', err.message);
+        if (process.platform === 'win32') {
+            try {
+                const typeDef = 'using System; using System.Runtime.InteropServices; ' +
+                    'public class WinRestart { ' +
+                    '[DllImport("kernel32.dll", CharSet = CharSet.Unicode)] ' +
+                    'public static extern uint RegisterApplicationRestart(string c, uint f); ' +
+                    '[DllImport("kernel32.dll")] ' +
+                    'public static extern uint UnregisterApplicationRestart(); }';
+                const call = enable
+                    ? '[WinRestart]::RegisterApplicationRestart("", 0)'
+                    : '[WinRestart]::UnregisterApplicationRestart()';
+                const psScript = `Add-Type -TypeDefinition '${typeDef}'\n${call}`;
+                const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
+                execSync(`powershell -NoProfile -NonInteractive -EncodedCommand ${encoded}`, {
+                    timeout: 15000, windowsHide: true
+                });
+                console.log(`[AutoRestart] RegisterApplicationRestart: ${enable}`);
+            } catch (err) {
+                console.error('[AutoRestart] Failed to apply restart registration:', err.message);
+            }
+        } else if (process.platform === 'linux') {
+            try {
+                const unitDir = path.join(os.homedir(), '.config', 'systemd', 'user');
+                const unitPath = path.join(unitDir, 'classsend-watchdog.service');
+                if (enable) {
+                    // Resolve the executable path: packaged = process.execPath, dev = electron binary
+                    const execPath = app.isPackaged ? process.execPath : process.argv[0];
+                    const unit = [
+                        '[Unit]',
+                        'Description=ClassSend Auto-Restart Watchdog',
+                        '',
+                        '[Service]',
+                        'Type=simple',
+                        `ExecStart=/bin/bash -c 'while true; do sleep 10; pgrep -x classsend > /dev/null || "${execPath}" --hidden & done'`,
+                        'Restart=always',
+                        '',
+                        '[Install]',
+                        'WantedBy=default.target',
+                        '',
+                    ].join('\n');
+                    fs.mkdirSync(unitDir, { recursive: true });
+                    fs.writeFileSync(unitPath, unit);
+                    execSync('systemctl --user daemon-reload && systemctl --user enable --now classsend-watchdog.service', {
+                        timeout: 10000
+                    });
+                    console.log('[AutoRestart] Linux watchdog service enabled.');
+                } else {
+                    try {
+                        execSync('systemctl --user disable --now classsend-watchdog.service', { timeout: 10000 });
+                    } catch { /* already stopped or not installed */ }
+                    if (fs.existsSync(unitPath)) fs.unlinkSync(unitPath);
+                    try {
+                        execSync('systemctl --user daemon-reload', { timeout: 10000 });
+                    } catch { /* ignore */ }
+                    console.log('[AutoRestart] Linux watchdog service disabled.');
+                }
+            } catch (err) {
+                console.error('[AutoRestart] Failed to apply Linux watchdog:', err.message);
+            }
         }
     }
 
@@ -800,15 +914,24 @@ Get-Process | Where-Object {
     function resolveRobustPath(p) {
         if (!p) return p;
 
-        // 1. Expand environment variables (case-insensitive lookup)
-        let resolved = p.replace(/%([^%]+)%/g, (_, name) => {
-            const upperName = name.toUpperCase();
-            // Try specific case first, then fall back to case-insensitive search
-            if (process.env[name]) return process.env[name];
+        let resolved = p;
 
-            const envKey = Object.keys(process.env).find(k => k.toUpperCase() === upperName);
-            return envKey ? process.env[envKey] : `%${name}%`;
-        });
+        // 1. Expand environment variables
+        if (process.platform === 'win32') {
+            // Windows %VAR% style (case-insensitive lookup)
+            resolved = resolved.replace(/%([^%]+)%/g, (_, name) => {
+                const upperName = name.toUpperCase();
+                if (process.env[name]) return process.env[name];
+                const envKey = Object.keys(process.env).find(k => k.toUpperCase() === upperName);
+                return envKey ? process.env[envKey] : `%${name}%`;
+            });
+        } else {
+            // Linux/macOS $VAR and ${VAR} style
+            resolved = resolved.replace(/\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g, (_, braced, bare) => {
+                const name = braced || bare;
+                return process.env[name] !== undefined ? process.env[name] : (braced ? `\${${name}}` : `$${name}`);
+            });
+        }
 
         // 2. Handle Wildcards for directories (e.g., SuperTuxKart*)
         if (resolved.includes('*')) {
@@ -864,9 +987,16 @@ Get-Process | Where-Object {
             let trimmedCmd = command.trim();
             let isUrl = /^(https?|ftp):\/\//i.test(trimmedCmd);
 
-            if (!isUrl && !trimmedCmd.toLowerCase().endsWith('.exe') && !trimmedCmd.includes('\\') && trimmedCmd.includes('.')) {
-                isUrl = true;
-                trimmedCmd = 'http://' + trimmedCmd;
+            if (!isUrl && trimmedCmd.includes('.')) {
+                // On Windows, single-word entries with dots that aren't .exe paths are URLs.
+                // On Linux, any entry without a path separator that looks like a domain is a URL.
+                const looksLikePath = process.platform === 'win32'
+                    ? (trimmedCmd.toLowerCase().endsWith('.exe') || trimmedCmd.includes('\\'))
+                    : (trimmedCmd.startsWith('/') || trimmedCmd.startsWith('~') || trimmedCmd.startsWith('./'));
+                if (!looksLikePath) {
+                    isUrl = true;
+                    trimmedCmd = 'http://' + trimmedCmd;
+                }
             }
 
             if (isUrl) {

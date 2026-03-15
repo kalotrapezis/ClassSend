@@ -1,6 +1,6 @@
 {
     "name": "classsend",
-    "version": "11.2.2",
+    "version": "12.0.0",
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
@@ -11,6 +11,10 @@
         "make": "electron-builder --win --x64",
         "premake:win32": "npm --prefix ../client run build",
         "make:win32": "electron-builder --win --ia32",
+        "premake:linux": "npm --prefix ../client run build",
+        "make:linux": "electron-builder --linux --x64",
+        "premake:linux:arm64": "npm --prefix ../client run build",
+        "make:linux:arm64": "electron-builder --linux --arm64",
         "generate-icon": "node convert-icon.js",
         "server": "node index.js",
         "dev": "node --watch index.js",
@@ -23,13 +27,35 @@
         "asar": true,
         "win": {
             "target": "nsis",
-            "icon": "./assets/icon.ico"
+            "icon": "./assets/icon.ico",
+            "extraResources": [
+                {
+                    "from": "wifi-guard.ps1",
+                    "to": "wifi-guard.ps1"
+                }
+            ]
+        },
+        "linux": {
+            "target": ["AppImage", "deb"],
+            "icon": "./assets/tray.png",
+            "category": "Education",
+            "extraResources": [
+                {
+                    "from": "wifi-guard.sh",
+                    "to": "wifi-guard.sh"
+                },
+                {
+                    "from": "postinstall.sh",
+                    "to": "postinstall.sh"
+                }
+            ]
+        },
+        "deb": {
+            "afterInstall": "postinstall.sh",
+            "afterRemove": "postrm.sh",
+            "recommends": ["wmctrl", "network-manager"]
         },
         "extraResources": [
-            {
-                "from": "wifi-guard.ps1",
-                "to": "wifi-guard.ps1"
-            },
             {
                 "from": "../classsend.conf",
                 "to": "classsend.conf"
