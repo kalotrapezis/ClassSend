@@ -4062,6 +4062,15 @@ setInterval(() => {
         // console.log(`Ping: ${latency}ms`);
     });
 }, 5000);
+
+// ===== HEARTBEAT =====
+// Tell the main process we are alive every 5 s.
+// The main process reloads the window if this stops arriving for 20 s.
+if (window.electron && window.electron.ipcRenderer) {
+    setInterval(() => {
+        window.electron.ipcRenderer.send('heartbeat');
+    }, 5000);
+}
 // Content Filtering Module
 // Add this to the end of main.js
 

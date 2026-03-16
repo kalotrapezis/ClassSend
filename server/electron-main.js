@@ -379,6 +379,30 @@ function createWindow() {
         console.log('[Watchdog] Renderer is responsive again.');
     });
 
+    // ===== HEARTBEAT WATCHDOG =====
+    // The renderer sends a 'heartbeat' IPC every 5 s while it is alive.
+    // If 20 s pass with no heartbeat the renderer has silently frozen — reload it.
+    const HEARTBEAT_TIMEOUT_MS = 20000;
+    let heartbeatTimer = null;
+    let heartbeatReloading = false;
+
+    function resetHeartbeatTimer() {
+        if (heartbeatTimer) clearTimeout(heartbeatTimer);
+        heartbeatReloading = false;
+        heartbeatTimer = setTimeout(() => {
+            if (heartbeatReloading) return;
+            heartbeatReloading = true;
+            console.warn('[Heartbeat] Renderer silent for 20 s — reloading.');
+            mainWindow.webContents.reload();
+        }, HEARTBEAT_TIMEOUT_MS);
+    }
+
+    ipcMain.on('heartbeat', resetHeartbeatTimer);
+
+    // Start expecting heartbeats once the page has fully loaded.
+    // Also resets after each reload so the timer is always fresh.
+    mainWindow.webContents.on('did-finish-load', resetHeartbeatTimer);
+
     // Intercept window.open calls (e.g. for mailto links)
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         if (url.startsWith('mailto:')) {
