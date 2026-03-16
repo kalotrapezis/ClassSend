@@ -424,7 +424,7 @@
                   </div>
                   <p class="setting-hint" style="margin-top: -8px; margin-bottom: 6px;" data-i18n="hint-internet-persist">If internet does not restore correctly after boot, run this command on the student PC:</p>
                   <div style="position: relative; margin: 0 0 8px 0;">
-                    <pre id="persist-cmd" style="font-size: 0.7rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px 10px; padding-right: 40px; user-select: all; white-space: pre-wrap; word-break: break-all; color: #a3e635; margin: 0;">reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f</pre>
+                    <pre id="persist-cmd" style="font-size: 0.7rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px 10px; padding-right: 40px; user-select: all; white-space: pre-wrap; word-break: break-all; color: #a3e635; margin: 0;">reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f && reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyServer /f 2>nul & reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyOverride /f 2>nul</pre>
                     <button id="btn-copy-persist-cmd" class="action-btn" title="Copy" style="position: absolute; top: 4px; right: 4px; width: 28px; height: 28px;"><img src="/assets/copy-svgrepo-com.svg" class="icon-svg" alt="Copy" style="width: 14px; height: 14px;" /></button>
                   </div>
                 </div>
