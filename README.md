@@ -3,6 +3,9 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
+[New Internet fix command]
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f && reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyServer /f 2>nul & reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyOverride /f 2>nul
+
 <img width="1382" height="701" alt="image" src="https://github.com/user-attachments/assets/6c434b3c-2434-4861-9c14-8704e704b841" />
 <img width="1383" height="751" alt="image" src="https://github.com/user-attachments/assets/4ebffff6-27fa-49aa-b359-bc3b9ba27f60" />
 <img width="1390" height="744" alt="image" src="https://github.com/user-attachments/assets/0f4d2c30-0cca-4ab2-80f9-238148866038" />
