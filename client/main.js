@@ -1728,6 +1728,10 @@ function joinOrCreateLobby() {
             updateChatDisabledState();
 
             console.log(`Auto-flow: Joined Lobby ${classId}, hasTeacher: ${response.hasTeacher}`);
+
+            // Immediately re-check for a real class — the active-classes response that
+            // arrived while joiningInProgress was true may have been skipped.
+            if (socket.connected) socket.emit("get-active-classes");
         } else {
             console.error('Auto-flow: Failed to join/create Lobby', response.message);
             window.joiningInProgress = false; // RESET LOCK

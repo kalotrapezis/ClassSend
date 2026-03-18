@@ -1,5 +1,5 @@
-# ClassSend 11.2.3
-![Version](https://img.shields.io/badge/version-v11.2.3-blue)
+# ClassSend 11.2.4
+![Version](https://img.shields.io/badge/version-v11.2.4-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -145,7 +145,7 @@ When navigating with the keyboard, TAB would reach the buttons *inside* the Tool
 - **Real-time Chat**: Teams-like interface with @mentions and role-based colors.
 - **Class Management**: Teachers can create classes; students can join multiple classes.
 - **Local Network**: Runs entirely on your local network (LAN). No internet required.
-- **Windows Installer (64-bit)**: `ClassSend Setup 11.2.3.exe` — Teacher/Student role selected at install time
+- **Windows Installer (64-bit)**: `ClassSend Setup 11.2.4.exe` — Teacher/Student role selected at install time
 
 
 

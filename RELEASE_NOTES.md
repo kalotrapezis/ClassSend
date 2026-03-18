@@ -1,5 +1,13 @@
 # Release Notes
 
+## [11.2.4] - 2026-03-18
+
+### FIXES
+- **Heartbeat Watchdog (corrected)**: The watchdog now only arms itself after the first heartbeat arrives from the renderer — preventing a false-positive reload loop that occurred during startup when the preload script hadn't yet exposed `ipcRenderer`. The previous implementation started the 20-second countdown immediately on `did-finish-load`, which could cause the app to reload before the heartbeat sender had a chance to initialize, creating an infinite reload cycle that disconnected students.
+- **Auto-Connect Race Condition**: Fixed a timing issue where students on the teacher's server would sit in the Lobby instead of auto-joining the class. When the socket first connected, `handleAutoFlow()` ran before the class list arrived from the server (`active-classes` is async). This blocked the class list response from triggering auto-join via `joiningInProgress`. After the Lobby join completes, the app now immediately re-requests the class list so `handleAutoFlow()` gets a clean, unblocked attempt.
+
+---
+
 ## [11.2.3] - 2026-03-16
 
 ### FIXES
