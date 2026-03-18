@@ -379,6 +379,45 @@ function createWindow() {
         console.log('[Watchdog] Renderer is responsive again.');
     });
 
+    // ===== HEARTBEAT WATCHDOG =====
+    // The renderer sends a 'heartbeat' IPC every 5 s while it is alive.
+    // The watchdog only arms itself after the FIRST heartbeat of each page load —
+    // this prevents false-positive reloads during slow startup or when the preload
+    // hasn't exposed ipcRenderer yet. If heartbeats then go silent for 20 s the
+    // renderer has softly frozen and is reloaded automatically.
+    const HEARTBEAT_TIMEOUT_MS = 20000;
+    let heartbeatTimer = null;
+    let heartbeatReloading = false;
+    let heartbeatArmed = false;
+
+    function resetHeartbeatTimer() {
+        if (heartbeatTimer) clearTimeout(heartbeatTimer);
+        heartbeatReloading = false;
+        heartbeatTimer = setTimeout(() => {
+            if (heartbeatReloading) return;
+            heartbeatReloading = true;
+            console.warn('[Heartbeat] Renderer silent for 20 s — reloading.');
+            mainWindow.webContents.reload();
+        }, HEARTBEAT_TIMEOUT_MS);
+    }
+
+    ipcMain.on('heartbeat', () => {
+        if (!heartbeatArmed) {
+            heartbeatArmed = true;
+            console.log('[Heartbeat] Watchdog armed.');
+        }
+        resetHeartbeatTimer();
+    });
+
+    // On every new page load, disarm the watchdog and clear any pending timer.
+    // It will re-arm automatically when the first heartbeat of the new page arrives.
+    mainWindow.webContents.on('did-finish-load', () => {
+        heartbeatArmed = false;
+        if (heartbeatTimer) clearTimeout(heartbeatTimer);
+        heartbeatTimer = null;
+        heartbeatReloading = false;
+    });
+
     // Intercept window.open calls (e.g. for mailto links)
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         if (url.startsWith('mailto:')) {

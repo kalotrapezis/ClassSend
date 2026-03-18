@@ -1728,6 +1728,10 @@ function joinOrCreateLobby() {
             updateChatDisabledState();
 
             console.log(`Auto-flow: Joined Lobby ${classId}, hasTeacher: ${response.hasTeacher}`);
+
+            // Immediately re-check for a real class — the active-classes response that
+            // arrived while joiningInProgress was true may have been skipped.
+            if (socket.connected) socket.emit("get-active-classes");
         } else {
             console.error('Auto-flow: Failed to join/create Lobby', response.message);
             window.joiningInProgress = false; // RESET LOCK
@@ -4062,6 +4066,15 @@ setInterval(() => {
         // console.log(`Ping: ${latency}ms`);
     });
 }, 5000);
+
+// ===== HEARTBEAT =====
+// Tell the main process we are alive every 5 s.
+// The main process reloads the window if this stops arriving for 20 s.
+if (window.electron && window.electron.ipcRenderer) {
+    setInterval(() => {
+        window.electron.ipcRenderer.send('heartbeat');
+    }, 5000);
+}
 // Content Filtering Module
 // Add this to the end of main.js
 

@@ -1,5 +1,21 @@
 # Release Notes
 
+## [11.2.4] - 2026-03-18
+
+### FIXES
+- **Heartbeat Watchdog (corrected)**: The watchdog now only arms itself after the first heartbeat arrives from the renderer — preventing a false-positive reload loop that occurred during startup when the preload script hadn't yet exposed `ipcRenderer`. The previous implementation started the 20-second countdown immediately on `did-finish-load`, which could cause the app to reload before the heartbeat sender had a chance to initialize, creating an infinite reload cycle that disconnected students.
+- **Auto-Connect Race Condition**: Fixed a timing issue where students on the teacher's server would sit in the Lobby instead of auto-joining the class. When the socket first connected, `handleAutoFlow()` ran before the class list arrived from the server (`active-classes` is async). This blocked the class list response from triggering auto-join via `joiningInProgress`. After the Lobby join completes, the app now immediately re-requests the class list so `handleAutoFlow()` gets a clean, unblocked attempt.
+
+---
+
+## [11.2.3] - 2026-03-16
+
+### FIXES
+- **Heartbeat Watchdog**: The app now actively monitors whether the renderer is alive via a heartbeat signal sent every 5 seconds. If the renderer goes silent for 20 seconds (soft freeze, stuck promise, or silent crash) the main process automatically reloads it. This complements the existing `unresponsive` event handler, which only catches hard input-blocking freezes.
+- **Emergency Internet Recovery Command**: The "Persist Internet Cutoff" helper command now also deletes the `ProxyServer` and `ProxyOverride` registry keys in addition to disabling `ProxyEnable`. Previously, only disabling the proxy flag left the `127.0.0.1:81` proxy address in the registry, causing the app to crash after running the command and requiring a manual trip to Windows Internet Settings to fully clear the proxy.
+
+---
+
 ## [11.2.2] - 2026-03-12
 
 ### NEW
