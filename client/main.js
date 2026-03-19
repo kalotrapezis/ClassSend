@@ -2214,18 +2214,23 @@ function joinClass(classIdToJoin, nameToUse, isAutoJoin = false) {
         } else {
             if (isAutoJoin) {
                 console.warn(`Auto-join to ${classIdToJoin} failed: ${response.message}`);
-                // If the class doesn't exist, we should probably reset the UI to avoid being stuck
-                // But only if we were trying to rejoin the current class
+                // If the class doesn't exist, clear state and immediately search for a new class.
+                // Do NOT set autoFlowTriggered=false and wait for next reconnect — the socket
+                // is already connected and a reconnect may never happen, leaving students stranded.
                 if (classIdToJoin === currentClassId) {
                     currentClassId = null;
                     window.joiningInProgress = false;
-                    autoFlowTriggered = false; // Allow auto-flow to retry on next reconnect
-                    console.log("Auto-join failed, will retry auto-flow on reconnect...");
-                    // For teachers: schedule an immediate retry to recreate/rejoin the class
                     if (currentRole === 'teacher' && typeof triggerTeacherAutoFlow === 'function') {
+                        // Teachers recreate their own class
+                        autoFlowTriggered = false;
                         setTimeout(() => {
                             if (!currentClassId) triggerTeacherAutoFlow();
                         }, 2000);
+                    } else {
+                        // Students: re-arm auto-flow and immediately search for the teacher's class
+                        autoFlowTriggered = true;
+                        socket.emit('get-active-classes');
+                        setTimeout(() => handleAutoFlow(), 300);
                     }
                 }
             } else {
@@ -3781,7 +3786,6 @@ socket.on("user-name-changed", ({ oldName, newName, users: updatedUsers, classId
 
 socket.on("class-ended", ({ message, classId }) => {
     if (joinedClasses.has(classId)) {
-        alert(message || t('alert-class-ended').replace('{classId}', classId));
         joinedClasses.delete(classId);
         if (currentClassId === classId) {
             // Stop monitoring if active
@@ -3797,6 +3801,8 @@ socket.on("class-ended", ({ message, classId }) => {
             if (promptEl) promptEl.remove();
 
             currentClassId = null;
+            window.joiningInProgress = false;
+
             if (joinedClasses.size > 0) {
                 switchClass(joinedClasses.keys().next().value);
             } else {
@@ -3805,9 +3811,19 @@ socket.on("class-ended", ({ message, classId }) => {
                 classSetup.classList.add("hidden");
 
                 if (currentRole === 'student') {
-                    // Go to scanning
+                    // Go to scanning and immediately search for teacher's new class.
+                    // Do NOT use alert() here — blocking the JS event loop swallows the
+                    // active-classes broadcast that arrives while the dialog is open,
+                    // which breaks auto-reconnect for all students except the last one
+                    // to dismiss the dialog.
                     availableClassesScreen.classList.remove('hidden');
                     renderScanningForTeacher();
+
+                    // Re-arm auto-flow and request a fresh class list so handleAutoFlow()
+                    // can immediately find and join the teacher's new class.
+                    autoFlowTriggered = true;
+                    socket.emit('get-active-classes');
+                    setTimeout(() => handleAutoFlow(), 300);
                 } else {
                     // Teacher fallback
                     roleSelection.classList.remove("hidden");
@@ -4644,7 +4660,9 @@ if (btnPathDocuments) btnPathDocuments.addEventListener('click', () => { console
 if (btnPathDownloads) btnPathDownloads.addEventListener('click', () => { console.log('Downloads path button clicked'); handleQuickPath('downloads'); });
 
 // Windows Features Listeners (Electron)
-socket.on('execute-lock-screen', () => {
+socket.on('execute-lock-screen', (data) => {
+    const commandId = data && data.commandId;
+    const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
         // Collect translations for the current language
         const t = (key) => translations[currentLanguage][key] || key;
@@ -4656,46 +4674,73 @@ socket.on('execute-lock-screen', () => {
         };
         window.electron.ipcRenderer.invoke('lock-screen', lockStrings);
     }
+    if (commandId && ackClassId) socket.emit('command-ack', { classId: ackClassId, commandId });
 });
 
-socket.on('execute-unlock-screen', () => {
+socket.on('execute-unlock-screen', (data) => {
+    const commandId = data && data.commandId;
+    const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
         window.electron.ipcRenderer.invoke('unlock-screen');
     }
+    if (commandId && ackClassId) socket.emit('command-ack', { classId: ackClassId, commandId });
 });
 
-socket.on('execute-shutdown', () => {
+socket.on('execute-shutdown', (data) => {
+    const commandId = data && data.commandId;
+    const ackClassId = (data && data.classId) || currentClassId;
+    if (commandId && ackClassId) socket.emit('command-ack', { classId: ackClassId, commandId });
     if (window.electron) {
         window.electron.ipcRenderer.invoke('shutdown-pc');
     }
 });
 
-socket.on('execute-focus', () => {
+socket.on('execute-focus', (data) => {
+    const commandId = data && data.commandId;
+    const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
         window.electron.ipcRenderer.invoke('focus-window');
     }
+    if (commandId && ackClassId) socket.emit('command-ack', { classId: ackClassId, commandId });
 });
 
-socket.on('execute-close-all-apps', () => {
+socket.on('execute-close-all-apps', (data) => {
+    const commandId = data && data.commandId;
+    const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
         window.electron.ipcRenderer.invoke('close-all-apps');
     }
+    if (commandId && ackClassId) socket.emit('command-ack', { classId: ackClassId, commandId });
 });
 
 socket.on('execute-disable-internet', (data) => {
+    const commandId = data && data.commandId;
+    const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
         const payload = data && data.whitelist ? { disable: true, whitelist: data.whitelist } : true;
         window.electron.ipcRenderer.invoke('toggle-internet', payload)
-            .then(() => console.log('Internet disabled successfully'))
+            .then(() => {
+                console.log('Internet disabled successfully');
+                if (commandId && ackClassId) socket.emit('command-ack', { classId: ackClassId, commandId });
+            })
             .catch(e => console.error('Failed to disable internet', e));
+    } else if (commandId && ackClassId) {
+        socket.emit('command-ack', { classId: ackClassId, commandId });
     }
 });
 
-socket.on('execute-enable-internet', () => {
+socket.on('execute-enable-internet', (data) => {
+    const commandId = data && data.commandId;
+    const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
         window.electron.ipcRenderer.invoke('toggle-internet', false)
-            .then(() => console.log('Internet enabled successfully'))
+            .then(() => {
+                console.log('Internet enabled successfully');
+                if (commandId && ackClassId) socket.emit('command-ack', { classId: ackClassId, commandId });
+            })
             .catch(e => console.error('Failed to enable internet', e));
+    } else if (commandId && ackClassId) {
+        socket.emit('command-ack', { classId: ackClassId, commandId });
     }
 });
 

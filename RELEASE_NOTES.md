@@ -1,5 +1,29 @@
 # Release Notes
 
+## [11.3.1] - 2026-03-19
+
+### FIXES
+- **Students Stuck After Teacher Disconnect**: When the teacher left and created a new class, 8 out of 9 students would stay frozen in the dead class instead of automatically finding and joining the new one. Two separate bugs caused this:
+  1. The `class-ended` handler called the browser's built-in `alert()` dialog, which freezes JavaScript completely while it waits for a click. While the dialog sat open, the server sent the `active-classes` broadcast containing the teacher's new class. That event executed after the dialog was dismissed — but at that point `currentClassId` was still the old class, so `handleAutoFlow()` silently returned without doing anything. Students ended up staring at the scanning spinner with no further trigger. Fixed by removing the blocking `alert()` and immediately re-arming and calling `handleAutoFlow()` after going to the scanning state.
+  2. For students whose socket reconnected after the class was already deleted: `joinClass()` would fail, set `autoFlowTriggered = false`, and wait for the next socket reconnect to retry. But no reconnect was coming — the socket was already connected. The next `active-classes` event called `handleAutoFlow()`, which immediately returned because `autoFlowTriggered` was false. Fixed by keeping `autoFlowTriggered = true` and calling `handleAutoFlow()` directly after the failed join instead of waiting.
+
+---
+
+## [11.3.0] - 2026-03-18
+
+### NEW
+- **Command Acknowledgment (Handshake)**: When the teacher sends a command (lock screen, cut internet, open app, close all apps, shutdown, etc.), each student PC now sends back a confirmation after executing it. The teacher's PC receives a per-student acknowledgment showing the student's **name** and **PC name**. If a student's confirmation does not arrive within 5 seconds, the server automatically resends the command to that student — up to 3 retries — before giving up. This ensures commands reliably reach every PC even on flaky classroom networks.
+- **Active State Applied to Late Joiners**: Students who join a class after the teacher has already issued a class-wide command now receive the current state immediately on join. Specifically: if internet cutoff is active when a student connects, their internet is blocked automatically; if screen lock is active, their screen is locked automatically. Previously these students would join in an unlocked/unrestricted state until the teacher re-issued the command.
+
+### INTERNALS
+- Added `pendingCommandAcks` map and `sendCommandWithAck` / `removePendingAcksForSocket` / `clearPendingAcksForClass` helpers in `server/index.js`.
+- `classData` objects now carry `internetCutActive`, `internetCutPayload`, and `lockScreenActive` fields to persist class-wide command state across joins.
+- All seven command handlers (`trigger-lock-screen`, `trigger-unlock-screen`, `trigger-disable-internet`, `trigger-enable-internet`, `trigger-shutdown`, `trigger-focus`, `trigger-close-all-apps`) route through `sendCommandWithAck`.
+- Pending ack entries are cleaned up immediately when a student leaves/disconnects or when a class is deleted, preventing stale retry timers.
+- Client-side `execute-*` handlers emit `command-ack` after execution; internet commands wait for the Electron IPC promise to resolve before acking; shutdown acks before invoking (the PC won't be online to ack afterwards).
+
+---
+
 ## [11.2.4] - 2026-03-18
 
 ### FIXES

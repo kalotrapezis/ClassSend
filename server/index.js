@@ -242,6 +242,61 @@ app.get('/api/discovery-info', (req, res) => {
 const activeClasses = new Map(); // classId -> { teacherId, students: [], deletionTimeout: null }
 const networkDiscovery = new NetworkDiscovery();
 
+// ===== COMMAND ACK TRACKING =====
+// Tracks pending acknowledgements for commands sent to students.
+// commandId -> { classId, eventName, payload, pendingStudents: Set<socketId>, retryCount, retryTimer }
+const pendingCommandAcks = new Map();
+const CMD_ACK_TIMEOUT_MS = 5000;
+const CMD_ACK_MAX_RETRIES = 3;
+
+function sendCommandWithAck(classId, studentIds, eventName, payload) {
+  if (!studentIds || studentIds.length === 0) return null;
+  const commandId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const safePayload = payload || {};
+
+  studentIds.forEach(sid => {
+    io.to(sid).emit(eventName, { ...safePayload, commandId, classId });
+  });
+
+  const entry = { classId, eventName, payload: safePayload, pendingStudents: new Set(studentIds), retryCount: 0, retryTimer: null };
+  pendingCommandAcks.set(commandId, entry);
+
+  const scheduleRetry = () => {
+    entry.retryTimer = setTimeout(() => {
+      const e = pendingCommandAcks.get(commandId);
+      if (!e || e.pendingStudents.size === 0) { pendingCommandAcks.delete(commandId); return; }
+      if (e.retryCount >= CMD_ACK_MAX_RETRIES) {
+        console.log(`[ACK] Giving up on ${eventName} after ${CMD_ACK_MAX_RETRIES} retries (${e.pendingStudents.size} students did not ack)`);
+        pendingCommandAcks.delete(commandId);
+        return;
+      }
+      e.retryCount++;
+      console.log(`[ACK] Retry ${e.retryCount}/${CMD_ACK_MAX_RETRIES} for ${eventName} (${e.pendingStudents.size} students pending)`);
+      e.pendingStudents.forEach(sid => io.to(sid).emit(eventName, { ...e.payload, commandId, classId }));
+      scheduleRetry();
+    }, CMD_ACK_TIMEOUT_MS);
+  };
+  scheduleRetry();
+  return commandId;
+}
+
+// Remove a socket from all pending ack entries (call on student leave/disconnect)
+function removePendingAcksForSocket(socketId) {
+  for (const entry of pendingCommandAcks.values()) {
+    entry.pendingStudents.delete(socketId);
+  }
+}
+
+// Cancel and remove all pending ack entries for a class (call on class deletion)
+function clearPendingAcksForClass(classId) {
+  for (const [commandId, entry] of pendingCommandAcks.entries()) {
+    if (entry.classId === classId) {
+      if (entry.retryTimer) clearTimeout(entry.retryTimer);
+      pendingCommandAcks.delete(commandId);
+    }
+  }
+}
+
 // Auto-incrementing class counter for auto-naming
 let classCounter = 0;
 
@@ -834,7 +889,10 @@ io.on('connection', (socket) => {
       advancedSettings: configManager.get('advancedSettings'),
       blockAllActive: false,
       allowHandsUp: true,
-      nextPcNumber: 1
+      nextPcNumber: 1,
+      internetCutActive: false,
+      internetCutPayload: null,
+      lockScreenActive: false
     });
     socket.join(classId);
     console.log(`Class created: ${classId} by ${userName} (${socket.id})`);
@@ -901,7 +959,10 @@ io.on('connection', (socket) => {
       allowHandsUp: true,
       autoDownloadEnabled: false, // New
       autoDownloadPath: '', // New
-      nextPcNumber: 1
+      nextPcNumber: 1,
+      internetCutActive: false,
+      internetCutPayload: null,
+      lockScreenActive: false
     });
     socket.join(finalClassId);
     console.log(`Auto-created class: ${finalClassId} by ${userName} (${socket.id})`);
@@ -1275,6 +1336,18 @@ io.on('connection', (socket) => {
       socket.emit('start-monitoring', { interval: classData.monitoringInterval, quality, offset });
       console.log(`Sent start-monitoring to late-joining student ${userName} (offset ${offset}ms, quality ${quality})`);
     }
+
+    // Apply active class-wide commands to late-joining students
+    if (role === 'student') {
+      if (classData.internetCutActive && classData.internetCutPayload) {
+        sendCommandWithAck(classId, [socket.id], 'execute-disable-internet', classData.internetCutPayload);
+        console.log(`[Late Join] Applied active internet cut to ${userName} (${socket.id})`);
+      }
+      if (classData.lockScreenActive) {
+        sendCommandWithAck(classId, [socket.id], 'execute-lock-screen');
+        console.log(`[Late Join] Applied active lock screen to ${userName} (${socket.id})`);
+      }
+    }
   });
 
   // Leave class
@@ -1295,6 +1368,7 @@ io.on('connection', (socket) => {
         classData.students.splice(studentIndex, 1);
       }
 
+      removePendingAcksForSocket(socket.id);
       socket.leave(classId);
 
       // Notify remaining participants
@@ -1501,20 +1575,18 @@ io.on('connection', (socket) => {
     if (classData.teacherId !== socket.id) return;
 
     if (targetSocketId) {
-      io.to(targetSocketId).emit('execute-lock-screen');
+      sendCommandWithAck(classId, [targetSocketId], 'execute-lock-screen');
     } else {
-      // 1. Send immediate lock
-      classData.students.forEach(s => {
-        const sid = typeof s === 'object' ? s.id : s;
-        io.to(sid).emit('execute-lock-screen');
-      });
+      const studentIds = classData.students.map(s => typeof s === 'object' ? s.id : s);
+      sendCommandWithAck(classId, studentIds, 'execute-lock-screen');
+      classData.lockScreenActive = true;
 
-      // 2. Setup repeating interval every 5 seconds until unlocked
+      // Setup repeating interval every 5 seconds until unlocked
       if (classData.lockIntervalId) clearInterval(classData.lockIntervalId);
       classData.lockIntervalId = setInterval(() => {
         classData.students.forEach(s => {
           const sid = typeof s === 'object' ? s.id : s;
-          io.to(sid).emit('execute-lock-screen');
+          io.to(sid).emit('execute-lock-screen', { classId });
         });
         console.log(`[Lock Screen] Repeated lock broadcast for class ${classId}`);
       }, 5000);
@@ -1528,12 +1600,10 @@ io.on('connection', (socket) => {
     const classData = activeClasses.get(classId);
     if (classData.teacherId !== socket.id) return;
     if (targetSocketId) {
-      io.to(targetSocketId).emit('execute-shutdown');
+      sendCommandWithAck(classId, [targetSocketId], 'execute-shutdown');
     } else {
-      classData.students.forEach(s => {
-        const sid = typeof s === 'object' ? s.id : s;
-        io.to(sid).emit('execute-shutdown');
-      });
+      const studentIds = classData.students.map(s => typeof s === 'object' ? s.id : s);
+      sendCommandWithAck(classId, studentIds, 'execute-shutdown');
       console.log(`[Shutdown] Sent to all students in ${classId}`);
     }
   });
@@ -1543,12 +1613,10 @@ io.on('connection', (socket) => {
     const classData = activeClasses.get(classId);
     if (classData.teacherId !== socket.id) return;
     if (targetSocketId) {
-      io.to(targetSocketId).emit('execute-focus');
+      sendCommandWithAck(classId, [targetSocketId], 'execute-focus');
     } else {
-      classData.students.forEach(s => {
-        const sid = typeof s === 'object' ? s.id : s;
-        io.to(sid).emit('execute-focus');
-      });
+      const studentIds = classData.students.map(s => typeof s === 'object' ? s.id : s);
+      sendCommandWithAck(classId, studentIds, 'execute-focus');
       console.log(`[Focus App] Sent to all students in ${classId}`);
     }
   });
@@ -1559,13 +1627,11 @@ io.on('connection', (socket) => {
     if (classData.teacherId !== socket.id) return;
 
     if (targetSocketId) {
-      io.to(targetSocketId).emit('execute-close-all-apps');
+      sendCommandWithAck(classId, [targetSocketId], 'execute-close-all-apps');
       console.log(`[Close All Apps] Sent to specific student ${targetSocketId} in ${classId}`);
     } else {
-      classData.students.forEach(s => {
-        const sid = typeof s === 'object' ? s.id : s;
-        io.to(sid).emit('execute-close-all-apps');
-      });
+      const studentIds = classData.students.map(s => typeof s === 'object' ? s.id : s);
+      sendCommandWithAck(classId, studentIds, 'execute-close-all-apps');
       console.log(`[Close All Apps] Sent to all students in ${classId}`);
     }
   });
@@ -1576,12 +1642,12 @@ io.on('connection', (socket) => {
     if (classData.teacherId !== socket.id) return;
     const safeWhitelist = Array.isArray(whitelist) ? whitelist : [];
     if (targetSocketId) {
-      io.to(targetSocketId).emit('execute-disable-internet', { whitelist: safeWhitelist });
+      sendCommandWithAck(classId, [targetSocketId], 'execute-disable-internet', { whitelist: safeWhitelist });
     } else {
-      classData.students.forEach(s => {
-        const sid = typeof s === 'object' ? s.id : s;
-        io.to(sid).emit('execute-disable-internet', { whitelist: safeWhitelist });
-      });
+      const studentIds = classData.students.map(s => typeof s === 'object' ? s.id : s);
+      sendCommandWithAck(classId, studentIds, 'execute-disable-internet', { whitelist: safeWhitelist });
+      classData.internetCutActive = true;
+      classData.internetCutPayload = { whitelist: safeWhitelist };
       console.log(`[No Internet] Disabling internet for all students in ${classId} (whitelist: ${safeWhitelist.length} entries)`);
     }
   });
@@ -1591,12 +1657,12 @@ io.on('connection', (socket) => {
     const classData = activeClasses.get(classId);
     if (classData.teacherId !== socket.id) return;
     if (targetSocketId) {
-      io.to(targetSocketId).emit('execute-enable-internet');
+      sendCommandWithAck(classId, [targetSocketId], 'execute-enable-internet');
     } else {
-      classData.students.forEach(s => {
-        const sid = typeof s === 'object' ? s.id : s;
-        io.to(sid).emit('execute-enable-internet');
-      });
+      const studentIds = classData.students.map(s => typeof s === 'object' ? s.id : s);
+      sendCommandWithAck(classId, studentIds, 'execute-enable-internet');
+      classData.internetCutActive = false;
+      classData.internetCutPayload = null;
       console.log(`[No Internet] Enabling internet for all students in ${classId}`);
     }
   });
@@ -1610,6 +1676,35 @@ io.on('connection', (socket) => {
       io.to(sid).emit('execute-set-internet-persist', { persist });
     });
     console.log(`[InternetPersist] Set persist=${persist} for all students in ${classId}`);
+  });
+
+  // ===== COMMAND ACK HANDLER =====
+  // Students send this after successfully executing a command.
+  // Server forwards confirmation to teacher (with pcName + username) and handles retry bookkeeping.
+  socket.on('command-ack', ({ classId, commandId }) => {
+    const entry = pendingCommandAcks.get(commandId);
+    if (!entry) return;
+
+    entry.pendingStudents.delete(socket.id);
+
+    // Notify teacher with student identity (name + pcName)
+    const classData = activeClasses.get(classId);
+    if (classData) {
+      const student = classData.students.find(s => (typeof s === 'object' ? s.id : s) === socket.id);
+      io.to(classData.teacherId).emit('command-ack-received', {
+        commandId,
+        commandName: entry.eventName,
+        studentId: socket.id,
+        studentName: student ? student.name : 'Unknown',
+        pcName: student ? (student.pcName || null) : null
+      });
+    }
+
+    if (entry.pendingStudents.size === 0) {
+      if (entry.retryTimer) clearTimeout(entry.retryTimer);
+      pendingCommandAcks.delete(commandId);
+      console.log(`[ACK] All students acknowledged ${entry.eventName} for class ${classId}`);
+    }
   });
 
   socket.on('open-file-on-students', ({ classId, fileId, fileName }) => {
@@ -1630,20 +1725,18 @@ io.on('connection', (socket) => {
     if (classData.teacherId !== socket.id) return;
 
     if (targetSocketId) {
-      io.to(targetSocketId).emit('execute-unlock-screen');
+      sendCommandWithAck(classId, [targetSocketId], 'execute-unlock-screen');
     } else {
-      // 1. Clear repeating lock interval if it exists
+      // Clear repeating lock interval
       if (classData.lockIntervalId) {
         clearInterval(classData.lockIntervalId);
         classData.lockIntervalId = null;
         console.log(`[Unlock Screen] Cleared repeating lock interval for class ${classId}`);
       }
+      classData.lockScreenActive = false;
 
-      // 2. Send unlock to all students
-      classData.students.forEach(s => {
-        const sid = typeof s === 'object' ? s.id : s;
-        io.to(sid).emit('execute-unlock-screen');
-      });
+      const studentIds = classData.students.map(s => typeof s === 'object' ? s.id : s);
+      sendCommandWithAck(classId, studentIds, 'execute-unlock-screen');
       console.log(`[Unlock Screen] Sent to all students in ${classId}`);
     }
   });
@@ -1970,6 +2063,7 @@ io.on('connection', (socket) => {
     // Notify all students that the class has ended
     io.to(classId).emit('class-ended', { message: 'Teacher has deleted the class', classId });
 
+    clearPendingAcksForClass(classId);
     activeClasses.delete(classId);
 
     // Unpublish mDNS hostname
@@ -2888,6 +2982,7 @@ io.on('connection', (socket) => {
             console.log(`Grace period expired for class ${classId}, deleting class`);
             // Notify all students that the class has ended
             io.to(classId).emit('class-ended', { message: 'Teacher has disconnected', classId });
+            clearPendingAcksForClass(classId);
             activeClasses.delete(classId);
             broadcastActiveClasses();
           }
@@ -2906,6 +3001,8 @@ io.on('connection', (socket) => {
         if (studentIndex !== -1) {
           classData.students.splice(studentIndex, 1);
         }
+
+        removePendingAcksForSocket(socket.id);
 
         // Notify all participants that user left
         io.to(classId).emit('user-left', {
