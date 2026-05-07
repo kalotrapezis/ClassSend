@@ -6315,3 +6315,24 @@ input:checked+.slider:before {
   font-size: 0.82rem;
   font-style: italic;
 }
+
+/* Users search bar (ClassSend2-style) */
+.users-search-wrapper {
+    padding: 6px 8px 4px 8px;
+}
+.users-search-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #444);
+    background: var(--input-bg, rgba(255,255,255,0.05));
+    color: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color .15s ease;
+}
+.users-search-input:focus {
+    border-color: var(--accent-color, #4a9eff);
+}
+.user-item.search-hidden { display: none; }

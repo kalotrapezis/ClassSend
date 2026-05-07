@@ -1,5 +1,5 @@
-# ClassSend 11.3.1
-![Version](https://img.shields.io/badge/version-v11.3.1-blue)
+# ClassSend 11.4.0
+![Version](https://img.shields.io/badge/version-v11.4.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-ISC-green)
 
@@ -64,7 +64,36 @@ reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v Pr
 - **🧠 Enhanced AI (N-gram)**: Upgraded Naive Bayes classifier with N-gram tokenization.
 - **📋 List Management**: Full control over Blacklist (Forbidden words) and Whitelist (Good list) with Import/Export capabilities.
 
-## 🆕 What's New in 11.2.0
+## 🆕 What's New in 11.4.0
+
+### Bulletproof Auto-Connect
+The student↔teacher connection layer was rewritten to never freeze and to find the teacher PC even when the IP changes:
+
+- **MAC + hostname aware history**: Each known server is stored with its MAC address, hostname, and `serverId` — not just the IP. When a teacher's PC gets a new IP via DHCP, students still find it via hostname (mDNS) or by matching MAC.
+- **Parallel race probing**: Up to 60 candidate URLs (history × IP/hostname/.local) are probed concurrently with a 2.5-second cap. Replaces the old sequential 7s-per-server loop that was leaving 7-8 of 10 PCs stuck on the scanning spinner.
+- **Continuous background heartbeat**: Re-probes known servers every 6 seconds while in the Lobby, so a teacher who starts ClassSend *after* the students still gets picked up within seconds. Heartbeat stops when joined to a class — no idle CPU cost.
+- **Three-path discovery (works in locked-down school networks)**:
+  1. **History probe** — plain HTTP, always on, works through any firewall that allows the classroom traffic.
+  2. **mDNS broadcast** — toggle (default ON), used for brand-new students with no history. Harmless if your school firewall blocks UDP multicast.
+  3. **Manual-connect fallback** — if nothing was found within 12 seconds, the IP entry dialog opens automatically.
+
+### Users-List Search (ClassSend2-style)
+A search bar appears above the users list with substring + typo-tolerant (Levenshtein-≤1) matching. The list is sorted *hostname-aware*: `Lab1, Lab2, Lab10` instead of `Lab1, Lab10, Lab2`.
+
+### Hostname as Default Username
+First-time users get their **machine hostname** as their default name (via `os.hostname()`), not a random "Happy Lemon"-style name. The dice button in Settings now resets to hostname instead of rolling random. Changing the UI language no longer overwrites names users typed in (long-standing bug).
+
+### Performance
+- New lightweight `/api/ping` endpoint (just `serverId`/`hostname`/`mac`/`ts`) for fast first-hit probing.
+- Join callback now caps message history to the last 200 messages — joins on a full classroom no longer carry the entire history (including media refs) per student.
+- Removed 500 ms artificial delay on boot probe.
+
+### Tests
+21 unit tests + 3 live integration smoke tests covering: hostname sort, fuzzy search, known-server migration / DHCP merge, parallel probe contract, server identity, end-to-end ping. Run with `npm run test:unit`.
+
+---
+
+## What's New in 11.2.0
 
 ### Configuration File (`classsend.conf`)
 ClassSend now ships with a plain-text configuration file placed next to the executable — similar to `/etc/` config files on Linux. IT administrators can edit it with any text editor before or after deployment; a restart applies the changes.
@@ -154,15 +183,13 @@ When navigating with the keyboard, TAB would reach the buttons *inside* the Tool
 
 
 ## 🛠️ Troubleshooting Connection Issues
-If students cannot see the teacher's class automatically:
+Auto-connect (since 11.4.0) tries three paths in parallel and never freezes. If a student still can't find the class:
 
-1.  **Check Network**: Ensure both Teacher and Students are on the **Same Wi-Fi Network**.
+1.  **Check Network**: Both Teacher and Students must be on the **same Wi-Fi network**.
 2.  **Firewall**: On the Teacher's computer, ensure **Windows Firewall** allows "Node.js" or "ClassSend" on Private Networks.
-3.  **Manual Connect**:
-    *   **Teacher**: Click the 🌐 icon -> Toggle "Standard IP". Note the IP (e.g., `10.17.3.125`).
-    *   **Student**: Click "Manual Connect" (or 🌐) -> Enter that IP.
-4.  **IP History**: Once a student connects successfully once, ClassSend remembers the IP.
-    *   Students periodically probe this history every 10 seconds while waiting in the Lobby, so they will auto-connect even if the Teacher starts ClassSend *after* the students.
+3.  **First-ever boot in a school that blocks mDNS**: After 12 seconds with no class found, the **manual-connect dialog opens automatically**. Type the teacher's IP or hostname (e.g., `http://lab-01:3000`).
+4.  **Subsequent boots**: ClassSend remembers each teacher PC by **MAC + hostname**, so even if the teacher's IP changes via DHCP, the next boot reconnects automatically. The heartbeat re-probes every 6 seconds while you're in the Lobby — so the teacher can start ClassSend *after* the students and they'll still auto-join within seconds.
+5.  **mDNS toggle**: Settings → Auto-Discovery is ON by default. If your school explicitly forbids UDP multicast, you can turn it off — the history probe and manual fallback continue to work.
 
 ## 🛠️ How to Run (Development)
 

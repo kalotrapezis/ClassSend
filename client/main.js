@@ -3,6 +3,12 @@
 import { translations } from "./translations.js";
 import { generateRandomName } from "./name-generator.js";
 import { releaseNotes } from "./release-notes.js";
+import {
+    loadKnownServers,
+    upsertKnownServer,
+    expandCandidates,
+    removeKnownServer
+} from "./known-servers.js";
 
 // Logger for Advanced Settings
 const capturedLogs = [];
@@ -173,41 +179,94 @@ function stopClassRefreshInterval() {
 // Network Discovery - Find other ClassSend servers on the network
 let discoveredServers = new Map(); // ip:port -> { name, ip, port, classes, version }
 let networkDiscoveryStarted = false;
-let isAutoDiscoveryEnabled = localStorage.getItem('classsend-auto-discovery') === 'true'; // Default is FALSE now
+// Default is ON (was FALSE) so first-ever boot can find the teacher via mDNS
+// even without prior history. Users can still turn it off in Settings.
+let isAutoDiscoveryEnabled = (localStorage.getItem('classsend-auto-discovery') ?? 'true') === 'true';
+
+// Continuous discovery heartbeat — re-probes known servers in the background
+// while we're not yet in a class, so a teacher who comes online AFTER the
+// student boots is still found within the heartbeat window.
+let _discoveryHeartbeat = null;
+const DISCOVERY_HEARTBEAT_MS = 6000;
+
+function _startDiscoveryHeartbeat() {
+    if (_discoveryHeartbeat) return;
+    _discoveryHeartbeat = setInterval(() => {
+        // Stop heartbeat once we're inside a real class (Lobby is still "looking")
+        if (currentClassId && currentClassId !== 'Lobby') {
+            clearInterval(_discoveryHeartbeat);
+            _discoveryHeartbeat = null;
+            return;
+        }
+        if (navigator.onLine) startProbingSequence();
+    }, DISCOVERY_HEARTBEAT_MS);
+}
+
+// If neither mDNS nor history yields a class within this window, we surface
+// the manual-connect UI so the user can enter the teacher's IP/hostname by
+// hand. This is the safety net for schools that block mDNS UDP broadcasts.
+const MANUAL_FALLBACK_MS = 12000;
+let _manualFallbackTimer = null;
+
+function _armManualFallback() {
+    if (_manualFallbackTimer) return;
+    _manualFallbackTimer = setTimeout(() => {
+        _manualFallbackTimer = null;
+        // Only nag if we're still a student looking for a class
+        if (currentRole !== 'student') return;
+        if (currentClassId && currentClassId !== 'Lobby') return;
+        if (discoveredServers.size > 0) return;
+        console.log("[Auto-Connect] No class found via mDNS or history within "
+            + MANUAL_FALLBACK_MS + "ms — surfacing manual connect UI.");
+        if (typeof showManualConnectPrompt === 'function') {
+            showManualConnectPrompt();
+        } else if (typeof btnShowUrl !== 'undefined' && btnShowUrl) {
+            // Fallback: trigger the existing "Connect by IP" dialog
+            try { btnShowUrl.click(); } catch (e) { }
+        }
+    }, MANUAL_FALLBACK_MS);
+}
+
+function _disarmManualFallback() {
+    if (_manualFallbackTimer) {
+        clearTimeout(_manualFallbackTimer);
+        _manualFallbackTimer = null;
+    }
+}
 
 function startNetworkDiscovery() {
     if (networkDiscoveryStarted) return;
 
-    // Smart Network Check (Booting Process)
-    // 1. Check if we are online immediately
+    // Two parallel mechanisms run together:
+    //   1. History probe (always on) — direct HTTP probes to known IPs/hostnames.
+    //      Works in locked-down school networks because it uses regular HTTP.
+    //   2. mDNS broadcast (toggle, default ON) — discovers brand-new servers
+    //      we've never seen before. Some schools block UDP multicast for
+    //      security; in that case the manual-fallback timer below kicks in.
     if (navigator.onLine) {
         console.log("Network status: ONLINE. Starting probe sequence...");
-        // Small delay (500ms) to ensure socket/IO is ready even if "online" is true
-        setTimeout(() => {
-            startProbingSequence();
-        }, 500);
+        startProbingSequence();
+        _startDiscoveryHeartbeat();
     } else {
         console.log("Network status: OFFLINE. Waiting for network...");
-        // Show scanning/offline state in UI (optional, but "Looking for classes" covers it)
-
-        // 2. Wait for online event
         window.addEventListener('online', () => {
             console.log("Network status changed: ONLINE. Starting probe sequence...");
-            // Wait a moment for connection to stabilize
-            setTimeout(() => {
-                startProbingSequence();
-                // If socket is disconnected, try connecting
-                if (!socket.connected) {
-                    socket.connect();
-                }
-            }, 2000);
+            startProbingSequence();
+            if (!socket.connected) socket.connect();
+            _startDiscoveryHeartbeat();
         });
     }
 
     if (isAutoDiscoveryEnabled) {
-        // Broadcasting ON: also start UDP listener
+        // mDNS UDP listener — best-effort, may be silently blocked by school firewall.
         networkDiscoveryStarted = true;
         socket.emit("start-discovery");
+    }
+
+    // Always arm the manual-connect fallback for students. If mDNS works
+    // and/or history finds something, the timer is disarmed before it fires.
+    if (savedRole === 'student' || currentRole === 'student') {
+        _armManualFallback();
     }
 }
 
@@ -218,6 +277,11 @@ function startProbingSequence() {
 }
 
 function stopNetworkDiscovery() {
+    if (_discoveryHeartbeat) {
+        clearInterval(_discoveryHeartbeat);
+        _discoveryHeartbeat = null;
+    }
+    _disarmManualFallback();
     if (!networkDiscoveryStarted) return;
     networkDiscoveryStarted = false;
     socket.emit("stop-discovery");
@@ -229,6 +293,7 @@ socket.on("server-discovered", (serverInfo) => {
     const key = `${serverInfo.ip}:${serverInfo.port}`;
     discoveredServers.set(key, serverInfo);
     console.log(`Discovered ClassSend server: ${serverInfo.name} at ${key}`, serverInfo.classes);
+    _disarmManualFallback();
 
     // If we have a role and are viewing classes, update the UI
     if (currentRole) {
@@ -262,26 +327,18 @@ socket.on("server-lost", (serverInfo) => {
 });
 
 // ===== IP HISTORY & PROBING =====
-function saveKnownServer(url) {
+// Rich history is owned by ./known-servers.js. saveKnownServer() is kept as a
+// thin shim so legacy call-sites (which only know the URL) keep working; rich
+// callers should use upsertKnownServer() directly with mac/host/teacherName.
+function saveKnownServer(url, extra) {
     try {
-        // Never save our own origin — we are already connected to it
-        const cleanUrl = url.split('?')[0].replace(/\/$/, '');
-        const ownOrigin = window.location.origin.replace(/\/$/, '');
-        if (cleanUrl === ownOrigin) return;
-
-        let knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
-        // Normalise URL before storing (strip query params & trailing slash)
-        const normalizedUrl = cleanUrl;
-        // Add if unique
-        if (!knownServers.includes(normalizedUrl)) {
-            // Add to FRONT
-            knownServers.unshift(normalizedUrl);
-            // Limit to last 10
-            if (knownServers.length > 10) knownServers.pop();
-            localStorage.setItem('classsend-known-servers', JSON.stringify(knownServers));
-
-            // Refresh UI
-            renderGlobalHistoryLists();
+        const cleanUrl = (url || '').split('?')[0].replace(/\/+$/, '');
+        const ownOrigin = window.location.origin.replace(/\/+$/, '');
+        if (!cleanUrl || cleanUrl === ownOrigin) return;
+        upsertKnownServer({ url: cleanUrl, ...(extra || {}) });
+        // Refresh UI lazily — never block here
+        if (typeof renderGlobalHistoryLists === 'function') {
+            try { renderGlobalHistoryLists(); } catch (e) { }
         }
     } catch (e) {
         console.error("Failed to save known server:", e);
@@ -297,90 +354,94 @@ async function probeKnownServers() {
     isProbing = true;
 
     try {
-        const knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
-        if (knownServers.length === 0) {
-            // Only log this once or if discovery is explicitly starting, otherwise it spams
-            // console.log("[Probing] No known servers in history.");
+        const entries = loadKnownServers();
+        if (entries.length === 0) {
             isProbing = false;
             return;
         }
 
-        console.log(`[Probing] Checking ${knownServers.length} known servers...`);
-        let foundAny = false;
+        // Expand each entry into url + hostname-based candidates so a DHCP-renewed
+        // teacher PC is still findable via mDNS hostname/.local.
+        const knownServers = expandCandidates(entries, window.location.origin);
+        if (knownServers.length === 0) {
+            isProbing = false;
+            return;
+        }
 
-        // Parallel-ish probing would be faster, but sequential is safer to avoid congestion
-        for (const serverUrl of knownServers) {
-            if (serverUrl === window.location.origin) continue;
+        console.log(`[Probing] Checking ${knownServers.length} candidates (parallel race)...`);
 
-            const probeUrl = `${serverUrl}/api/discovery-info`;
-            let probeSuccess = false;
-
-            // Retry Logic: 1s, 2s, 4s
-            const timeouts = [1000, 2000, 4000];
-
-            for (let attempt = 0; attempt < timeouts.length && !probeSuccess; attempt++) {
-                const timeoutMs = timeouts[attempt];
-                console.log(`[Probing] ${serverUrl} - Attempt ${attempt + 1}/${timeouts.length} (Timeout: ${timeoutMs}ms)`);
-
+        // PARALLEL probe: every known server is hit at the same time with a single
+        // 2.5s timeout. Sequential probing was causing 7s × N freezes when several
+        // PCs auto-connected on cold start (only the first 2-3 ever finished probing).
+        const PROBE_TIMEOUT_MS = 2500;
+        const probeOne = async (serverUrl) => {
+            if (serverUrl === window.location.origin) return null;
+            // Use the cheap /api/ping for first-hit detection — it's tiny and
+            // doesn't serialize the class list. We pull /api/discovery-info only
+            // when we want full info.
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+            try {
+                const pingResp = await fetch(`${serverUrl}/api/ping`, { signal: controller.signal });
+                if (!pingResp.ok) return null;
+                const ping = await pingResp.json();
+                // Now fetch class list (server is up; this is cheap).
+                const infoResp = await fetch(`${serverUrl}/api/discovery-info`, { signal: controller.signal });
+                const info = infoResp.ok ? await infoResp.json() : {};
+                let ip, port;
                 try {
-                    const controller = new AbortController();
-                    const id = setTimeout(() => controller.abort(), timeoutMs);
-
-                    const response = await fetch(probeUrl, { signal: controller.signal });
-                    clearTimeout(id);
-
-                    if (response.ok) {
-                        const info = await response.json();
-                        let ip, port;
-                        try {
-                            const urlObj = new URL(serverUrl);
-                            ip = urlObj.hostname;
-                            port = urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80);
-                        } catch (e) {
-                            console.warn("Invalid known log URL", serverUrl);
-                            break;
-                        }
-
-                        const serverInfo = {
-                            name: info.name || "Known Server",
-                            ip: ip,
-                            port: port,
-                            classes: info.classes || [],
-                            version: info.version || "unknown"
-                        };
-
-                        const key = `${serverInfo.ip}:${serverInfo.port}`;
-                        if (!discoveredServers.has(key)) {
-                            discoveredServers.set(key, serverInfo);
-                            console.log(`[Probing] SUCCESS: Found ${serverInfo.name} at ${key}`);
-                            if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
-                                renderAvailableClasses();
-                            }
-                        }
-                        probeSuccess = true;
-                        foundAny = true;
-                    }
-                } catch (err) {
-                    console.log(`[Probing] Failed attempt ${attempt + 1} for ${serverUrl}: ${err.name}`);
-                }
+                    const urlObj = new URL(serverUrl);
+                    ip = urlObj.hostname;
+                    port = urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80);
+                } catch (e) { return null; }
+                return {
+                    name: info.name || "Known Server",
+                    ip, port,
+                    url: serverUrl,
+                    host: ping.hostname || info.hostname || null,
+                    mac: ping.mac || info.mac || null,
+                    serverId: ping.serverId || info.serverId || null,
+                    classes: info.classes || [],
+                    teacherName: (info.classes && info.classes[0]?.teacherName) || null,
+                    version: info.version || "unknown"
+                };
+            } catch (err) {
+                return null;
+            } finally {
+                clearTimeout(id);
             }
+        };
 
-            if (foundAny) {
-                console.log("[Probing] Server found. Stopping chain.");
-                handleAutoFlow();
-                isProbing = false;
-                return;
+        const results = await Promise.all(knownServers.map(probeOne));
+        let foundAny = false;
+        const seenServerIds = new Set();
+        for (const serverInfo of results) {
+            if (!serverInfo) continue;
+            // Dedupe by serverId so the multiple candidates per entry
+            // (url / host / .local) don't show as different servers.
+            if (serverInfo.serverId) {
+                if (seenServerIds.has(serverInfo.serverId)) continue;
+                seenServerIds.add(serverInfo.serverId);
+            }
+            const key = `${serverInfo.ip}:${serverInfo.port}`;
+            discoveredServers.set(key, serverInfo);
+            // Persist rich info so future cold-starts find this PC by MAC/hostname.
+            saveKnownServer(serverInfo.url, {
+                host: serverInfo.host,
+                mac: serverInfo.mac,
+                serverId: serverInfo.serverId,
+                teacherName: serverInfo.teacherName
+            });
+            console.log(`[Probing] HIT: ${serverInfo.name} @ ${key} host=${serverInfo.host} mac=${serverInfo.mac}`);
+            foundAny = true;
+        }
+        if (foundAny) {
+            _disarmManualFallback();
+            if (currentRole === 'student' && !availableClassesScreen.classList.contains('hidden')) {
+                renderAvailableClasses();
             }
         }
-
         handleAutoFlow();
-
-        if (!foundAny && !isAutoDiscoveryEnabled && currentRole === 'student' && !currentClassId) {
-            console.log("[Auto-Connect] All probes failed. Opening manual connect.");
-            if (classSetup.classList.contains('hidden') && roleSelection.classList.contains('hidden')) {
-                // if (btnShowUrl) btnShowUrl.click(); // REMOVED: User requested no automatic popups
-            }
-        }
 
     } catch (e) {
         console.error("Failed to probe known servers:", e);
@@ -390,11 +451,34 @@ async function probeKnownServers() {
 }
 
 
-// Auto-generate name if none exists
+// Auto-fill name from machine hostname if none exists.
+// Falls back to "PC-<random4>" only if hostname is unavailable.
 if (!userName) {
-    userName = generateRandomName(currentLanguage);
-    localStorage.setItem('classsend-userName', userName);
-    console.log(`Generated random name (${currentLanguage}): ${userName}`);
+    const cachedHost = localStorage.getItem('classsend-pcName');
+    if (cachedHost) {
+        userName = cachedHost;
+        localStorage.setItem('classsend-userName', userName);
+    } else {
+        try {
+            const ipc = window.electron?.ipcRenderer || window.ipcRenderer;
+            if (ipc) {
+                ipc.invoke('get-hostname').then(name => {
+                    if (name && !localStorage.getItem('classsend-userName')) {
+                        userName = name;
+                        localStorage.setItem('classsend-userName', userName);
+                        if (typeof userNameInput !== 'undefined' && userNameInput) {
+                            userNameInput.value = userName;
+                        }
+                        console.log(`[Identity] Using hostname as default name: ${userName}`);
+                    }
+                }).catch(() => { });
+            }
+        } catch (e) { }
+        if (!userName) {
+            userName = `PC-${Math.floor(1000 + Math.random() * 9000)}`;
+            localStorage.setItem('classsend-userName', userName);
+        }
+    }
 }
 
 // DOM Elements - Screens
@@ -2558,8 +2642,14 @@ if (btnSettingsChangePcName) {
 // Regenerate Random Name
 const btnRegenerateName = document.getElementById("btn-regenerate-name");
 if (btnRegenerateName) {
-    btnRegenerateName.addEventListener("click", () => {
-        const newName = generateRandomName(currentLanguage);
+    btnRegenerateName.addEventListener("click", async () => {
+        // "Reset to hostname" — never randomize over user-chosen names.
+        let newName = null;
+        try {
+            const ipc = window.electron?.ipcRenderer || window.ipcRenderer;
+            if (ipc) newName = await ipc.invoke('get-hostname');
+        } catch (e) { }
+        if (!newName) newName = `PC-${Math.floor(1000 + Math.random() * 9000)}`;
         settingsNameInput.value = newName;
         userName = newName;
         localStorage.setItem('classsend-userName', newName);
@@ -3611,6 +3701,60 @@ function scheduleRenderUsers() {
     _renderUsersTimer = setTimeout(renderUsersList, 40);
 }
 
+// ClassSend2-style helpers: split "Lab02" -> ("Lab", 2) so Lab1, Lab2, Lab10
+// sort numerically rather than lexicographically.
+function _splitHostNum(s) {
+    const m = (s || "").match(/^(.*?)(\d+)$/);
+    if (!m) return { prefix: s || "", num: 0, hasNum: false };
+    return { prefix: m[1], num: parseInt(m[2], 10), hasNum: true };
+}
+function _hostnameLess(a, b) {
+    const A = _splitHostNum(a), B = _splitHostNum(b);
+    if (A.prefix !== B.prefix) return A.prefix.localeCompare(B.prefix);
+    if (A.hasNum && B.hasNum) return A.num - B.num;
+    return (a || "").localeCompare(b || "");
+}
+// Cheap typo-tolerant match: substring OR Levenshtein <=1 for short queries.
+function _fuzzyMatch(haystack, needle) {
+    if (!needle) return true;
+    const h = (haystack || "").toLowerCase();
+    const n = needle.toLowerCase();
+    if (h.includes(n)) return true;
+    if (n.length < 4) return false;
+    // Levenshtein distance, early-exit at 2
+    const m = h.length, k = n.length;
+    if (Math.abs(m - k) > 1) return false;
+    let prev = new Array(k + 1);
+    let curr = new Array(k + 1);
+    for (let j = 0; j <= k; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++) {
+        curr[0] = i;
+        let rowMin = curr[0];
+        for (let j = 1; j <= k; j++) {
+            const cost = h[i - 1] === n[j - 1] ? 0 : 1;
+            curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+            if (curr[j] < rowMin) rowMin = curr[j];
+        }
+        if (rowMin > 1) return false;
+        [prev, curr] = [curr, prev];
+    }
+    return prev[k] <= 1;
+}
+
+let _userSearchQuery = "";
+const _usersSearchInput = document.getElementById('users-search-input');
+if (_usersSearchInput) {
+    let _searchDebounce;
+    _usersSearchInput.addEventListener('input', (e) => {
+        clearTimeout(_searchDebounce);
+        const v = e.target.value;
+        _searchDebounce = setTimeout(() => {
+            _userSearchQuery = v.trim();
+            renderUsersList();
+        }, 40);
+    });
+}
+
 // Users List
 function renderUsersList() {
     usersList.innerHTML = "";
@@ -3620,15 +3764,21 @@ function renderUsersList() {
     }
 
     const classData = joinedClasses.get(currentClassId);
-    const users = classData.users;
+    const users = (classData.users || []).slice().sort((a, b) => {
+        // Teachers first, then sort by pcName/hostname like ClassSend2
+        if (a.role !== b.role) return a.role === 'teacher' ? -1 : 1;
+        return _hostnameLess(a.pcName || a.name, b.pcName || b.name);
+    });
     const blockedUsers = classData.blockedUsers || new Set();
     const isTeacher = currentRole === 'teacher';
 
     userCount.textContent = users.length;
 
-
+    const q = _userSearchQuery;
 
     users.forEach(user => {
+        const haystack = `${user.pcName || ''} ${user.name || ''}`;
+        if (q && !_fuzzyMatch(haystack, q)) return;
         const userDiv = document.createElement("div");
         userDiv.classList.add("user-item");
 
@@ -4141,11 +4291,8 @@ if (languageSelect) {
         currentLanguage = e.target.value;
         localStorage.setItem('language', currentLanguage);
 
-        // Auto-regenerate name in new language
-        const newName = generateRandomName(currentLanguage);
-        userName = newName;
-        localStorage.setItem('classsend-userName', newName);
-        if (settingsNameInput) settingsNameInput.value = newName;
+        // NOTE: Previously auto-regenerated the username on language change,
+        // which overwrote user-chosen names. Now we leave the name alone.
 
         updateUIText();
         updateRoleDisplay(); // Update role text
