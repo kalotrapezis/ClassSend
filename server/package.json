@@ -11,6 +11,8 @@
         "make": "electron-builder --win --x64",
         "premake:win32": "npm --prefix ../client run build",
         "make:win32": "electron-builder --win --ia32",
+        "premake:universal": "npm --prefix ../client run build",
+        "make:universal": "electron-builder --win --x64 --ia32",
         "generate-icon": "node convert-icon.js",
         "server": "node index.js",
         "dev": "node --watch index.js",
@@ -22,7 +24,15 @@
         "icon": "./assets/icon.ico",
         "asar": true,
         "win": {
-            "target": "nsis",
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64",
+                        "ia32"
+                    ]
+                }
+            ],
             "icon": "./assets/icon.ico"
         },
         "extraResources": [
@@ -44,7 +54,8 @@
             "createDesktopShortcut": true,
             "createStartMenuShortcut": true,
             "shortcutName": "ClassSend",
-            "include": "installer.nsh"
+            "include": "installer.nsh",
+            "artifactName": "ClassSend-Win-Setup-${version}.${ext}"
         },
         "files": [
             "electron-main.js",
