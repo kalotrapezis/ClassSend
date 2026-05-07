@@ -22,6 +22,7 @@ export const translations = {
         "label-class-id": "Class ID (Optional)",
         "placeholder-name": "Enter your name",
         "placeholder-pc-name": "e.g., PC-1",
+        "placeholder-search-users": "Search users…",
         "placeholder-class-id": "Leave empty for new class",
         "btn-join": "Join Class",
         "btn-create": "Create Class",
@@ -319,6 +320,7 @@ export const translations = {
         "label-name": "Το Όνομά σας",
         "label-class-id": "ID Τάξης (Προαιρετικό)",
         "placeholder-name": "Εισάγετε το όνομά σας",
+        "placeholder-search-users": "Αναζήτηση χρηστών…",
         "placeholder-class-id": "Κενό για νέα τάξη",
         "btn-join": "Συμμετοχή", // Changed from "Είσοδος στην Τάξη"
         "btn-create": "Δημιουργία Τάξης",
@@ -389,6 +391,7 @@ export const translations = {
         "label-pc-name": "Όνομα Η/Υ",
         "label-class-id": "ID Τάξης (Προαιρετικό)",
         "placeholder-name": "Εισάγετε το όνομά σας",
+        "placeholder-search-users": "Αναζήτηση χρηστών…",
         "placeholder-pc-name": "π.χ. PC-1",
         "placeholder-class-id": "Αφήστε κενό για νέα τάξη",
         "header-available-classes": "Διαθέσιμες Τάξεις",

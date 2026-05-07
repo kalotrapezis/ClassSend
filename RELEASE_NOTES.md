@@ -1,5 +1,34 @@
 # Release Notes
 
+## [11.4.0] - 2026-05-07
+
+### NEW
+- **MAC + Hostname Aware Discovery**: The server now exposes a stable identity (`serverId`, `hostname`, `mac`) on `GET /api/discovery-info` and a new lightweight `GET /api/ping` used for fast first-hit probing. The client persists this rich info per known server so a teacher PC whose IP changes via DHCP is still found instantly via its hostname or MAC.
+- **Race-Based Parallel Probing**: Each known-server entry expands to multiple candidate URLs (recorded IP, `http://hostname:port`, `http://hostname.local:port`) and all are probed concurrently with a 2.5 s ceiling. Results are deduplicated by `serverId`. This fully replaces the old sequential `7s × N` probe loop that caused 7-8 of 10 PCs to freeze on cold start.
+- **Continuous Background Discovery**: A 6-second heartbeat re-probes known servers while the student is in the Lobby, so a teacher who comes online *after* the students are already booted is auto-detected within seconds. The heartbeat stops automatically once the student joins a real class — no idle cost at steady state.
+- **Three-Path Auto-Connect**:
+  1. **History probe** (always on, plain HTTP — works in locked-down school networks).
+  2. **mDNS broadcast** (toggle, default ON — for first-ever boot when no history exists; harmless if blocked by school firewall).
+  3. **Manual-connect fallback** — if neither yields a class within 12 s, the manual IP entry dialog opens automatically so the user can type the teacher's IP/hostname.
+- **Users-List Search Bar (ClassSend2-style)**: New search input above the users list with substring + Levenshtein-≤1 fuzzy matching. Hostname-aware sort means `Lab1, Lab2, Lab10` instead of `Lab1, Lab10, Lab2`.
+- **Hostname as Default Username**: First-time users now get the machine hostname (via `os.hostname()`) instead of a random "Happy Lemon"-style name. The dice button in Settings now resets to hostname rather than rolling random.
+
+### FIXES
+- **Name Auto-Overwrite**: Changing the language no longer regenerates the username, which was silently overwriting names users had typed in.
+- **Duplicate `blocked` Key in `join-class` Callback**: The server's join callback had two `blocked` keys; the second silently overwrote the first, losing the per-socket "is this user blocked" bit. Removed the duplicate.
+- **Bounded Join History**: The server now caps the message history sent to joiners at the most recent 200 messages. Joins were sending the entire log (including media references) to every joiner — a hidden bottleneck under burst joins of 10+ students.
+
+### PERFORMANCE
+- Removed the 500 ms artificial delay on boot probe — discovery now fires immediately when the network is online.
+- New `/api/ping` is a tiny JSON identity-only endpoint, used for first-hit detection before fetching the heavier `/api/discovery-info`.
+- Probe candidate set deduplicates own origin and (host / .local / IP) variants of the same machine before issuing requests.
+- Capped 200-message join history reduces per-joiner payload from unbounded to ≤ 200 messages.
+
+### TESTS
+- New unit suite: `hostname-sort.test.js`, `known-servers.test.js`, `connection-probe.test.js`, `discovery-endpoints.test.js`, `smoke.test.js` (live integration). 21 unit tests + 3 live smoke tests, all passing.
+
+---
+
 ## [11.3.1] - 2026-03-19
 
 ### FIXES

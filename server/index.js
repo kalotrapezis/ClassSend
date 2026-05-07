@@ -226,6 +226,37 @@ app.get('/api/download/:fileId', (req, res) => {
 });
 
 // New Endpoint for IP History Discovery (Lightweight Ping)
+// Stable per-machine identity (cached at module load — primary NIC MAC + hostname).
+const _serverIdentity = (() => {
+  const ifaces = os.networkInterfaces();
+  const virtualKw = ['virtual', 'vmware', 'vbox', 'hyperv', 'vethernet', 'wsl', 'loopback', 'docker', 'radmin', 'vpn', 'hamachi'];
+  let mac = '00:00:00:00:00:00';
+  for (const name of Object.keys(ifaces)) {
+    if (virtualKw.some(k => name.toLowerCase().includes(k))) continue;
+    for (const i of ifaces[name]) {
+      if (i.family === 'IPv4' && !i.internal && i.mac && i.mac !== '00:00:00:00:00:00') {
+        mac = i.mac;
+        break;
+      }
+    }
+    if (mac !== '00:00:00:00:00:00') break;
+  }
+  const hostname = os.hostname();
+  // serverId = first 12 hex of mac with hostname suffix (stable across reboots/IP changes)
+  const serverId = `${mac.replace(/:/g, '').toLowerCase()}-${hostname}`.slice(0, 64);
+  return { mac, hostname, serverId };
+})();
+
+// Lightweight ping endpoint for fast parallel probing (no JSON of classes).
+app.get('/api/ping', (req, res) => {
+  res.json({
+    serverId: _serverIdentity.serverId,
+    hostname: _serverIdentity.hostname,
+    mac: _serverIdentity.mac,
+    ts: Date.now()
+  });
+});
+
 app.get('/api/discovery-info', (req, res) => {
   const classes = Array.from(activeClasses.entries()).map(([id, data]) => ({
     id,
@@ -234,7 +265,10 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '10.5-beta', // Should match package.json
+    version: '11.4.0',
+    serverId: _serverIdentity.serverId,
+    hostname: _serverIdentity.hostname,
+    mac: _serverIdentity.mac,
     classes: classes
   });
 });
@@ -1308,10 +1342,14 @@ io.on('connection', (socket) => {
       blockedReason = 'block-all-active';
     }
 
-    // Send history and user list to joiner
+    // Cap history sent to joiners — large media payloads were making joins slow
+    // and could starve concurrent connecting students. Pinned messages are always
+    // included; the rest is the most recent JOIN_HISTORY_LIMIT.
+    const JOIN_HISTORY_LIMIT = 200;
+    const recentMessages = (classData.messages || []).slice(-JOIN_HISTORY_LIMIT);
+
     if (typeof callback === 'function') callback({
       success: true,
-      blocked: classData.blockedUsers && classData.blockedUsers.has(socket.id),
       blockAllActive: classData.blockAllActive || false,
       blockUploadsActive: classData.blockUploadsActive || false,
       blocked: !!blockedReason,
@@ -1319,7 +1357,7 @@ io.on('connection', (socket) => {
       allowHandsUp: classData.allowHandsUp !== undefined ? classData.allowHandsUp : true,
       autoDownloadEnabled: classData.autoDownloadEnabled || false,
       autoDownloadPath: classData.autoDownloadPath || '',
-      messages: classData.messages,
+      messages: recentMessages,
       users: classData.users,
       pinnedMessages: classData.pinnedMessages || []
     });
