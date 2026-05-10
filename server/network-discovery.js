@@ -7,11 +7,35 @@ class NetworkDiscovery extends EventEmitter {
         super();
         this.bonjour = null;
         this.mainService = null;
+        this.perNicServices = []; // mDNS: one service per real NIC so each subnet hears us
         this.classServices = new Map(); // classId -> service
         this.localIP = null;
+        this.localIPs = [];      // all real IPv4s, [{iface, ip, mac}, ...]
         this.port = null;
         this.getClassesCallback = null;
         this.monitoringInterval = null;
+    }
+
+    // Enumerate every non-virtual IPv4 NIC. Returns [{iface, ip, mac}].
+    // This is the multi-NIC fix: a teacher PC with both Wi-Fi and Ethernet
+    // (or two ethernet adapters on different subnets) needs to advertise on
+    // each of them so students from either subnet can reach the server.
+    // Mirrors the ClassSend2 v0.0.5 multi-NIC fix.
+    getAllLocalIPs() {
+        const interfaces = os.networkInterfaces();
+        const virtualKeywords = ['virtual', 'vmware', 'vbox', 'hyperv', 'vethernet', 'wsl', 'loopback', 'docker', 'radmin', 'vpn', 'hamachi'];
+        const out = [];
+        for (const name of Object.keys(interfaces)) {
+            const lower = name.toLowerCase();
+            if (virtualKeywords.some(k => lower.includes(k))) continue;
+            for (const iface of interfaces[name]) {
+                if (iface.family !== 'IPv4' || iface.internal) continue;
+                if (iface.address.startsWith('169.254.')) continue;        // link-local
+                if (iface.address.startsWith('192.168.56.')) continue;     // VirtualBox default
+                out.push({ iface: name, ip: iface.address, mac: iface.mac || null });
+            }
+        }
+        return out;
     }
 
     // Fallback method to get local IP using os.networkInterfaces()
@@ -65,9 +89,13 @@ class NetworkDiscovery extends EventEmitter {
         this.port = port;
         this.getClassesCallback = getClassesCallback;
 
-        // Get local IP address using fallback method (more reliable)
+        // Multi-NIC: enumerate every real IPv4 adapter. The "best" one is kept
+        // for legacy callers (single-IP UI), but the full list drives mDNS and
+        // the HTTP discovery endpoints so students on any subnet can reach us.
+        this.localIPs = this.getAllLocalIPs();
         this.localIP = this.getLocalIPFallback();
-        console.log(`Local IP: ${this.localIP}`);
+        console.log(`Local IPs (${this.localIPs.length}):`, this.localIPs.map(n => `${n.iface}=${n.ip}`).join(', '));
+        console.log(`Primary IP: ${this.localIP}`);
 
         // Initialize Bonjour
         this.bonjour = new Bonjour.default();
@@ -190,23 +218,66 @@ class NetworkDiscovery extends EventEmitter {
     publishMainService() {
         if (this.mainService) {
             this.mainService.stop();
+            this.mainService = null;
         }
+        // Stop any per-NIC services from a previous publish (NIC list may have changed)
+        for (const s of this.perNicServices) {
+            try { s.stop(); } catch (e) {}
+        }
+        this.perNicServices = [];
 
         const classes = this.getClassesCallback ? this.getClassesCallback() : [];
         const classesEncoded = this.encodeClasses(classes);
 
+        // Refresh NIC list each publish — handles laptops moving between
+        // networks mid-session without needing a restart.
+        this.localIPs = this.getAllLocalIPs();
+        const ipList = this.localIPs.map(n => n.ip);
+        const addressesField = ipList.join(',');
+
+        // 1) Main service (single record, includes addresses[] in TXT for clients
+        //    that read TXT). Backwards compat: `ip` still carries the primary.
         this.mainService = this.bonjour.publish({
             name: 'ClassSend Server',
             type: 'classsend',
             port: this.port,
             txt: {
                 version: '4.0.0',
-                classes: classesEncoded, // Sent as Base64 to support all characters
-                ip: this.localIP
+                classes: classesEncoded,
+                ip: this.localIP,
+                addresses: addressesField
             }
         });
+        console.log(`Broadcasting main ClassSend service on ${this.localIP}:${this.port} (addresses: ${addressesField || '<none>'})`);
 
-        console.log(`Broadcasting main ClassSend service on ${this.localIP}:${this.port}`);
+        // 2) One service per NIC so each subnet receives a discovery packet
+        //    advertising the IP it can actually route to. bonjour-service binds
+        //    to all interfaces by default, but the *advertised* address still
+        //    needs to be subnet-correct or students dial-back to the wrong IP.
+        if (this.localIPs.length > 1) {
+            for (const nic of this.localIPs) {
+                try {
+                    const svc = this.bonjour.publish({
+                        name: `ClassSend Server (${nic.iface})`,
+                        type: 'classsend',
+                        port: this.port,
+                        // Force the A-record for this service to point at this NIC's IP
+                        host: nic.ip,
+                        txt: {
+                            version: '4.0.0',
+                            classes: classesEncoded,
+                            ip: nic.ip,
+                            addresses: addressesField,
+                            iface: nic.iface
+                        }
+                    });
+                    this.perNicServices.push(svc);
+                    console.log(`Broadcasting per-NIC service: ${nic.iface} -> ${nic.ip}`);
+                } catch (err) {
+                    console.warn(`Failed to publish per-NIC service for ${nic.iface}:`, err.message);
+                }
+            }
+        }
     }
 
     // Find other ClassSend servers on the network
@@ -224,6 +295,7 @@ class NetworkDiscovery extends EventEmitter {
                 ip: service.referer?.address || service.host,
                 port: service.port,
                 classes: [],
+                addresses: [],
                 version: service.txt?.version || 'unknown'
             };
 
@@ -234,6 +306,19 @@ class NetworkDiscovery extends EventEmitter {
                 }
             } catch (e) {
                 console.error('Failed to parse classes:', e);
+            }
+
+            // Multi-NIC: TXT carries the comma-separated address list. If
+            // missing (older server), fall back to the single advertised IP.
+            try {
+                if (service.txt?.addresses) {
+                    serverInfo.addresses = String(service.txt.addresses)
+                        .split(',').map(s => s.trim()).filter(Boolean);
+                } else if (serverInfo.ip) {
+                    serverInfo.addresses = [serverInfo.ip];
+                }
+            } catch (e) {
+                serverInfo.addresses = serverInfo.ip ? [serverInfo.ip] : [];
             }
 
             if (onServerFound) {
@@ -266,6 +351,11 @@ class NetworkDiscovery extends EventEmitter {
             this.mainService.stop();
         }
 
+        for (const s of this.perNicServices) {
+            try { s.stop(); } catch (e) {}
+        }
+        this.perNicServices = [];
+
         for (const service of this.classServices.values()) {
             service.stop();
         }
@@ -279,6 +369,12 @@ class NetworkDiscovery extends EventEmitter {
 
     getLocalIP() {
         return this.localIP;
+    }
+
+    // All real IPv4s the server can be reached on. Mirrors ClassSend2's
+    // LocalAddrs() — students should try each in order on dial-back.
+    getLocalIPs() {
+        return this.localIPs.map(n => n.ip);
     }
 
     startNetworkMonitoring(intervalMs = 5000) {

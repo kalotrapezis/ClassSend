@@ -226,6 +226,38 @@ app.get('/api/download/:fileId', (req, res) => {
 });
 
 // New Endpoint for IP History Discovery (Lightweight Ping)
+// Stable per-machine identity (cached at module load — primary NIC MAC + hostname).
+const _serverIdentity = (() => {
+  const ifaces = os.networkInterfaces();
+  const virtualKw = ['virtual', 'vmware', 'vbox', 'hyperv', 'vethernet', 'wsl', 'loopback', 'docker', 'radmin', 'vpn', 'hamachi'];
+  let mac = '00:00:00:00:00:00';
+  for (const name of Object.keys(ifaces)) {
+    if (virtualKw.some(k => name.toLowerCase().includes(k))) continue;
+    for (const i of ifaces[name]) {
+      if (i.family === 'IPv4' && !i.internal && i.mac && i.mac !== '00:00:00:00:00:00') {
+        mac = i.mac;
+        break;
+      }
+    }
+    if (mac !== '00:00:00:00:00:00') break;
+  }
+  const hostname = os.hostname();
+  // serverId = first 12 hex of mac with hostname suffix (stable across reboots/IP changes)
+  const serverId = `${mac.replace(/:/g, '').toLowerCase()}-${hostname}`.slice(0, 64);
+  return { mac, hostname, serverId };
+})();
+
+// Lightweight ping endpoint for fast parallel probing (no JSON of classes).
+app.get('/api/ping', (req, res) => {
+  res.json({
+    serverId: _serverIdentity.serverId,
+    hostname: _serverIdentity.hostname,
+    mac: _serverIdentity.mac,
+    addresses: networkDiscovery.getLocalIPs ? networkDiscovery.getLocalIPs() : [],
+    ts: Date.now()
+  });
+});
+
 app.get('/api/discovery-info', (req, res) => {
   const classes = Array.from(activeClasses.entries()).map(([id, data]) => ({
     id,
@@ -234,7 +266,12 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '10.5-beta', // Should match package.json
+    version: '11.5.0',
+    serverId: _serverIdentity.serverId,
+    hostname: _serverIdentity.hostname,
+    mac: _serverIdentity.mac,
+    // Multi-NIC: every IP the server is reachable on. Students try each.
+    addresses: networkDiscovery.getLocalIPs ? networkDiscovery.getLocalIPs() : [],
     classes: classes
   });
 });
@@ -1308,10 +1345,14 @@ io.on('connection', (socket) => {
       blockedReason = 'block-all-active';
     }
 
-    // Send history and user list to joiner
+    // Cap history sent to joiners — large media payloads were making joins slow
+    // and could starve concurrent connecting students. Pinned messages are always
+    // included; the rest is the most recent JOIN_HISTORY_LIMIT.
+    const JOIN_HISTORY_LIMIT = 200;
+    const recentMessages = (classData.messages || []).slice(-JOIN_HISTORY_LIMIT);
+
     if (typeof callback === 'function') callback({
       success: true,
-      blocked: classData.blockedUsers && classData.blockedUsers.has(socket.id),
       blockAllActive: classData.blockAllActive || false,
       blockUploadsActive: classData.blockUploadsActive || false,
       blocked: !!blockedReason,
@@ -1319,13 +1360,20 @@ io.on('connection', (socket) => {
       allowHandsUp: classData.allowHandsUp !== undefined ? classData.allowHandsUp : true,
       autoDownloadEnabled: classData.autoDownloadEnabled || false,
       autoDownloadPath: classData.autoDownloadPath || '',
-      messages: classData.messages,
+      messages: recentMessages,
       users: classData.users,
       pinnedMessages: classData.pinnedMessages || []
     });
 
     // Broadcast update to everyone (to update user counts)
     broadcastActiveClasses();
+
+    // If the class currently has system audio muted by the teacher, sync the
+    // late-joining student so they don't slip into a muted room with sound.
+    if (role === 'student' && classData.systemMuted) {
+      socket.emit('execute-set-system-mute', { classId, mute: true });
+      console.log(`[SystemMute] Late-joiner ${userName} muted on join in ${classId}`);
+    }
 
     // If monitoring is already running, bring this new student into it
     // (otherwise they silently miss it if they joined after the teacher enabled monitoring)
@@ -1593,6 +1641,33 @@ io.on('connection', (socket) => {
 
       console.log(`[Lock Screen] Sent to all students in ${classId} (Repeating every 5s)`);
     }
+  });
+
+  // Teacher mutes / unmutes the system master volume on every student PC.
+  // Persisted on the class so late-joiners and reconnects stay in sync.
+  socket.on('trigger-system-mute', ({ classId, mute, targetSocketId }, callback) => {
+    if (!activeClasses.has(classId)) {
+      if (typeof callback === 'function') callback({ success: false, message: 'Class not found' });
+      return;
+    }
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) {
+      if (typeof callback === 'function') callback({ success: false, message: 'Not the teacher' });
+      return;
+    }
+    const muteFlag = !!mute;
+    classData.systemMuted = muteFlag;
+    const payload = { classId, mute: muteFlag };
+    if (targetSocketId) {
+      sendCommandWithAck(classId, [targetSocketId], 'execute-set-system-mute', payload);
+    } else {
+      const studentIds = classData.students.map(s => typeof s === 'object' ? s.id : s);
+      sendCommandWithAck(classId, studentIds, 'execute-set-system-mute', payload);
+      console.log(`[SystemMute] ${muteFlag ? 'Mute' : 'Unmute'} sent to all students in ${classId}`);
+    }
+    // Echo back to the room so the teacher's UI (and any peer teacher) syncs.
+    io.to(classId).emit('system-mute-updated', { classId, mute: muteFlag });
+    if (typeof callback === 'function') callback({ success: true, mute: muteFlag });
   });
 
   socket.on('trigger-shutdown', ({ classId, targetSocketId }) => {

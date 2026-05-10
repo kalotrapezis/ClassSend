@@ -14,6 +14,34 @@
 
 export const releaseNotes = [
     {
+        title: 'Multi-NIC Discovery',
+        desc: 'A teacher PC with two network adapters on different subnets (e.g. Wi-Fi + Ethernet) is now reachable from both subnets. The server advertises every non-virtual IPv4 address via mDNS and HTTP discovery, and the student auto-join races them in parallel and redirects to the first that responds.',
+    },
+    {
+        title: 'Connection State Banner',
+        desc: 'A coloured banner above the chat now surfaces what is actually happening: Searching for a class, Waiting for the teacher to join, Disconnected, No network connection, Connecting. Replaces the silent spinner that left students wondering why chat was disabled.',
+    },
+    {
+        title: 'No More Lobby Gate',
+        desc: 'The chat shell now renders immediately in "searching" mode when no class is found, instead of force-joining a fake Lobby room. The old gate existed only to paper over missing identity at boot — with the new bootstrap below, it is no longer needed.',
+    },
+    {
+        title: 'Deterministic Identity Bootstrap',
+        desc: 'Name and role are applied synchronously from cached values so the app unblocks instantly. OS hostname and installer-registry reads race a 1.5s timeout and upgrade identity if they win — a hung IPC can no longer leave you on a blank screen.',
+    },
+    {
+        title: 'Teacher: Mute All PCs',
+        desc: 'New tool in Administration mutes the system master volume on every student PC via the Windows Core Audio API. Press again to unmute. Late joiners and reconnects inherit the current state automatically.',
+    },
+    {
+        title: 'Overload Protection (Rate Limiter)',
+        desc: 'The student client hard-drops teacher commands that exceed configured per-event limits — caps a buggy or hostile session that would otherwise spam shutdown / lock-screen / launch-app and DOS the student PC. A throttled toast appears when limits trigger.',
+    },
+    {
+        title: 'Self-Healing Join Lock',
+        desc: 'Joining a class or the lobby now has a hard ACK timeout. If the server goes silent the lock clears automatically and auto-flow re-arms — students can no longer get stranded waiting forever for a reply that never comes.',
+    },
+    {
         title: 'Restart if Unresponsive',
         desc: 'New toggle in Settings → Administration registers ClassSend with Windows so that it is automatically relaunched if Windows terminates it for being unresponsive. Enabled by default.',
     },
