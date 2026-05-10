@@ -6371,20 +6371,3 @@ input:checked+.slider:before {
     50%      { opacity: 1; }
 }
 
-/* Connection state banner (flow v2) */
-.connection-banner {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: #fff;
-    background: var(--banner-bg, #555);
-    border-bottom: 1px solid rgba(0,0,0,0.15);
-    transition: background-color 0.2s ease;
-}
-.connection-banner.hidden { display: none; }
-.connection-banner-dot {
-    width: 8px; height: 8px;
-    border-radius: 50
