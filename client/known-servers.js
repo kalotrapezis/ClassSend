@@ -31,7 +31,7 @@ export function loadKnownServers() {
     // Migrate legacy string[] format
     const migrated = raw.map(entry => {
         if (typeof entry === 'string') {
-            return { url: _normalizeUrl(entry), host: null, mac: null, serverId: null, teacherName: null, lastSeen: 0 };
+            return { url: _normalizeUrl(entry), host: null, mac: null, serverId: null, teacherName: null, addresses: [], lastSeen: 0 };
         }
         if (entry && typeof entry === 'object' && entry.url) {
             return {
@@ -40,6 +40,10 @@ export function loadKnownServers() {
                 mac: entry.mac || null,
                 serverId: entry.serverId || null,
                 teacherName: entry.teacherName || null,
+                // Multi-NIC: every IP the server is reachable on. Used by
+                // expandCandidates so a teacher with two NICs is found from
+                // either subnet.
+                addresses: Array.isArray(entry.addresses) ? entry.addresses.filter(Boolean) : [],
                 lastSeen: Number(entry.lastSeen) || 0
             };
         }
@@ -68,6 +72,7 @@ export function upsertKnownServer(entry) {
         mac: entry.mac || null,
         serverId: entry.serverId || null,
         teacherName: entry.teacherName || null,
+        addresses: Array.isArray(entry.addresses) ? entry.addresses.filter(Boolean) : [],
         lastSeen: Date.now()
     };
 
@@ -79,14 +84,21 @@ export function upsertKnownServer(entry) {
         (e.url === entry.url)
     );
     if (matchIdx !== -1) {
-        // Merge — never erase fields we already knew with nulls
+        // Merge — never erase fields we already knew with nulls. For addresses
+        // we union both lists so a server seen first via one NIC and then
+        // another keeps both reachable IPs in history.
         const prev = list[matchIdx];
+        const mergedAddrs = Array.from(new Set([
+            ...(entry.addresses || []),
+            ...(prev.addresses || [])
+        ])).filter(Boolean);
         entry = {
             url: entry.url || prev.url,
             host: entry.host || prev.host,
             mac: entry.mac || prev.mac,
             serverId: entry.serverId || prev.serverId,
             teacherName: entry.teacherName || prev.teacherName,
+            addresses: mergedAddrs,
             lastSeen: entry.lastSeen
         };
         list.splice(matchIdx, 1);
@@ -122,15 +134,21 @@ export function expandCandidates(entries, ownOrigin) {
 
     for (const e of entries) {
         push(e.url);
+        // Multi-NIC: try every advertised address for this server. A teacher PC
+        // with Wi-Fi and Ethernet on different subnets stores both IPs; the
+        // student's network may only route to one of them.
+        let port = '3000';
+        try { port = new URL(e.url).port || '3000'; } catch { }
+        if (Array.isArray(e.addresses)) {
+            for (const ip of e.addresses) {
+                if (ip) push(`http://${ip}:${port}`);
+            }
+        }
         if (e.host) {
-            try {
-                const u = new URL(e.url);
-                const port = u.port || '3000';
-                push(`http://${e.host}:${port}`);
-                if (!e.host.endsWith('.local')) {
-                    push(`http://${e.host}.local:${port}`);
-                }
-            } catch { }
+            push(`http://${e.host}:${port}`);
+            if (!e.host.endsWith('.local')) {
+                push(`http://${e.host}.local:${port}`);
+            }
         }
     }
     return out;

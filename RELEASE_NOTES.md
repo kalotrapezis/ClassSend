@@ -1,5 +1,32 @@
 # Release Notes
 
+## [11.5.0] - 2026-05-10
+
+### NEW
+- **Multi-NIC Discovery (ClassSend2 v0.0.5 parity)**: A teacher PC with two network adapters on different subnets (e.g. Wi-Fi `192.168.1.x` + Ethernet `10.0.0.x`) is now reachable from **both** subnets. The server enumerates every non-virtual IPv4 NIC, advertises one mDNS service per NIC, and exposes the full address list via `addresses[]` in `/api/ping`, `/api/discovery-info`, and the mDNS TXT record. The student's known-servers history persists every advertised IP and the auto-join flow runs a parallel `/api/ping` race over them, redirecting to the first responsive address. Single-NIC machines behave identically — the new code only kicks in when there is more than one real adapter.
+- **Connection State Banner (flow v2)**: A new banner above the chat surfaces real connection state — *Searching for a class…*, *Waiting for the teacher to join…*, *Disconnected — trying to reconnect…*, *No network connection*, *Connecting…*, *Joining ClassName…*. Replaces the silent spinner that previously gave students no idea why chat was disabled. Wired into `online`/`offline` browser events, socket connect/disconnect, probe results, and class join.
+- **Lobby Gate Removed**: When no real classes are found, the chat shell now renders immediately in "searching" mode instead of force-joining a fake `Lobby` socket room. The old workaround existed to give the UI *something* to render before identity was resolved; with the new identity bootstrap below, the gate is unnecessary. The server-side `join-or-create-lobby` handler is kept for backward compatibility — old clients still work.
+- **Deterministic Identity Bootstrap**: Name and role are now applied synchronously from cached values (`PC-XXXX` fallback, `student` role) so the chat shell unblocks instantly. The OS hostname (`get-hostname`) and installer registry (`get-install-mode`) IPC reads race against a 1.5 s timeout and *upgrade* identity if they win. A hung IPC can no longer leave the user staring at a blank screen.
+- **Teacher → Mute All PCs**: New tool in the Administration column of the teacher's tools menu. Hitting the speaker icon mutes the system master volume on every student PC in the class via the Windows Core Audio API (PowerShell `audio-mute.ps1`). State is persisted on the class so late-joining and reconnecting students inherit the muted state. Press again to unmute. Icon flips between `speaker.svg` and `speaker-mute.svg`.
+- **Per-Event Rate Limiter (overload protection)**: The student client hard-drops teacher-triggered remote commands that exceed configured per-event limits. Caps a buggy or hostile teacher session that would otherwise spam `execute-shutdown`, `launch-app`, `execute-lock-screen`, `request-high-res-frame`, etc., and DOS the student PC. Throttled toast surfaces when limits trigger. Tunable per-event in one place (`_rateConfig` in `client/main.js`).
+
+### FIXES
+- **Frozen `joiningInProgress` lock**: `joinClass` and `joinOrCreateLobby` previously had no ACK timeout, so a silent server could leave the lock `true` forever. Both paths now use `socketEmitWithAck()` with a hard timeout (4–5 s); on timeout the lock is cleared, the client re-enters searching mode, and auto-flow is re-armed. Students no longer get stranded when the server doesn't reply.
+- **Visible Network-Loss UX**: Going offline now shows a red banner with a clear message instead of the silent console log + spinner. Coming back online resumes the probe sequence and reconnects the socket automatically.
+- **Empty-/Null-Class Handling**: `updateChatDisabledState()` now treats `currentClassId === null` as "searching" with the right placeholder ("Searching for a class…" or "Offline — waiting for network…"), instead of returning early with a half-rendered composer.
+
+### INTERNALS
+- New helpers in `client/main.js`: `_ipcWithTimeout()`, `setConnectionState()` (state machine), `socketEmitWithAck()`, `enterSearchingMode()`, `pickReachableAddress()` (multi-NIC race), `rateGuard()`.
+- New helpers in `server/network-discovery.js`: `getAllLocalIPs()` (multi-NIC enumeration), `getLocalIPs()` (getter for the list). `publishMainService()` now publishes one extra service per NIC on multi-adapter machines.
+- New IPC handler `set-system-mute` in `server/electron-main.js`; new `server/audio-mute.ps1` (Windows Core Audio API via inline C#, no external deps).
+- New socket event `trigger-system-mute` (teacher → server) and `execute-set-system-mute` (server → student) with retry-on-no-ACK via the existing `sendCommandWithAck` harness.
+- `addresses[]` field added to `/api/ping`, `/api/discovery-info`, mDNS TXT records, and known-servers history entries.
+
+### PACKAGING
+- `audio-mute.ps1` added to `server/package.json`'s `extraResources` so it ships next to `wifi-guard.ps1` in `resources/`.
+
+---
+
 ## [11.4.0] - 2026-05-07
 
 ### NEW

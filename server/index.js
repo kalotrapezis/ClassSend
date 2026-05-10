@@ -253,6 +253,7 @@ app.get('/api/ping', (req, res) => {
     serverId: _serverIdentity.serverId,
     hostname: _serverIdentity.hostname,
     mac: _serverIdentity.mac,
+    addresses: networkDiscovery.getLocalIPs ? networkDiscovery.getLocalIPs() : [],
     ts: Date.now()
   });
 });
@@ -265,10 +266,12 @@ app.get('/api/discovery-info', (req, res) => {
 
   res.json({
     name: 'ClassSend Server',
-    version: '11.4.0',
+    version: '11.5.0',
     serverId: _serverIdentity.serverId,
     hostname: _serverIdentity.hostname,
     mac: _serverIdentity.mac,
+    // Multi-NIC: every IP the server is reachable on. Students try each.
+    addresses: networkDiscovery.getLocalIPs ? networkDiscovery.getLocalIPs() : [],
     classes: classes
   });
 });
@@ -1365,6 +1368,13 @@ io.on('connection', (socket) => {
     // Broadcast update to everyone (to update user counts)
     broadcastActiveClasses();
 
+    // If the class currently has system audio muted by the teacher, sync the
+    // late-joining student so they don't slip into a muted room with sound.
+    if (role === 'student' && classData.systemMuted) {
+      socket.emit('execute-set-system-mute', { classId, mute: true });
+      console.log(`[SystemMute] Late-joiner ${userName} muted on join in ${classId}`);
+    }
+
     // If monitoring is already running, bring this new student into it
     // (otherwise they silently miss it if they joined after the teacher enabled monitoring)
     if (role === 'student' && classData.monitoringInterval) {
@@ -1631,6 +1641,33 @@ io.on('connection', (socket) => {
 
       console.log(`[Lock Screen] Sent to all students in ${classId} (Repeating every 5s)`);
     }
+  });
+
+  // Teacher mutes / unmutes the system master volume on every student PC.
+  // Persisted on the class so late-joiners and reconnects stay in sync.
+  socket.on('trigger-system-mute', ({ classId, mute, targetSocketId }, callback) => {
+    if (!activeClasses.has(classId)) {
+      if (typeof callback === 'function') callback({ success: false, message: 'Class not found' });
+      return;
+    }
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) {
+      if (typeof callback === 'function') callback({ success: false, message: 'Not the teacher' });
+      return;
+    }
+    const muteFlag = !!mute;
+    classData.systemMuted = muteFlag;
+    const payload = { classId, mute: muteFlag };
+    if (targetSocketId) {
+      sendCommandWithAck(classId, [targetSocketId], 'execute-set-system-mute', payload);
+    } else {
+      const studentIds = classData.students.map(s => typeof s === 'object' ? s.id : s);
+      sendCommandWithAck(classId, studentIds, 'execute-set-system-mute', payload);
+      console.log(`[SystemMute] ${muteFlag ? 'Mute' : 'Unmute'} sent to all students in ${classId}`);
+    }
+    // Echo back to the room so the teacher's UI (and any peer teacher) syncs.
+    io.to(classId).emit('system-mute-updated', { classId, mute: muteFlag });
+    if (typeof callback === 'function') callback({ success: true, mute: muteFlag });
   });
 
   socket.on('trigger-shutdown', ({ classId, targetSocketId }) => {

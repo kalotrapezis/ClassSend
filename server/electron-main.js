@@ -645,6 +645,30 @@ function createWindow() {
     });
 
     // Windows End of Day Shutdown
+    // Set the system master mute deterministically. Called by the student
+    // when the teacher hits "Mute all PCs". Resolves true on success.
+    ipcMain.handle('set-system-mute', async (_event, { mute } = {}) => {
+        return new Promise((resolve) => {
+            // Resolve the bundled audio-mute.ps1 — packaged path differs from dev.
+            // Packaged builds copy the script into resources/ via extraResources
+            // (matches the wifi-guard.ps1 layout); dev runs find it next to this file.
+            const scriptPath = app.isPackaged
+                ? path.join(process.resourcesPath, 'audio-mute.ps1')
+                : path.join(__dirname, 'audio-mute.ps1');
+            const arg = mute ? 'true' : 'false';
+            const cmd = `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${scriptPath}" ${arg}`;
+            exec(cmd, { windowsHide: true }, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('[SystemMute] Failed:', error.message, stderr);
+                    resolve({ success: false, error: error.message });
+                } else {
+                    console.log(`[SystemMute] ${arg} ->`, (stdout || '').trim());
+                    resolve({ success: true });
+                }
+            });
+        });
+    });
+
     ipcMain.handle('shutdown-pc', async () => {
         return new Promise((resolve) => {
             // Shutdown immediately
