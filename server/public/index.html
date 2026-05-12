@@ -14,10 +14,9 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Raleway:wght@100;200;300;400;500;600&display=swap"
     rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap"
-    rel="stylesheet">
-  
-  <script type="module" crossorigin src="/assets/index-64d2153e.js"></script>
-  <link rel="stylesheet" href="/assets/index-5b002090.css">
+    rel="stylesheet">
+  <script type="module" crossorigin src="/assets/index-CQOwqQnu.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BbN_dGDV.css">
 </head>
 
 <body>
@@ -97,6 +96,11 @@
 
     <!-- Chat Interface -->
     <div id="chat-interface" class="hidden">
+      <!-- Connection state banner (offline / searching / no teacher / disconnected) -->
+      <div id="connection-banner" class="connection-banner hidden" role="status" aria-live="polite">
+        <span class="connection-banner-dot"></span>
+        <span id="connection-banner-text" class="connection-banner-text"></span>
+      </div>
       <!-- Header -->
       <header class="chat-header">
         <div class="header-left">
@@ -663,7 +667,7 @@
                     </div>
                     <h2 style="margin-bottom: 0.25rem;">ClassSend</h2>
                     <p style="margin-bottom: 1rem;"><span data-i18n="about-version">Version</span> <span
-                        id="app-version-display">11.2.4</span></p>
+                        id="app-version-display">11.5.0</span></p>
 
                     <div class="about-recent-changes"
                       style="text-align: left; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
@@ -1226,6 +1230,11 @@
                         alt="Shutdown" />
                       <span data-i18n="btn-tool-shutdown-pc">Shutdown PC</span>
                     </button>
+                    <button id="btn-tool-mute-all" class="tool-menu-btn" tabindex="-1" title="Mute all PCs"
+                      data-i18n-title="btn-tool-mute-all">
+                      <img id="btn-tool-mute-all-icon" src="/assets/speaker.svg" class="icon-svg" alt="Mute" />
+                      <span id="btn-tool-mute-all-label" data-i18n="btn-tool-mute-all">Mute all PCs</span>
+                    </button>
                     <button id="btn-tool-focus-app" class="tool-menu-btn" tabindex="-1" title="Focus App"
                       data-i18n-title="btn-tool-focus-app">
                       <img src="/assets/focus.svg" class="icon-svg"
@@ -1286,6 +1295,15 @@
             <input type="file" id="file-input" class="hidden">
             <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off"
               data-i18n-placeholder="placeholder-message">
+            <!-- Teacher-only filter bypass. Appears for one click after a
+                 message gets blocked, so the teacher can resend the exact
+                 same text past the filter. Hidden by default, made visible
+                 by the `message-blocked` handler in client/main.js. -->
+            <button id="btn-bypass-filter" class="send-btn hidden" type="button"
+              title="Resend this message past the filter"
+              data-i18n-title="btn-bypass-filter-title">
+              <img src="/assets/filter-slash.svg" class="icon-svg" alt="Bypass filter" />
+            </button>
             <button id="btn-send-message" class="send-btn" title="Send Message"
               data-i18n-title="btn-send-message-title"></button>
           </div>
@@ -1382,8 +1400,7 @@
       </div>
     </div>
   </div>
-
-  
+
 
 
 

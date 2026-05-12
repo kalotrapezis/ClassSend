@@ -1,5 +1,69 @@
 # Release Notes
 
+## [11.5.3] - 2026-05-12
+
+Hardens the internet-cutoff allow-list so whitelisting Google and YouTube no longer hands students an unfiltered escape hatch, and locks the Windows proxy-settings UI for the duration of the cutoff. Mirrors the SafeSearch / Restricted Mode / proxy-lock behaviour that already exists in CSec, adapted to ClassSend's no-elevation HKCU registry approach.
+
+### FEATURES
+- **Google SafeSearch forced when `google.com` is in the allow-list**: writes `ForceGoogleSafeSearch = 1` under `HKCU\Software\Policies\Google\Chrome` and `HKCU\Software\Policies\Microsoft\Edge`. Cleared when the cutoff ends.
+- **YouTube Restricted Mode (Strict) when `youtube.com` is in the allow-list**: writes `ForceYouTubeRestrict = 2` under the same Chrome and Edge policy keys.
+- **Windows proxy-settings UI locked for the duration of the cutoff**: writes `Proxy = 1` under `HKCU\Software\Policies\Microsoft\Internet Explorer\Control Panel`. Surfaces the "This setting is managed by your organization" notice in Settings → Network → Proxy and prevents students from disabling the ClassSend proxy. Cleared on enable-internet and on uninstall paths that already clear the proxy values.
+- All three locks are re-applied on startup by `restoreInternetBlockingState()` when the cutoff persists across reboots, matching the existing proxy-restore behaviour.
+
+## [11.5.2] - 2026-05-12
+
+Hotfix on top of 11.5.1, which had a botched conflict resolution when merged into `beta` over the 11.5.0 work. 11.5.1 reaches `beta` but the server **crashes on startup** there — `TypeError: this.getAllLocalNICs is not a function`. 11.5.2 makes the merged code actually run.
+
+### FIXES
+- **Server crash on startup**: `server/network-discovery.js` ended up with two `getLocalIPFallback()` and two `getAllLocalIPs()` definitions after the merge. The second copies (which win in JS classes) called `this.getAllLocalNICs()` — a method that no longer existed on the class. Restored `getAllLocalNICs()` as the canonical OS-enumeration helper (returns `{ ip, netmask, mac, name, iface, priority }`), collapsed the duplicates, and updated `initialize()` + `startNetworkMonitoring()` + `publishMainService()` to call it.
+- **Multi-NIC routing silently dead**: even with the crash fixed, `pickAdvertiseAddrFor` was returning the primary IP for every student because `this.localIPs` was populated from a helper that returned `{iface, ip, mac}` objects with **no `netmask`**. Subnet matching cannot work without netmask, so `_ipInNICSubnet` always returned false and we fell through to the primary IP — exactly the regression 11.5.1 was supposed to fix. Now populated from `getAllLocalNICs()`, which carries netmask.
+- **Bonjour TXT field collision**: the merge produced a hybrid where TXT carried `addresses` (11.5.0's name) but `findServers` read both `service.txt?.ips` (11.5.1's name) and `service.txt?.addresses` in two places, with the second overwriting the first. Standardized on `addresses`. `serverInfo` still exposes both `addresses` and `ips` (alias) so any client shipped with 11.5.1 keeps working.
+- **Versions reverted**: the conflict resolution kept 11.5.0 across all three `package.json` files and the in-server version string. Bumped to 11.5.2 everywhere, including the Bonjour TXT `version` field (was `'4.0.0'` and `'11.5.0'` in two places — now consistently `'11.5.2'`).
+
+### TESTS
+- `server/tests/known-servers.test.js` updated to match the canonical `addresses` field name (was asserting `ips`, the field 11.5.1 introduced before the rename).
+- Full suite: **104 tests across 7 files, all green** in 1.34 s.
+
+### NOT TOUCHED
+- All 11.5.0 features (mute-all, rate limiter, connection state machine, per-NIC mDNS publish loop) are preserved.
+- All 11.5.1 features that survived the merge (subnet-match module, seed wordlists, filter-bypass button, syncConnectionUI, join-class settings sync) are preserved.
+
+---
+
+## [11.5.1] - 2026-05-12
+
+### NEW
+- **Multi-NIC Teacher Support**: A teacher PC with two ethernet ports on two different subnets can now host a single class with students from **both** subnets at the same time. The server enumerates every usable NIC, advertises all of them via Bonjour (`ips` TXT field, CSV) alongside the legacy single `ip`, and the discovery endpoints (`/api/ping`, `/api/discovery-info`, `get-server-info`, `network-info`) pick the NIC IP on the subnet the requesting student actually came in on. Old single-NIC clients are unchanged. See `ClassSend2`'s `MULTI-NIC-BUG.md` for the underlying analysis.
+- **Same-Subnet-First Discovery (strict)**: The student's `probeKnownServers` now splits cached candidates into "same subnet as my NIC" vs "everything else" and races the first group; the second is only attempted if every same-subnet probe misses. Most schools have one network, so this eliminates the wasted seconds spent probing an unreachable foreign subnet. Single-NIC environments incur zero extra latency.
+- **Multi-NIC Known-Servers History**: Each cached teacher entry now stores `ips: string[]` — every IP the teacher advertised the last time we saw it. `expandCandidates` emits one probe URL per known NIC IP, so a student that switched subnets between sessions still finds the teacher.
+- **Per-Message Filter Bypass Button (Teacher Only)**: A new button using `filter-slash.svg` appears in the teacher's message box only **after** a message is blocked by the content filter. One click resends that exact message past every filter stage; the button hides immediately and re-arms only if the next message is blocked again. Students can never see or trigger it — the server enforces the role gate even if the client flag is spoofed.
+- **Seeded Wordlists on First Boot**: A fresh install now ships 51 blacklist + 43 whitelist entries (real classroom data from 2026-04-29) so the filter isn't overprotective out of the box. Whitelist's job is exclusively the pre-AI hard-pass — it is **no longer trained as `clean`** in the Naive Bayes model (training it inflated unrelated n-grams: `fast` learned as clean was leaking into `fak`). Existing installs are not re-seeded; the `data/.seeded` marker file guards against overwrites.
+
+### FIXES
+- **Connection Indicator Stuck**: The connected/disconnected dot could get stuck on either state after laptop sleep/wake, WebSocket transport-level drops, or mid-reconnect. New `syncConnectionUI()` reads `socket.connected` as the source of truth and is bound to `connect`, `disconnect`, `reconnect_attempt`, `reconnect_failed`, `visibilitychange`, and a 5-second heartbeat. A new `connecting` visual state surfaces during reconnect attempts.
+- **Late-Joining Students Missed Class Settings**: The `join-class` callback already shipped `autoDownloadEnabled` / `autoDownloadPath`, but the client dropped them on the floor — students who joined *after* the teacher set the toggle never auto-downloaded files until the teacher toggled it again. Client now reads them into `joinedClasses` on join. Added `urlWhitelist` to the join response so students have the whitelist ready before internet-cut is ever enabled.
+- **Network-Change Rebroadcast on Multi-NIC**: When the teacher's network changes, the IP-change rebroadcast now goes per-socket — each client gets the IP on the subnet it's actually connected from, not the global primary IP.
+
+### INTERNALS
+- New `client/subnet-match.js` — pure helpers (`ipv4ToInt`, `isSameSubnet`, `extractIPv4`, `partitionCandidates`, `raceWithFallback`) that drive the same-subnet-first probe ordering. Dependency-free so they're testable in Node.
+- New `server/data/seed-wordlists.js` — first-boot seed data and asEntries helpers.
+- New `get-local-nics` IPC handler in `server/electron-main.js` so the renderer can ask the main process which subnets it's on.
+- `NetworkDiscovery` gained `getAllLocalNICs`, `getAllLocalIPs`, `pickAdvertiseAddrFor(remoteIP)`. `findServers` now surfaces an `ips[]` array alongside the single `ip`. Network monitor compares the full NIC set, not just the primary, so a non-primary NIC going down is detected too.
+
+### TESTS
+- Old vitest suite moved to `server/tests-old/` (preserved, not deleted).
+- Fresh suite written from scratch — **104 tests across 7 files**, full run in ~1.3 s:
+  - `network-discovery.test.js` (22) — `pickAdvertiseAddrFor` across /24 /16, IPv4-mapped IPv6, loopback, garbage, single-NIC; mDNS class encode/decode round-trip incl. Greek.
+  - `known-servers.test.js` (29) — rich-history load/save, legacy migration, identity matching (serverId > mac > host > url), case-insensitive host, multi-NIC `ips[]` merge, quota-exceeded localStorage tolerance, MAX_ENTRIES cap.
+  - `subnet-match.test.js` (23) — `ipv4ToInt` rejecting garbage, `isSameSubnet` across /24 /16 /30, `partitionCandidates` ordering preservation, 5000-candidate budget.
+  - `endpoints.test.js` (8) — real Express app, header-injected `req.ip`, proves `/api/ping` + `/api/discovery-info` route per-subnet and survive 50 concurrent requests.
+  - `race-ordering.test.js` (8) — strict "phase 2 never starts before phase 1 ends", parallel timing inside a phase, throwing probes don't crash a round, cold-start fallback.
+  - `stress.test.js` (8) — 30 concurrent students hitting the same endpoint, 800 ms artificial latency timeout handling, heap-drift on 1000 picks, unicode/RTL hostnames, JSON-bomb in TXT decode.
+  - `seed-wordlists.test.js` (6) — non-empty lists, lowercase + trimmed normalization, no duplicates, no overlap between the two lists, valid `SEED_VERSION` date.
+- New `vitest.config.js` scopes the run to `server/tests/**` and excludes stale `.claude/worktrees/` paths.
+
+---
+
 ## [11.4.0] - 2026-05-07
 
 ### NEW

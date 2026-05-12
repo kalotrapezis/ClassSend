@@ -1,4 +1,4 @@
-﻿import { io } from "socket.io-client";
+import { io } from "socket.io-client";
 // mammoth and xlsx are now dynamically imported
 import { translations } from "./translations.js";
 import { generateRandomName } from "./name-generator.js";
@@ -9,6 +9,7 @@ import {
     expandCandidates,
     removeKnownServer
 } from "./known-servers.js";
+import { partitionCandidates, raceWithFallback } from "./subnet-match.js";
 
 // Logger for Advanced Settings
 const capturedLogs = [];
@@ -86,18 +87,59 @@ let socket = io(currentServerUrl);
 let debugModeActive = false;
 let pcName = localStorage.getItem('classsend-pcName') || null;
 
-try {
-    const ipc = window.electron?.ipcRenderer || window.ipcRenderer;
-    if (!pcName && ipc) {
-        ipc.invoke('get-hostname').then(name => {
-            if (name) {
-                pcName = name;
-                localStorage.setItem('classsend-pcName', pcName);
-                console.log(`[Identity] Fetched PC name from system: ${pcName}`);
-            }
-        }).catch(err => console.warn("Could not fetch pc name", err));
+// ===== Identity bootstrap (flow v2) =====
+// Goal: never block the chat shell on a hung IPC. Sync defaults are applied
+// immediately; async upgrades from the OS / installer registry race against a
+// hard timeout. If they win, we rewrite localStorage and the UI. If they don't,
+// we keep the safe fallback and move on. No spinner, no "lobby gate".
+const IPC_TIMEOUT_MS = 1500;
+function _ipcWithTimeout(channel, fallback) {
+    try {
+        const ipc = window.electron?.ipcRenderer || window.ipcRenderer;
+        if (!ipc) return Promise.resolve(fallback);
+        return new Promise((resolve) => {
+            let settled = false;
+            const t = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                console.warn(`[Identity] IPC ${channel} timed out after ${IPC_TIMEOUT_MS}ms — using fallback`);
+                resolve(fallback);
+            }, IPC_TIMEOUT_MS);
+            ipc.invoke(channel).then(v => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(t);
+                resolve(v ?? fallback);
+            }).catch(() => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(t);
+                resolve(fallback);
+            });
+        });
+    } catch (e) {
+        return Promise.resolve(fallback);
     }
-} catch (e) { }
+}
+
+// Async upgrade: hostname → pcName (and userName if not yet set)
+_ipcWithTimeout('get-hostname', null).then(name => {
+    if (!name) return;
+    if (!pcName) {
+        pcName = name;
+        localStorage.setItem('classsend-pcName', pcName);
+        console.log(`[Identity] Fetched PC name from system: ${pcName}`);
+    }
+    // Promote hostname to userName only if user hasn't picked one yet
+    if (!localStorage.getItem('classsend-userName')) {
+        userName = name;
+        localStorage.setItem('classsend-userName', userName);
+        if (typeof userNameInput !== 'undefined' && userNameInput) {
+            userNameInput.value = userName;
+        }
+        console.log(`[Identity] Using hostname as default name: ${userName}`);
+    }
+});
 
 console.log(`Connecting to ClassSend server at: ${currentServerUrl}`);
 
@@ -309,6 +351,7 @@ socket.on("server-discovered", (serverInfo) => {
 });
 
 socket.on('execute-open-file', ({ fileId, fileName }) => {
+    if (!rateGuard('execute-open-file')) return;
     console.log(`[Remote Action] Teacher requested opening file: ${fileName}`);
     if (typeof downloadFile === 'function') {
         downloadFile(fileId, fileName, true);
@@ -349,6 +392,27 @@ function saveKnownServer(url, extra) {
 // State for probing lock
 let isProbing = false;
 
+// Cache of this PC's local NICs (asked once from main process, refreshed on
+// network changes). Used to decide whether a candidate IP is "same subnet".
+let _myLocalNICs = null;
+async function _getMyLocalNICs() {
+    if (_myLocalNICs !== null) return _myLocalNICs;
+    try {
+        const ipc = window.electron?.ipcRenderer || window.ipcRenderer;
+        if (ipc) {
+            _myLocalNICs = await ipc.invoke('get-local-nics') || [];
+        } else {
+            _myLocalNICs = [];
+        }
+    } catch (e) {
+        _myLocalNICs = [];
+    }
+    return _myLocalNICs;
+}
+function _invalidateLocalNICs() { _myLocalNICs = null; }
+window.addEventListener('online', _invalidateLocalNICs);
+window.addEventListener('offline', _invalidateLocalNICs);
+
 async function probeKnownServers() {
     if (isProbing) return; // Prevent overlapping probes
     isProbing = true;
@@ -368,7 +432,13 @@ async function probeKnownServers() {
             return;
         }
 
-        console.log(`[Probing] Checking ${knownServers.length} candidates (parallel race)...`);
+        // Same-subnet-first: split candidates into "definitely on one of my
+        // subnets" vs "everything else" (hostnames, .local, unreachable IPs).
+        // Race the first group; only fall through to the second if nothing hit.
+        // Single-NIC schools have nothing in the "other" bucket — zero overhead.
+        const myNICs = await _getMyLocalNICs();
+        const { same: sameSubnet, other: otherCandidates } = partitionCandidates(knownServers, myNICs);
+        console.log(`[Probing] ${sameSubnet.length} same-subnet, ${otherCandidates.length} other candidates`);
 
         // PARALLEL probe: every known server is hit at the same time with a single
         // 2.5s timeout. Sequential probing was causing 7s × N freezes when several
@@ -394,13 +464,21 @@ async function probeKnownServers() {
                     ip = urlObj.hostname;
                     port = urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80);
                 } catch (e) { return null; }
+                // Multi-NIC: server returns every IP it's reachable on.
+                // Prefer info.addresses (full list) and fall back to ping.addresses
+                // for older servers that only filled one of the two.
+                const addresses = (Array.isArray(info.addresses) && info.addresses.length)
+                    ? info.addresses
+                    : (Array.isArray(ping.addresses) ? ping.addresses : []);
                 return {
                     name: info.name || "Known Server",
                     ip, port,
+                    ips: advertisedIps,
                     url: serverUrl,
                     host: ping.hostname || info.hostname || null,
                     mac: ping.mac || info.mac || null,
                     serverId: ping.serverId || info.serverId || null,
+                    addresses,
                     classes: info.classes || [],
                     teacherName: (info.classes && info.classes[0]?.teacherName) || null,
                     version: info.version || "unknown"
@@ -412,7 +490,14 @@ async function probeKnownServers() {
             }
         };
 
-        const results = await Promise.all(knownServers.map(probeOne));
+        // Two-phase race: same-subnet first, others only if phase 1 misses.
+        // See `client/subnet-match.js` for the policy + unit tests.
+        const fallbackList = sameSubnet.length > 0 ? otherCandidates : knownServers;
+        const phase1 = sameSubnet.length > 0 ? sameSubnet : [];
+        const { results, ranOther } = await raceWithFallback(phase1, fallbackList, probeOne);
+        if (ranOther && sameSubnet.length > 0) {
+            console.log(`[Probing] Same-subnet round empty — fell back to ${otherCandidates.length} other candidates`);
+        }
         let foundAny = false;
         const seenServerIds = new Set();
         for (const serverInfo of results) {
@@ -426,11 +511,14 @@ async function probeKnownServers() {
             const key = `${serverInfo.ip}:${serverInfo.port}`;
             discoveredServers.set(key, serverInfo);
             // Persist rich info so future cold-starts find this PC by MAC/hostname.
+            // addresses[] is the multi-NIC reachable-IP list — saved so a future
+            // student boot can probe every advertised IP, not just the URL we hit.
             saveKnownServer(serverInfo.url, {
                 host: serverInfo.host,
                 mac: serverInfo.mac,
                 serverId: serverInfo.serverId,
-                teacherName: serverInfo.teacherName
+                teacherName: serverInfo.teacherName,
+                addresses: serverInfo.addresses
             });
             console.log(`[Probing] HIT: ${serverInfo.name} @ ${key} host=${serverInfo.host} mac=${serverInfo.mac}`);
             foundAny = true;
@@ -451,34 +539,18 @@ async function probeKnownServers() {
 }
 
 
-// Auto-fill name from machine hostname if none exists.
-// Falls back to "PC-<random4>" only if hostname is unavailable.
+// Synchronous name fallback: cached hostname → "PC-<random4>". The async
+// hostname upgrade fires from the identity bootstrap above and overwrites this
+// safe default if the OS responds before the user changes it.
 if (!userName) {
     const cachedHost = localStorage.getItem('classsend-pcName');
     if (cachedHost) {
         userName = cachedHost;
-        localStorage.setItem('classsend-userName', userName);
     } else {
-        try {
-            const ipc = window.electron?.ipcRenderer || window.ipcRenderer;
-            if (ipc) {
-                ipc.invoke('get-hostname').then(name => {
-                    if (name && !localStorage.getItem('classsend-userName')) {
-                        userName = name;
-                        localStorage.setItem('classsend-userName', userName);
-                        if (typeof userNameInput !== 'undefined' && userNameInput) {
-                            userNameInput.value = userName;
-                        }
-                        console.log(`[Identity] Using hostname as default name: ${userName}`);
-                    }
-                }).catch(() => { });
-            }
-        } catch (e) { }
-        if (!userName) {
-            userName = `PC-${Math.floor(1000 + Math.random() * 9000)}`;
-            localStorage.setItem('classsend-userName', userName);
-        }
+        userName = `PC-${Math.floor(1000 + Math.random() * 9000)}`;
     }
+    localStorage.setItem('classsend-userName', userName);
+    console.log(`[Identity] Sync default name: ${userName}`);
 }
 
 // DOM Elements - Screens
@@ -491,55 +563,41 @@ const chatInterface = document.getElementById("chat-interface");
 // Check if we have a saved role
 // savedRole is already declared at top of file
 
-// DEFAULT ROLE LOGIC: If no role is saved, read from installer registry (Electron) or default to 'student'
+// DEFAULT ROLE LOGIC (flow v2):
+// 1. Apply a SAFE sync default ('student') so the chat shell can render now.
+// 2. Race the registry/conf read against IPC_TIMEOUT_MS to upgrade to teacher
+//    if the installer wrote that mode. If IPC hangs, the safe default holds.
 if (!savedRole) {
-    if (window.electron && window.electron.ipcRenderer) {
-        // Electron: hide role selection immediately, then read the mode the installer wrote to the registry
-        roleSelection.classList.add('hidden');
-        window.electron.ipcRenderer.invoke('get-install-mode').then(mode => {
-            const role = (mode === 'student') ? 'student' : 'teacher';
-            console.log(`[Identity] Install mode from registry: ${role}`);
-            savedRole = role;
-            currentRole = role;
-            localStorage.setItem('classsend-role', role);
-            autoFlowTriggered = true;
-            if (role === 'teacher') {
-                if (typeof triggerTeacherAutoFlow === 'function') triggerTeacherAutoFlow();
-            } else {
-                if (typeof handleAutoFlow === 'function') handleAutoFlow();
-            }
-        }).catch(() => {
-            // Registry read failed — fall back to student
-            console.warn('[Identity] get-install-mode failed, defaulting to student');
-            savedRole = 'student';
-            currentRole = 'student';
-            localStorage.setItem('classsend-role', 'student');
-            setTimeout(() => {
-                if (typeof handleAutoFlow === 'function') handleAutoFlow();
-            }, 100);
-        });
-    } else {
-        // Browser / dev mode: default to student
-        console.log("No saved role found. Defaulting to 'student'.");
-        savedRole = 'student';
-        localStorage.setItem('classsend-role', 'student');
-        currentRole = 'student';
-        setTimeout(() => {
-            if (typeof handleAutoFlow === 'function') handleAutoFlow();
-            roleSelection.classList.add('hidden');
-        }, 100);
-    }
-}
-
-if (savedRole) {
-    // We have a role (from localStorage or URL params), proceed automatically
+    savedRole = 'student';
+    currentRole = 'student';
+    localStorage.setItem('classsend-role', savedRole);
     roleSelection.classList.add('hidden');
-} else if (!window.electron || !window.electron.ipcRenderer) {
-    // No saved role and not in Electron — show role selection as fallback
-    roleSelection.classList.remove('hidden');
-    chatInterface.classList.add('hidden');
+
+    _ipcWithTimeout('get-install-mode', null).then(mode => {
+        if (!mode) {
+            console.log('[Identity] No install mode available, keeping default student');
+            if (!autoFlowTriggered && typeof handleAutoFlow === 'function') {
+                autoFlowTriggered = true;
+                handleAutoFlow();
+            }
+            return;
+        }
+        const role = (mode === 'student') ? 'student' : 'teacher';
+        console.log(`[Identity] Install mode resolved: ${role}`);
+        savedRole = role;
+        currentRole = role;
+        localStorage.setItem('classsend-role', role);
+        autoFlowTriggered = true;
+        if (role === 'teacher') {
+            if (typeof triggerTeacherAutoFlow === 'function') triggerTeacherAutoFlow();
+        } else {
+            if (typeof handleAutoFlow === 'function') handleAutoFlow();
+        }
+    });
+} else {
+    // Already have a role from localStorage or URL params
+    roleSelection.classList.add('hidden');
 }
-// else: Electron first launch — role selection already hidden above, waiting for IPC response
 
 
 
@@ -1365,6 +1423,7 @@ if (appLaunchCustomInput) {
 socket.on('launch-app', async ({ command }) => {
     if (currentRole !== 'student') return;
     if (!command) return;
+    if (!rateGuard('launch-app')) return;
     console.log(`[AppLaunch] Received launch command from teacher: ${command}`);
     if (window.electron && window.electron.ipcRenderer) {
         const result = await window.electron.ipcRenderer.invoke('launch-app', { command });
@@ -1526,22 +1585,71 @@ if (toggleAutoExport) {
 }
 
 socket.on("connect", () => {
-    connectionStatus.classList.remove("disconnected");
-    connectionStatus.classList.add("connected");
-
-    // Localization-aware update
-    connectionStatus.setAttribute('data-i18n', 'status-connected');
-    const statusText = connectionStatus.querySelector(".status-text");
-    if (statusText) {
-        statusText.setAttribute('data-i18n', 'status-connected');
-        // If translations available, use them immediately
-        if (typeof translations !== 'undefined' && currentLanguage && translations[currentLanguage]) {
-            statusText.textContent = translations[currentLanguage]['status-connected'] || "Connected";
+    // Flow v2: socket up — clear any DISCONNECTED banner. The next state
+    // (IN_CLASS / NO_TEACHER / SEARCHING) is set by the auto-flow that follows.
+    if (_connState === ConnState.DISCONNECTED || _connState === ConnState.CONNECTING) {
+        if (currentClassId) {
+            setConnectionState(ConnState.IN_CLASS);
         } else {
-            statusText.textContent = "Connected";
+            setConnectionState(ConnState.SEARCHING);
         }
     }
-    connectionStatus.title = "Connected";
+    syncConnectionUI('connected');
+});
+
+// Idempotent UI sync — reads socket.connected and forces the indicator into
+// the right state. Safe to call any number of times. forcedState:
+//   undefined → infer from socket.connected
+//   'connecting' → show "Connecting..." (mid-reconnect)
+//   'connected' / 'disconnected' → explicit override
+function syncConnectionUI(forcedState) {
+    if (!connectionStatus) return;
+    const state = forcedState || (socket && socket.connected ? 'connected' : 'disconnected');
+    if (state === 'connected') {
+        connectionStatus.classList.remove('disconnected', 'connecting');
+        connectionStatus.classList.add('connected');
+        connectionStatus.title = 'Connected';
+        connectionStatus.setAttribute('data-i18n', 'status-connected');
+    } else if (state === 'connecting') {
+        connectionStatus.classList.remove('connected');
+        connectionStatus.classList.add('disconnected');
+        connectionStatus.title = 'Connecting...';
+        connectionStatus.setAttribute('data-i18n', 'status-connecting');
+    } else {
+        connectionStatus.classList.remove('connected', 'connecting');
+        connectionStatus.classList.add('disconnected');
+        connectionStatus.title = 'Disconnected';
+        connectionStatus.setAttribute('data-i18n', 'status-disconnected');
+    }
+    const statusText = connectionStatus.querySelector('.status-text');
+    if (statusText) {
+        const key = state === 'connected' ? 'status-connected'
+                  : state === 'connecting' ? 'status-connecting'
+                  : 'status-disconnected';
+        const fallback = state === 'connected' ? 'Connected'
+                       : state === 'connecting' ? 'Connecting...'
+                       : 'Disconnected';
+        statusText.setAttribute('data-i18n', key);
+        const lang = (typeof currentLanguage !== 'undefined' && currentLanguage) || null;
+        statusText.textContent = (lang && translations?.[lang]?.[key]) || fallback;
+    }
+}
+
+// Heartbeat: re-sync every 5 s in case a silent transport drop left the UI
+// stale. 5 s is cheap and well within the slowest hardware's idle budget.
+setInterval(() => syncConnectionUI(), 5000);
+
+// Re-sync when the tab becomes visible — laptop wake from sleep is the
+// canonical "indicator is now lying" moment.
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncConnectionUI();
+});
+
+socket.on('reconnect_attempt', () => syncConnectionUI('connecting'));
+socket.on('reconnect_failed',  () => syncConnectionUI('disconnected'));
+
+socket.on("connect", () => {
+    syncConnectionUI('connected');
 
     // Re-join if we were in a class
     if (currentClassId && userName) {
@@ -1586,6 +1694,12 @@ socket.on("connect", () => {
 
 socket.on("disconnect", (reason) => {
     console.warn("Socket disconnected:", reason);
+    // Flow v2: surface in the banner. Transient drops show "Connecting…",
+    // hard disconnects show "Disconnected — trying to reconnect…".
+    const isTransient = (reason === "transport close" || reason === "ping timeout");
+    setConnectionState(
+        isTransient ? ConnState.CONNECTING : ConnState.DISCONNECTED
+    );
     connectionStatus.classList.remove("connected");
     connectionStatus.classList.add("disconnected");
 
@@ -1649,6 +1763,207 @@ socket.on("pc-name-assigned", (data) => {
     if (settingsPcNameInput) settingsPcNameInput.value = pcName;
 });
 
+// ===== Multi-NIC address race (ClassSend2 v0.0.5 parity) =====
+// A teacher PC may be reachable on more than one IP (Wi-Fi + Ethernet, two
+// adapters on different subnets). When auto-joining a remote class we don't
+// know up-front which IP this student can route to, so we race a quick HTTP
+// ping against every candidate and return the first one that answers.
+async function pickReachableAddress(addresses, port, timeoutMs = 1500) {
+    if (!Array.isArray(addresses) || addresses.length === 0) return null;
+    if (addresses.length === 1) return addresses[0];
+    const controllers = addresses.map(() => new AbortController());
+    const probes = addresses.map((ip, i) => {
+        const t = setTimeout(() => controllers[i].abort(), timeoutMs);
+        return fetch(`http://${ip}:${port}/api/ping`, { signal: controllers[i].signal })
+            .then(r => r.ok ? ip : null)
+            .catch(() => null)
+            .finally(() => clearTimeout(t));
+    });
+    // Promise.any returns the first non-null fulfilled value
+    try {
+        const winner = await Promise.any(probes.map(p => p.then(v => v == null ? Promise.reject() : v)));
+        // Cancel the losers — no point keeping their sockets open
+        controllers.forEach(c => { try { c.abort(); } catch (e) {} });
+        return winner;
+    } catch (e) {
+        return null;
+    }
+}
+
+// ===== Rate limiter for teacher-triggered actions (overload protection) =====
+// A buggy or hostile teacher session could spam side-effect events to a
+// student PC (open dozens of files, lock/unlock the screen rapidly, launch
+// apps in a loop). We hard-drop excess events on the client side and warn
+// the user with a throttled toast so they know something was rejected.
+//
+// Per-event sliding window: at most `max` events allowed in any `windowMs`.
+// Tune via the table below; "max=N, windowMs=M" means N requests per M ms.
+const _rateBuckets = new Map();   // event -> [timestamp, ...] within window
+const _rateConfig = {
+    // Destructive / disruptive — strict limits
+    'execute-shutdown':            { max: 1,  windowMs: 60_000 },
+    'execute-lock-screen':         { max: 5,  windowMs: 10_000 },
+    'execute-unlock-screen':       { max: 5,  windowMs: 10_000 },
+    'execute-disable-internet':    { max: 3,  windowMs: 30_000 },
+    'execute-enable-internet':     { max: 3,  windowMs: 30_000 },
+    'execute-set-internet-persist':{ max: 3,  windowMs: 30_000 },
+    'execute-close-all-apps':      { max: 2,  windowMs: 30_000 },
+    'execute-focus':               { max: 5,  windowMs: 10_000 },
+    'execute-set-system-mute':     { max: 8,  windowMs: 10_000 },
+    // Open / launch — moderate
+    'execute-open-file':           { max: 8,  windowMs: 10_000 },
+    'launch-app':                  { max: 5,  windowMs: 30_000 },
+    // High-frequency monitoring control — looser
+    'request-high-res-frame':      { max: 4,  windowMs: 5_000  },
+    'start-high-res-monitoring':   { max: 5,  windowMs: 30_000 }
+};
+let _lastRateToastAt = 0;
+function rateGuard(eventName) {
+    const cfg = _rateConfig[eventName];
+    if (!cfg) return true; // no limit configured -> allow
+    const now = Date.now();
+    let bucket = _rateBuckets.get(eventName);
+    if (!bucket) {
+        bucket = [];
+        _rateBuckets.set(eventName, bucket);
+    }
+    // Drop timestamps older than the window
+    const cutoff = now - cfg.windowMs;
+    while (bucket.length && bucket[0] < cutoff) bucket.shift();
+    if (bucket.length >= cfg.max) {
+        console.warn(`[RateLimit] dropped ${eventName} (limit ${cfg.max} per ${cfg.windowMs}ms)`);
+        // Throttle the toast — at most one every 5s — so we don't pile up
+        if (now - _lastRateToastAt > 5000) {
+            _lastRateToastAt = now;
+            try {
+                if (typeof showToast === 'function') {
+                    showToast(`Too many remote commands — slowing down.`, 'warning', 3000);
+                }
+            } catch (e) { /* showToast may not be ready yet */ }
+        }
+        return false;
+    }
+    bucket.push(now);
+    return true;
+}
+
+// ===== Connection state machine + helpers (flow v2) =====
+// Single source of truth for the visible connection banner. Every flow event
+// (online/offline, socket connect/disconnect, probe results, class join) calls
+// setConnectionState() — the banner reflects reality without per-call DOM code.
+const ConnState = Object.freeze({
+    OFFLINE:      'offline',       // navigator.onLine === false
+    DISCONNECTED: 'disconnected',  // socket dropped
+    CONNECTING:   'connecting',    // socket reconnect in progress
+    SEARCHING:    'searching',     // no class joined, looking for one
+    NO_TEACHER:   'no-teacher',    // joined, but teacher hasn't arrived
+    IN_CLASS:     'in-class'       // happy path — banner hidden
+});
+let _connState = ConnState.SEARCHING;
+
+function setConnectionState(state, detailText) {
+    _connState = state;
+    const banner = document.getElementById('connection-banner');
+    const text   = document.getElementById('connection-banner-text');
+    if (!banner || !text) return;
+    // Drop all state classes, then add the active one
+    banner.classList.remove(
+        'state-offline', 'state-disconnected', 'state-connecting',
+        'state-searching', 'state-no-teacher', 'state-in-class'
+    );
+    if (state === ConnState.IN_CLASS) {
+        banner.classList.add('hidden');
+        return;
+    }
+    banner.classList.remove('hidden');
+    banner.classList.add(`state-${state}`);
+
+    const defaults = {
+        [ConnState.OFFLINE]:      'No network connection — waiting for the network to come back…',
+        [ConnState.DISCONNECTED]: 'Disconnected from server — trying to reconnect…',
+        [ConnState.CONNECTING]:   'Connecting…',
+        [ConnState.SEARCHING]:    'Searching for a class on this network…',
+        [ConnState.NO_TEACHER]:   'Waiting for the teacher to join…'
+    };
+    text.textContent = detailText || defaults[state] || '';
+}
+
+// Promise-style emit with hard ACK timeout. The server CAN go silent (network
+// hiccup, dropped socket, broken handler). Without a timeout, callers like
+// joinClass() and joinOrCreateLobby() leak `joiningInProgress = true` forever.
+function socketEmitWithAck(event, payload, timeoutMs = 4000) {
+    return new Promise((resolve) => {
+        let settled = false;
+        const t = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            console.warn(`[Socket] ACK timeout for ${event} after ${timeoutMs}ms`);
+            resolve({ success: false, _timeout: true, message: 'Server did not respond' });
+        }, timeoutMs);
+        try {
+            socket.emit(event, payload, (response) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(t);
+                resolve(response || { success: false, message: 'Empty response' });
+            });
+        } catch (err) {
+            if (settled) return;
+            settled = true;
+            clearTimeout(t);
+            resolve({ success: false, message: err?.message || String(err) });
+        }
+    });
+}
+
+// Browser online / offline — single, centralized listener for the banner.
+// Existing code in startNetworkDiscovery() also listens for 'online' to kick
+// the probe; the two coexist because each owns a different responsibility.
+window.addEventListener('offline', () => {
+    console.warn('[Network] Browser went offline.');
+    setConnectionState(ConnState.OFFLINE);
+});
+window.addEventListener('online', () => {
+    console.log('[Network] Browser came back online.');
+    if (!currentClassId) {
+        setConnectionState(ConnState.SEARCHING);
+        if (typeof startProbingSequence === 'function') startProbingSequence();
+    } else {
+        setConnectionState(ConnState.CONNECTING);
+    }
+    if (!socket.connected) socket.connect();
+});
+
+// "Searching" mode replaces the old fake-Lobby join. The chat shell renders
+// immediately; the user sees the banner + the discovered-classes sidebar fill
+// in as servers reply. No fake room is created on the server.
+function enterSearchingMode() {
+    if (typeof roleSelection !== 'undefined' && roleSelection) roleSelection.classList.add('hidden');
+    if (typeof classSetup !== 'undefined' && classSetup) classSetup.classList.add('hidden');
+    if (typeof availableClassesScreen !== 'undefined' && availableClassesScreen) {
+        availableClassesScreen.classList.add('hidden');
+    }
+    if (typeof chatInterface !== 'undefined' && chatInterface) {
+        chatInterface.classList.remove('hidden');
+    }
+    // Disable composer until a real class is joined
+    if (typeof messageInput !== 'undefined' && messageInput) {
+        messageInput.disabled = true;
+        messageInput.placeholder = 'Searching for a class…';
+    }
+    if (typeof btnSendMessage !== 'undefined' && btnSendMessage) {
+        btnSendMessage.disabled = true;
+        btnSendMessage.style.opacity = '0.5';
+    }
+    // Show the existing big spinner overlay so users see something is happening
+    const overlay = document.getElementById('searching-overlay');
+    if (overlay) overlay.classList.remove('hidden');
+
+    setConnectionState(navigator.onLine ? ConnState.SEARCHING : ConnState.OFFLINE);
+
+    if (typeof renderSidebar === 'function') { try { renderSidebar(); } catch (e) {} }
+}
+
 // Helper to get ALL classes (Local + Remote)
 function getAllAvailableClasses() {
     const allClasses = [...availableClasses];
@@ -1668,7 +1983,13 @@ function getAllAvailableClasses() {
                         ...cls,
                         isRemote: true,
                         serverIp: serverInfo.ip,
-                        serverPort: serverInfo.port
+                        serverPort: serverInfo.port,
+                        // Multi-NIC: every IP this server is reachable on. The
+                        // join flow races them so the student lands on a
+                        // routable address regardless of which subnet they're on.
+                        serverAddresses: Array.isArray(serverInfo.addresses) && serverInfo.addresses.length
+                            ? serverInfo.addresses
+                            : [serverInfo.ip]
                     });
                 }
             });
@@ -1700,12 +2021,23 @@ function handleAutoFlow() {
             availableClassesScreen.classList.add('hidden');
 
             if (targetedClass.isRemote) {
-                let serverUrl = `http://${targetedClass.serverIp}:${targetedClass.serverPort}`;
-                if (savedRole && userName) {
-                    serverUrl += `?role=${encodeURIComponent(savedRole)}&name=${encodeURIComponent(userName)}`;
-                }
-                saveKnownServer(serverUrl);
-                window.location.href = serverUrl;
+                // Multi-NIC: pick whichever advertised IP this student can
+                // actually reach. Falls back to the original serverIp if all
+                // probes fail (network is up but the URL is unroutable — at
+                // least the user gets the same error they'd get today).
+                const candidates = Array.isArray(targetedClass.serverAddresses) && targetedClass.serverAddresses.length
+                    ? targetedClass.serverAddresses
+                    : [targetedClass.serverIp];
+                pickReachableAddress(candidates, targetedClass.serverPort).then(reachable => {
+                    const ip = reachable || targetedClass.serverIp;
+                    let serverUrl = `http://${ip}:${targetedClass.serverPort}`;
+                    if (savedRole && userName) {
+                        serverUrl += `?role=${encodeURIComponent(savedRole)}&name=${encodeURIComponent(userName)}`;
+                    }
+                    saveKnownServer(serverUrl, { addresses: candidates });
+                    console.log(`Auto-flow: redirecting to remote (chose ${ip} from ${candidates.length} candidates)`);
+                    window.location.href = serverUrl;
+                });
             } else {
                 joinClass(targetedClass.id, userName, true);
             }
@@ -1723,12 +2055,20 @@ function handleAutoFlow() {
             availableClassesScreen.classList.add('hidden');
 
             if (targetClass.isRemote) {
-                let serverUrl = `http://${targetClass.serverIp}:${targetClass.serverPort}`;
-                if (savedRole && userName) {
-                    serverUrl += `?role=${encodeURIComponent(savedRole)}&name=${encodeURIComponent(userName)}`;
-                }
-                saveKnownServer(serverUrl);
-                window.location.href = serverUrl;
+                // Multi-NIC: same race-and-pick as the saved-target branch above.
+                const candidates = Array.isArray(targetClass.serverAddresses) && targetClass.serverAddresses.length
+                    ? targetClass.serverAddresses
+                    : [targetClass.serverIp];
+                pickReachableAddress(candidates, targetClass.serverPort).then(reachable => {
+                    const ip = reachable || targetClass.serverIp;
+                    let serverUrl = `http://${ip}:${targetClass.serverPort}`;
+                    if (savedRole && userName) {
+                        serverUrl += `?role=${encodeURIComponent(savedRole)}&name=${encodeURIComponent(userName)}`;
+                    }
+                    saveKnownServer(serverUrl, { addresses: candidates });
+                    console.log(`Auto-flow: redirecting to remote (chose ${ip} from ${candidates.length} candidates)`);
+                    window.location.href = serverUrl;
+                });
             } else {
                 joinClass(targetClass.id, userName, true);
             }
@@ -1740,11 +2080,17 @@ function handleAutoFlow() {
             availableClassesScreen.classList.remove('hidden');
             renderAvailableClasses();
         } else {
-            // Priority 4: No REAL classes -> Wait in Lobby
-            if (currentClassId !== 'Lobby') {
-                console.log('Auto-flow: No classes available, joining Lobby as waiting room...');
-                joinOrCreateLobby();
+            // Priority 4: No REAL classes -> render chat shell in "searching" mode.
+            // Old behavior force-joined a fake "Lobby" room to keep the UI from
+            // crashing on missing identity; the new flow has deterministic
+            // identity bootstrap, so we no longer need that workaround.
+            if (currentClassId !== null) {
+                // Defensive: if we were in 'Lobby' previously, exit that state
+                currentClassId = null;
+                joinedClasses.delete('Lobby');
             }
+            console.log('Auto-flow: No classes available — entering searching mode (no fake Lobby).');
+            enterSearchingMode();
         }
     }
 }
@@ -1826,7 +2172,24 @@ function joinOrCreateLobby() {
 
 // Update chat disabled state based on teacher presence and user count
 function updateChatDisabledState() {
-    if (!currentClassId) return;
+    // Flow v2: when currentClassId is null we're in "searching" mode — chat
+    // shell is visible, composer disabled, banner says "Searching…". Treat
+    // null the same as the legacy 'Lobby' branch below.
+    if (!currentClassId) {
+        const searchingOverlay = document.getElementById("searching-overlay");
+        if (searchingOverlay) searchingOverlay.classList.remove("hidden");
+        if (messageInput) {
+            messageInput.disabled = true;
+            messageInput.placeholder = navigator.onLine
+                ? 'Searching for a class…'
+                : 'Offline — waiting for network…';
+        }
+        if (btnSendMessage) {
+            btnSendMessage.disabled = true;
+            btnSendMessage.style.opacity = '0.5';
+        }
+        return;
+    }
 
     const classData = joinedClasses.get(currentClassId);
     const hasTeacher = classData?.hasTeacher || classData?.users?.some(u => u.role === 'teacher');
@@ -1839,6 +2202,17 @@ function updateChatDisabledState() {
     const knownServers = JSON.parse(localStorage.getItem('classsend-known-servers') || '[]');
     const isDiscoveryOff = !isAutoDiscoveryEnabled;
     const isHistoryEmpty = knownServers.length === 0;
+
+    // Reflect class state in the banner so users see *why* chat is disabled
+    if (currentRole === 'student' && currentClassId !== 'Lobby') {
+        if (!hasTeacher) {
+            setConnectionState(ConnState.NO_TEACHER);
+        } else {
+            setConnectionState(ConnState.IN_CLASS);
+        }
+    } else if (currentRole === 'teacher') {
+        setConnectionState(ConnState.IN_CLASS);
+    }
 
     // Show overlay if (Student AND in Lobby)
     if (currentRole === 'student' && currentClassId === 'Lobby') {
@@ -2255,8 +2629,22 @@ function renderScanningStateInChat() {
 }
 
 function joinClass(classIdToJoin, nameToUse, isAutoJoin = false) {
-    socket.emit("join-class", { classId: classIdToJoin, userName: nameToUse, pcName: pcName }, (response) => {
+    setConnectionState(ConnState.CONNECTING, `Joining ${classIdToJoin}…`);
+    socketEmitWithAck("join-class", { classId: classIdToJoin, userName: nameToUse, pcName: pcName }, 5000).then((response) => {
+        // Self-heal the lock no matter what — success path also clears it now.
+        const _clearLock = () => { window.joiningInProgress = false; };
+        if (response._timeout) {
+            console.warn(`[joinClass] No response from server for ${classIdToJoin} — re-entering search.`);
+            _clearLock();
+            currentClassId = null;
+            // Re-arm auto-flow so the next discovered class can be joined
+            autoFlowTriggered = true;
+            enterSearchingMode();
+            if (socket.connected) socket.emit("get-active-classes");
+            return;
+        }
         if (response.success) {
+            _clearLock();
             const hasTeacher = response.users?.some(u => u.role === 'teacher') || false;
             joinedClasses.set(classIdToJoin, {
                 messages: response.messages || [],
@@ -2267,7 +2655,15 @@ function joinClass(classIdToJoin, nameToUse, isAutoJoin = false) {
                 hasTeacher: hasTeacher,
                 blockAllActive: response.blockAllActive || false,
                 blockUploadsActive: response.blockUploadsActive || false,
-                allowHandsUp: response.allowHandsUp !== undefined ? response.allowHandsUp : true
+                allowHandsUp: response.allowHandsUp !== undefined ? response.allowHandsUp : true,
+                // Late-join sync: capture teacher's current auto-download config so
+                // a student who joins AFTER the toggle was set still auto-downloads.
+                // Without this, files arriving before any toggle change are missed.
+                autoDownloadEnabled: response.autoDownloadEnabled || false,
+                autoDownloadPath: response.autoDownloadPath || '',
+                // URL whitelist comes through even when internet-cut is off, so the
+                // student is primed before the next toggle.
+                urlWhitelist: Array.isArray(response.urlWhitelist) ? response.urlWhitelist : []
             });
 
             // Handle auto-blocked state
@@ -2868,6 +3264,21 @@ socket.on("class-renamed", ({ oldName, newName }) => {
 });
 
 // Send Message
+// One-shot bypass state. Set when the teacher clicks the filter-slash button
+// to resend the most recently blocked message; the next send-message emit
+// includes `bypassFilter: true` and then this resets to false.
+let _pendingBypass = false;
+const btnBypassFilter = document.getElementById("btn-bypass-filter");
+
+function _hideBypassButton() {
+    if (btnBypassFilter) btnBypassFilter.classList.add('hidden');
+}
+function _showBypassButton() {
+    // Teacher-only: students never get to skip filtering.
+    if (currentRole !== 'teacher') return;
+    if (btnBypassFilter) btnBypassFilter.classList.remove('hidden');
+}
+
 function sendMessage() {
     const content = messageInput.value.trim();
     if (!content) return;
@@ -2879,11 +3290,18 @@ function sendMessage() {
         return;
     }
 
-    console.log(`[DEBUG] Sending message: "${content}"`);
+    // Consume the one-shot bypass flag — true only for the click that
+    // followed a `message-blocked`. Sending any other message resets it.
+    const bypassFilter = _pendingBypass === true;
+    _pendingBypass = false;
+    _hideBypassButton();
+
+    console.log(`[DEBUG] Sending message: "${content}"${bypassFilter ? ' [BYPASS]' : ''}`);
     socket.emit("send-message", {
         classId: currentClassId,
         content,
-        type: "text"
+        type: "text",
+        bypassFilter // server ignores this unless sender is a teacher
     });
 
     messageInput.value = "";
@@ -2891,6 +3309,39 @@ function sendMessage() {
 }
 
 btnSendMessage.addEventListener("click", sendMessage);
+
+// Filter-bypass button: resend the most recently blocked message past the
+// filter. One-shot — re-arming requires another block. Only ever visible to
+// the teacher; the handler is also role-gated as belt-and-braces.
+if (btnBypassFilter) {
+    btnBypassFilter.addEventListener('click', () => {
+        if (currentRole !== 'teacher') { _hideBypassButton(); return; }
+        if (!messageInput.value.trim()) { _hideBypassButton(); return; }
+        _pendingBypass = true;
+        sendMessage();
+    });
+}
+
+// Server tells us a message was rejected by the filter. We restore the text
+// into the input (so the user can see exactly what was caught and edit it)
+// and, if the sender is the teacher, reveal the bypass button for one click.
+socket.on('message-blocked', ({ content, reason, confidence }) => {
+    if (typeof content === 'string' && content.length > 0) {
+        // Don't clobber a follow-up the user has already started typing.
+        if (!messageInput.value || messageInput.value === '') {
+            messageInput.value = content;
+        }
+    }
+    if (currentRole === 'teacher') {
+        _showBypassButton();
+    } else {
+        _hideBypassButton();
+    }
+    if (typeof showToast === 'function') {
+        const pct = Number.isFinite(confidence) ? ` (${Math.round(confidence)}%)` : '';
+        showToast(`Message blocked: ${reason || 'filter'}${pct}`, 'warning');
+    }
+});
 
 messageInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -4526,6 +4977,50 @@ if (btnToolShutdownPc) {
     });
 }
 
+// ===== Teacher Mute-All / Unmute-All =====
+// Toggles the system master volume on every student PC in the class.
+// Persisted on the class so late-joiners inherit the muted state automatically.
+const btnToolMuteAll      = document.getElementById('btn-tool-mute-all');
+const btnToolMuteAllIcon  = document.getElementById('btn-tool-mute-all-icon');
+const btnToolMuteAllLabel = document.getElementById('btn-tool-mute-all-label');
+let _classMuteAll = false; // teacher-side mirror of the class flag
+
+function _renderMuteAllButton() {
+    if (!btnToolMuteAll || !btnToolMuteAllIcon || !btnToolMuteAllLabel) return;
+    btnToolMuteAllIcon.src = _classMuteAll ? '/assets/speaker-mute.svg' : '/assets/speaker.svg';
+    btnToolMuteAllLabel.textContent = _classMuteAll ? 'Unmute all PCs' : 'Mute all PCs';
+    btnToolMuteAll.title = _classMuteAll ? 'Unmute all PCs' : 'Mute all PCs';
+    btnToolMuteAll.classList.toggle('active', _classMuteAll);
+}
+
+if (btnToolMuteAll) {
+    btnToolMuteAll.addEventListener('click', () => {
+        if (currentRole !== 'teacher') return;
+        if (!currentClassId) {
+            showToast('Not connected to a class – please wait for reconnection.', 'warning');
+            return;
+        }
+        const next = !_classMuteAll;
+        socket.emit('trigger-system-mute', { classId: currentClassId, mute: next }, (resp) => {
+            if (resp && resp.success) {
+                _classMuteAll = next;
+                _renderMuteAllButton();
+                showToast(next ? 'All student PCs muted.' : 'All student PCs unmuted.', 'info', 2500);
+            } else {
+                showToast('Failed to send mute command.', 'error');
+            }
+        });
+    });
+}
+
+// Server pushes the current class mute state on join / change so late-joiners
+// (and the teacher after a reconnect) stay in sync.
+socket.on('system-mute-updated', ({ classId, mute }) => {
+    if (classId !== currentClassId) return;
+    _classMuteAll = !!mute;
+    if (currentRole === 'teacher') _renderMuteAllButton();
+});
+
 if (btnToolFocusApp) {
     btnToolFocusApp.addEventListener('click', () => {
         if (currentRole === 'teacher' && !currentClassId) {
@@ -4808,6 +5303,7 @@ if (btnPathDownloads) btnPathDownloads.addEventListener('click', () => { console
 
 // Windows Features Listeners (Electron)
 socket.on('execute-lock-screen', (data) => {
+    if (!rateGuard('execute-lock-screen')) return;
     const commandId = data && data.commandId;
     const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
@@ -4825,6 +5321,7 @@ socket.on('execute-lock-screen', (data) => {
 });
 
 socket.on('execute-unlock-screen', (data) => {
+    if (!rateGuard('execute-unlock-screen')) return;
     const commandId = data && data.commandId;
     const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
@@ -4834,6 +5331,7 @@ socket.on('execute-unlock-screen', (data) => {
 });
 
 socket.on('execute-shutdown', (data) => {
+    if (!rateGuard('execute-shutdown')) return;
     const commandId = data && data.commandId;
     const ackClassId = (data && data.classId) || currentClassId;
     if (commandId && ackClassId) socket.emit('command-ack', { classId: ackClassId, commandId });
@@ -4843,6 +5341,7 @@ socket.on('execute-shutdown', (data) => {
 });
 
 socket.on('execute-focus', (data) => {
+    if (!rateGuard('execute-focus')) return;
     const commandId = data && data.commandId;
     const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
@@ -4852,6 +5351,7 @@ socket.on('execute-focus', (data) => {
 });
 
 socket.on('execute-close-all-apps', (data) => {
+    if (!rateGuard('execute-close-all-apps')) return;
     const commandId = data && data.commandId;
     const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
@@ -4861,6 +5361,7 @@ socket.on('execute-close-all-apps', (data) => {
 });
 
 socket.on('execute-disable-internet', (data) => {
+    if (!rateGuard('execute-disable-internet')) return;
     const commandId = data && data.commandId;
     const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
@@ -4877,6 +5378,7 @@ socket.on('execute-disable-internet', (data) => {
 });
 
 socket.on('execute-enable-internet', (data) => {
+    if (!rateGuard('execute-enable-internet')) return;
     const commandId = data && data.commandId;
     const ackClassId = (data && data.classId) || currentClassId;
     if (window.electron) {
@@ -4919,8 +5421,30 @@ if (btnCopyPersistCmd) {
     });
 }
 
+// Student: teacher requested system master-volume mute / unmute.
+// We always honor the explicit boolean — the teacher controls the state, not a
+// toggle, so late-joiners and reconnects stay deterministic.
+socket.on('execute-set-system-mute', (data) => {
+    if (currentRole !== 'student') return;
+    if (!rateGuard('execute-set-system-mute')) return;
+    const mute = !!(data && data.mute);
+    const commandId = data && data.commandId;
+    const ackClassId = (data && data.classId) || currentClassId;
+    if (window.electron) {
+        window.electron.ipcRenderer.invoke('set-system-mute', { mute })
+            .then((res) => {
+                console.log(`[SystemMute] ${mute ? 'Muted' : 'Unmuted'} master volume`, res);
+                if (commandId && ackClassId) socket.emit('command-ack', { classId: ackClassId, commandId });
+            })
+            .catch(err => console.error('[SystemMute] Failed:', err));
+    } else if (commandId && ackClassId) {
+        socket.emit('command-ack', { classId: ackClassId, commandId });
+    }
+});
+
 // Student: receive and apply persistence setting from teacher
 socket.on('execute-set-internet-persist', ({ persist }) => {
+    if (!rateGuard('execute-set-internet-persist')) return;
     if (window.electron) {
         window.electron.ipcRenderer.invoke('set-internet-persist', { persist })
             .then(() => console.log(`[InternetPersist] Set to: ${persist}`))
@@ -5610,6 +6134,7 @@ const btnCloseVideo = document.getElementById("btn-close-video");
 const remoteVideo = document.getElementById("remote-video");
 const videoStatus = document.getElementById("video-status");
 const streamTitle = document.getElementById("stream-title");
+
 
 // Video Controls
 const btnMinimizeVideo = document.getElementById("btn-minimize-video");
@@ -6671,14 +7196,15 @@ socket.on('stop-monitoring', () => {
 
 // Student: Handle request for a high-res frame
 socket.on('request-high-res-frame', () => {
-    if (currentRole === 'student') {
-        captureAndSendScreen('high');
-    }
+    if (currentRole !== 'student') return;
+    if (!rateGuard('request-high-res-frame')) return;
+    captureAndSendScreen('high');
 });
 
 // Student: High-res monitoring focus (Teacher is watching ONLY you)
 socket.on('start-high-res-monitoring', ({ interval }) => {
     if (currentRole !== 'student') return;
+    if (!rateGuard('start-high-res-monitoring')) return;
 
     if (isElectronApp()) {
         if (captureIntervalId) clearInterval(captureIntervalId);

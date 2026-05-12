@@ -248,11 +248,15 @@ const _serverIdentity = (() => {
 })();
 
 // Lightweight ping endpoint for fast parallel probing (no JSON of classes).
+// `ip` is the local NIC the student should dial back on; on a multi-NIC teacher
+// we pick the one whose subnet contains the requester.
 app.get('/api/ping', (req, res) => {
+  const advertiseIp = networkDiscovery.pickAdvertiseAddrFor(req.ip || req.socket?.remoteAddress);
   res.json({
     serverId: _serverIdentity.serverId,
     hostname: _serverIdentity.hostname,
     mac: _serverIdentity.mac,
+    addresses: networkDiscovery.getLocalIPs ? networkDiscovery.getLocalIPs() : [],
     ts: Date.now()
   });
 });
@@ -263,12 +267,15 @@ app.get('/api/discovery-info', (req, res) => {
     teacherName: data.teacherName
   }));
 
+  const advertiseIp = networkDiscovery.pickAdvertiseAddrFor(req.ip || req.socket?.remoteAddress);
   res.json({
     name: 'ClassSend Server',
-    version: '11.4.0',
+    version: '11.5.3',
     serverId: _serverIdentity.serverId,
     hostname: _serverIdentity.hostname,
     mac: _serverIdentity.mac,
+    // Multi-NIC: every IP the server is reachable on. Students try each.
+    addresses: networkDiscovery.getLocalIPs ? networkDiscovery.getLocalIPs() : [],
     classes: classes
   });
 });
@@ -342,6 +349,7 @@ const TEACHER_DISCONNECT_GRACE_PERIOD = 10000;
 const baseDir = process.env.USER_DATA_PATH || __dirname;
 const CUSTOM_BLACKLIST_FILE = path.join(baseDir, 'data', 'custom-forbidden-words.json');
 const CUSTOM_WHITELIST_FILE = path.join(baseDir, 'data', 'custom-whitelisted-words.json');
+const SEED_MARKER_FILE = path.join(baseDir, 'data', '.seeded');
 
 let customForbiddenWords = [];
 let customWhitelistedWords = [];
@@ -458,6 +466,36 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
+// First-boot seeder: writes the curated seed lists when neither file exists.
+// Without this the filter is overprotective out of the box — common Greek /
+// English words trigger n-gram false positives because the whitelist
+// hard-pass has nothing in it. Marker file lets us seed exactly once.
+function seedWordlistsIfFresh() {
+  // Already seeded — respect the user's curated state.
+  if (fs.existsSync(SEED_MARKER_FILE)) return false;
+  // If either file already exists with content, treat install as non-fresh.
+  if (fs.existsSync(CUSTOM_BLACKLIST_FILE) || fs.existsSync(CUSTOM_WHITELIST_FILE)) {
+    try { fs.writeFileSync(SEED_MARKER_FILE, new Date().toISOString(), 'utf-8'); } catch (_) {}
+    return false;
+  }
+  try {
+    const seed = require('./data/seed-wordlists.js');
+    fs.writeFileSync(CUSTOM_BLACKLIST_FILE, JSON.stringify(seed.blacklistEntries(), null, 2), 'utf-8');
+    fs.writeFileSync(CUSTOM_WHITELIST_FILE, JSON.stringify(seed.whitelistEntries(), null, 2), 'utf-8');
+    fs.writeFileSync(SEED_MARKER_FILE, new Date().toISOString(), 'utf-8');
+    // Drop any stale model so trainClassifier rebuilds with the seed words.
+    try {
+      const modelFile = path.join(baseDir, 'data', 'classifier-model.json');
+      if (fs.existsSync(modelFile)) fs.unlinkSync(modelFile);
+    } catch (_) {}
+    console.log(`🌱 Seeded wordlists (${seed.BLACKLIST.length} blacklist, ${seed.WHITELIST.length} whitelist) — version ${seed.SEED_VERSION}`);
+    return true;
+  } catch (err) {
+    console.error('Failed to seed wordlists:', err);
+    return false;
+  }
+}
+
 // Load custom forbidden words from file
 function loadCustomForbiddenWords() {
   try {
@@ -512,6 +550,7 @@ function saveCustomWhitelistedWords() {
 }
 
 // Load words on startup
+seedWordlistsIfFresh();
 loadCustomForbiddenWords();
 loadCustomWhitelistedWords();
 
@@ -677,12 +716,14 @@ async function trainClassifier() {
       }
       console.log(`🧠 Added ${MILD_GOOD_WORDS.length} mild good words`);
 
-      // 4. Custom User Words (Append to training)
+      // 4. Custom User Words.
+      // Per product decision: only the blacklist trains the classifier. The
+      // whitelist is intentionally NOT learned as `clean` — it operates as a
+      // pre-AI hard-pass at message-filter time. Training whitelist words as
+      // `clean` inflates unrelated n-grams and was making the filter both
+      // miss-prone (`fast` learned as clean leaks to `fak`) and overprotective.
       for (const item of customForbiddenWords) {
         await classifier.learn(item.word, 'profane');
-      }
-      for (const item of customWhitelistedWords) {
-        await classifier.learn(item.word, 'clean');
       }
 
       // Save the model
@@ -736,15 +777,18 @@ async function checkMessageWithAI(message) {
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  // Send network info for Smart IP Entry
-  const ip = networkDiscovery.localIP || '127.0.0.1';
+  // Send network info for Smart IP Entry. On a multi-NIC teacher, pick the IP
+  // on the subnet this socket actually came in on so the student doesn't get
+  // handed a number it can't route to.
+  const remoteAddr = socket.handshake?.address || socket.conn?.remoteAddress;
+  const ip = networkDiscovery.pickAdvertiseAddrFor(remoteAddr) || networkDiscovery.localIP || '127.0.0.1';
   let prefix = '192.168.1.';
   const parts = ip.split('.');
   if (parts.length === 4) {
     prefix = `${parts[0]}.${parts[1]}.${parts[2]}.`;
   }
   const port = process.env.PORT || 3000;
-  socket.emit('network-info', { ip, prefix, port });
+  socket.emit('network-info', { ip, prefix, port, ips: networkDiscovery.getAllLocalIPs() });
 
   // Broadcast active classes to all clients
   socket.emit('active-classes', Array.from(activeClasses.entries()).map(([id, data]) => ({ id, teacherName: data.teacherName })));
@@ -1357,6 +1401,10 @@ io.on('connection', (socket) => {
       allowHandsUp: classData.allowHandsUp !== undefined ? classData.allowHandsUp : true,
       autoDownloadEnabled: classData.autoDownloadEnabled || false,
       autoDownloadPath: classData.autoDownloadPath || '',
+      // Always ship the URL whitelist on join (even when internet-cut is off).
+      // The student needs it ready so the next toggle doesn't strand them with
+      // an empty list until the teacher re-pushes it.
+      urlWhitelist: classData.internetCutPayload?.whitelist || classData.urlWhitelist || [],
       messages: recentMessages,
       users: classData.users,
       pinnedMessages: classData.pinnedMessages || []
@@ -1364,6 +1412,13 @@ io.on('connection', (socket) => {
 
     // Broadcast update to everyone (to update user counts)
     broadcastActiveClasses();
+
+    // If the class currently has system audio muted by the teacher, sync the
+    // late-joining student so they don't slip into a muted room with sound.
+    if (role === 'student' && classData.systemMuted) {
+      socket.emit('execute-set-system-mute', { classId, mute: true });
+      console.log(`[SystemMute] Late-joiner ${userName} muted on join in ${classId}`);
+    }
 
     // If monitoring is already running, bring this new student into it
     // (otherwise they silently miss it if they joined after the teacher enabled monitoring)
@@ -1424,7 +1479,7 @@ io.on('connection', (socket) => {
   });
 
   // Send chat message
-  socket.on('send-message', async ({ classId, content, type = 'text', fileData = null }) => {
+  socket.on('send-message', async ({ classId, content, type = 'text', fileData = null, bypassFilter = false }) => {
     try {
       if (!activeClasses.has(classId)) {
         console.warn(`Attempted to send message to non-existent class: ${classId}`);
@@ -1458,10 +1513,18 @@ io.on('connection', (socket) => {
         timestamp: new Date().toISOString()
       };
 
+      // Teacher-only one-shot bypass. Set by the filter-slash button on the
+      // teacher's message box after a previous message was blocked. Students
+      // can spoof the flag in payloads, hence the explicit role gate.
+      const filterBypassed = bypassFilter === true && user.role === 'teacher';
+      if (filterBypassed) {
+        console.log(`[DEBUG] Filter bypass honored for teacher ${user.name}: "${content}"`);
+      }
+
       // === DEEP LEARNING FILTER CHECK ===
       // === CONTENT FILTERING ===
-      // Only check text messages, not files
-      if (type === 'text') {
+      // Only check text messages, not files. Bypass skips ALL filter stages.
+      if (type === 'text' && !filterBypassed) {
         const settings = classData.advancedSettings || {
           blockEnabled: true,
           blockThreshold: 50,
@@ -1631,6 +1694,33 @@ io.on('connection', (socket) => {
 
       console.log(`[Lock Screen] Sent to all students in ${classId} (Repeating every 5s)`);
     }
+  });
+
+  // Teacher mutes / unmutes the system master volume on every student PC.
+  // Persisted on the class so late-joiners and reconnects stay in sync.
+  socket.on('trigger-system-mute', ({ classId, mute, targetSocketId }, callback) => {
+    if (!activeClasses.has(classId)) {
+      if (typeof callback === 'function') callback({ success: false, message: 'Class not found' });
+      return;
+    }
+    const classData = activeClasses.get(classId);
+    if (classData.teacherId !== socket.id) {
+      if (typeof callback === 'function') callback({ success: false, message: 'Not the teacher' });
+      return;
+    }
+    const muteFlag = !!mute;
+    classData.systemMuted = muteFlag;
+    const payload = { classId, mute: muteFlag };
+    if (targetSocketId) {
+      sendCommandWithAck(classId, [targetSocketId], 'execute-set-system-mute', payload);
+    } else {
+      const studentIds = classData.students.map(s => typeof s === 'object' ? s.id : s);
+      sendCommandWithAck(classId, studentIds, 'execute-set-system-mute', payload);
+      console.log(`[SystemMute] ${muteFlag ? 'Mute' : 'Unmute'} sent to all students in ${classId}`);
+    }
+    // Echo back to the room so the teacher's UI (and any peer teacher) syncs.
+    io.to(classId).emit('system-mute-updated', { classId, mute: muteFlag });
+    if (typeof callback === 'function') callback({ success: true, mute: muteFlag });
   });
 
   socket.on('trigger-shutdown', ({ classId, targetSocketId }) => {
@@ -2074,8 +2164,11 @@ io.on('connection', (socket) => {
       hostname = `${safeClassId}.local`;
     }
 
+    const remoteAddr = socket.handshake?.address || socket.conn?.remoteAddress;
+    const ip = networkDiscovery.pickAdvertiseAddrFor(remoteAddr) || networkDiscovery.localIP || 'localhost';
     callback({
-      ip: networkDiscovery.localIP || 'localhost',
+      ip,
+      ips: networkDiscovery.getAllLocalIPs(),
       port: process.env.PORT || 3000,
       hostname: hostname
     });
@@ -3105,12 +3198,20 @@ server.listen(PORT, '0.0.0.0', async () => {
     // Handle dynamic IP changes
     networkDiscovery.on('ip-changed', ({ newIP, oldIP }) => {
       console.log(`[Network] IP changed from ${oldIP} to ${newIP}. Updating clients.`);
-      io.emit('network-info', {
-        ip: newIP,
-        port: PORT,
-        hostname: os.hostname(),
-        protocol: serverProtocol
-      });
+      // Broadcast per-socket so each client gets the IP on the subnet it's
+      // actually connected from (multi-NIC teachers).
+      const allIPs = networkDiscovery.getAllLocalIPs();
+      for (const [, s] of io.of('/').sockets) {
+        const remote = s.handshake?.address || s.conn?.remoteAddress;
+        const perClientIP = networkDiscovery.pickAdvertiseAddrFor(remote) || newIP;
+        s.emit('network-info', {
+          ip: perClientIP,
+          ips: allIPs,
+          port: PORT,
+          hostname: os.hostname(),
+          protocol: serverProtocol
+        });
+      }
     });
 
     // Start active monitoring for network changes

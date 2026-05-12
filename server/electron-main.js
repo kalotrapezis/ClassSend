@@ -645,6 +645,30 @@ function createWindow() {
     });
 
     // Windows End of Day Shutdown
+    // Set the system master mute deterministically. Called by the student
+    // when the teacher hits "Mute all PCs". Resolves true on success.
+    ipcMain.handle('set-system-mute', async (_event, { mute } = {}) => {
+        return new Promise((resolve) => {
+            // Resolve the bundled audio-mute.ps1 — packaged path differs from dev.
+            // Packaged builds copy the script into resources/ via extraResources
+            // (matches the wifi-guard.ps1 layout); dev runs find it next to this file.
+            const scriptPath = app.isPackaged
+                ? path.join(process.resourcesPath, 'audio-mute.ps1')
+                : path.join(__dirname, 'audio-mute.ps1');
+            const arg = mute ? 'true' : 'false';
+            const cmd = `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${scriptPath}" ${arg}`;
+            exec(cmd, { windowsHide: true }, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('[SystemMute] Failed:', error.message, stderr);
+                    resolve({ success: false, error: error.message });
+                } else {
+                    console.log(`[SystemMute] ${arg} ->`, (stdout || '').trim());
+                    resolve({ success: true });
+                }
+            });
+        });
+    });
+
     ipcMain.handle('shutdown-pc', async () => {
         return new Promise((resolve) => {
             // Shutdown immediately
@@ -708,6 +732,69 @@ Get-Process | Where-Object {
         });
     });
 
+    // --- SafeSearch / YouTube Restricted / Proxy-settings lock helpers ---
+    // Applied when the internet cutoff is active. Uses HKCU policy keys so no
+    // elevation is required, matching the existing proxy-toggle approach.
+    //
+    //  - Chrome / Edge: ForceGoogleSafeSearch=1, ForceYouTubeRestrict=2 (Strict)
+    //    only when google.com / youtube.com is in the allow-list.
+    //  - IE Control Panel policy: Proxy=1 locks the Windows proxy-settings UI
+    //    and surfaces the "This setting is managed by your organization" notice.
+    function whitelistHasDomain(whitelist, target) {
+        return (whitelist || []).some(entry => {
+            const d = String(entry).toLowerCase().trim()
+                .replace(/^https?:\/\//i, '')
+                .replace(/\/.*$/, '')
+                .replace(/^\*\./, '');
+            return d === target || d.endsWith('.' + target);
+        });
+    }
+
+    function buildContentLockCmds(whitelist, lock) {
+        const cmds = [];
+        const browserKeys = [
+            'HKCU\\Software\\Policies\\Google\\Chrome',
+            'HKCU\\Software\\Policies\\Microsoft\\Edge'
+        ];
+        const wantSafeSearch = lock && whitelistHasDomain(whitelist, 'google.com');
+        const wantYTRestrict = lock && whitelistHasDomain(whitelist, 'youtube.com');
+
+        browserKeys.forEach(key => {
+            if (wantSafeSearch) {
+                cmds.push(`reg add "${key}" /v ForceGoogleSafeSearch /t REG_DWORD /d 1 /f`);
+            } else {
+                cmds.push(`reg delete "${key}" /v ForceGoogleSafeSearch /f`);
+            }
+            if (wantYTRestrict) {
+                cmds.push(`reg add "${key}" /v ForceYouTubeRestrict /t REG_DWORD /d 2 /f`);
+            } else {
+                cmds.push(`reg delete "${key}" /v ForceYouTubeRestrict /f`);
+            }
+        });
+
+        const proxyLockKey = 'HKCU\\Software\\Policies\\Microsoft\\Internet Explorer\\Control Panel';
+        if (lock) {
+            cmds.push(`reg add "${proxyLockKey}" /v Proxy /t REG_DWORD /d 1 /f`);
+        } else {
+            cmds.push(`reg delete "${proxyLockKey}" /v Proxy /f`);
+        }
+        return cmds;
+    }
+
+    function applyContentLocks(whitelist, lock) {
+        const cmds = buildContentLockCmds(whitelist, lock);
+        // Chain with `&` so delete-on-missing-value doesn't abort the rest.
+        const joined = cmds.map(c => `(${c})`).join(' & ');
+        exec(joined, (error) => {
+            if (error) {
+                // Most failures are "value does not exist" on cleanup — non-fatal.
+                console.log(`[Content Locks] ${lock ? 'applied' : 'cleared'} (some entries may not have existed)`);
+            } else {
+                console.log(`[Content Locks] ${lock ? 'applied' : 'cleared'} successfully`);
+            }
+        });
+    }
+
     // Toggle Internet via Windows Registry (Proxy Method)
     // Accepts either a boolean (legacy) or { disable, whitelist[] } object
     ipcMain.handle('toggle-internet', async (event, data) => {
@@ -744,6 +831,7 @@ Get-Process | Where-Object {
                     resolve({ success: false, error: error.message });
                 } else {
                     console.log(`[Toggle Internet] Successfully ${disable ? 'disabled' : 'enabled'} internet`);
+                    applyContentLocks(whitelist, !!disable);
                     resolve({ success: true });
                 }
             });
@@ -804,6 +892,7 @@ Get-Process | Where-Object {
                 console.error('[Startup] Failed to restore internet blocking:', error.message);
             } else {
                 console.log(`[Startup] Internet blocking restored (${whitelist.length} whitelist entries)`);
+                applyContentLocks(whitelist, true);
             }
         });
     }
@@ -887,6 +976,21 @@ Get-Process | Where-Object {
     // Get Hostname for monitoring display
     ipcMain.handle('get-hostname', () => {
         return os.hostname();
+    });
+
+    // Return every IPv4 NIC on this PC ({ ip, netmask, mac }). Used by the
+    // student-side discovery loop to prefer same-subnet teachers first.
+    ipcMain.handle('get-local-nics', () => {
+        const interfaces = os.networkInterfaces();
+        const out = [];
+        for (const name of Object.keys(interfaces)) {
+            for (const iface of interfaces[name]) {
+                if (iface.family !== 'IPv4' || iface.internal) continue;
+                if (iface.address.startsWith('169.254.')) continue; // link-local junk
+                out.push({ ip: iface.address, netmask: iface.netmask, mac: iface.mac, name });
+            }
+        }
+        return out;
     });
 
     // Get install mode so the frontend knows which UI to show
