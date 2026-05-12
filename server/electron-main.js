@@ -889,6 +889,21 @@ Get-Process | Where-Object {
         return os.hostname();
     });
 
+    // Return every IPv4 NIC on this PC ({ ip, netmask, mac }). Used by the
+    // student-side discovery loop to prefer same-subnet teachers first.
+    ipcMain.handle('get-local-nics', () => {
+        const interfaces = os.networkInterfaces();
+        const out = [];
+        for (const name of Object.keys(interfaces)) {
+            for (const iface of interfaces[name]) {
+                if (iface.family !== 'IPv4' || iface.internal) continue;
+                if (iface.address.startsWith('169.254.')) continue; // link-local junk
+                out.push({ ip: iface.address, netmask: iface.netmask, mac: iface.mac, name });
+            }
+        }
+        return out;
+    });
+
     // Get install mode so the frontend knows which UI to show
     ipcMain.handle('get-install-mode', () => {
         return getInstallMode();

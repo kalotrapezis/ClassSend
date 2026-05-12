@@ -31,7 +31,7 @@ export function loadKnownServers() {
     // Migrate legacy string[] format
     const migrated = raw.map(entry => {
         if (typeof entry === 'string') {
-            return { url: _normalizeUrl(entry), host: null, mac: null, serverId: null, teacherName: null, lastSeen: 0 };
+            return { url: _normalizeUrl(entry), host: null, mac: null, serverId: null, teacherName: null, ips: [], lastSeen: 0 };
         }
         if (entry && typeof entry === 'object' && entry.url) {
             return {
@@ -40,6 +40,10 @@ export function loadKnownServers() {
                 mac: entry.mac || null,
                 serverId: entry.serverId || null,
                 teacherName: entry.teacherName || null,
+                // Multi-NIC teachers advertise every NIC IP; we cache them so a
+                // student that moved subnets can still find the teacher even if
+                // the URL we last connected on is the wrong one now.
+                ips: Array.isArray(entry.ips) ? entry.ips.filter(Boolean) : [],
                 lastSeen: Number(entry.lastSeen) || 0
             };
         }
@@ -68,6 +72,7 @@ export function upsertKnownServer(entry) {
         mac: entry.mac || null,
         serverId: entry.serverId || null,
         teacherName: entry.teacherName || null,
+        ips: Array.isArray(entry.ips) ? entry.ips.filter(Boolean) : [],
         lastSeen: Date.now()
     };
 
@@ -81,12 +86,14 @@ export function upsertKnownServer(entry) {
     if (matchIdx !== -1) {
         // Merge — never erase fields we already knew with nulls
         const prev = list[matchIdx];
+        const mergedIps = Array.from(new Set([...(entry.ips || []), ...(prev.ips || [])]));
         entry = {
             url: entry.url || prev.url,
             host: entry.host || prev.host,
             mac: entry.mac || prev.mac,
             serverId: entry.serverId || prev.serverId,
             teacherName: entry.teacherName || prev.teacherName,
+            ips: mergedIps,
             lastSeen: entry.lastSeen
         };
         list.splice(matchIdx, 1);
@@ -122,15 +129,21 @@ export function expandCandidates(entries, ownOrigin) {
 
     for (const e of entries) {
         push(e.url);
+        let port = '3000';
+        try { port = new URL(e.url).port || '3000'; } catch { }
         if (e.host) {
-            try {
-                const u = new URL(e.url);
-                const port = u.port || '3000';
-                push(`http://${e.host}:${port}`);
-                if (!e.host.endsWith('.local')) {
-                    push(`http://${e.host}.local:${port}`);
-                }
-            } catch { }
+            push(`http://${e.host}:${port}`);
+            if (!e.host.endsWith('.local')) {
+                push(`http://${e.host}.local:${port}`);
+            }
+        }
+        // Multi-NIC teacher: also probe every cached NIC IP — if the teacher's
+        // primary URL is on a subnet we can't reach today, the other one might
+        // be reachable.
+        if (Array.isArray(e.ips)) {
+            for (const ip of e.ips) {
+                if (ip) push(`http://${ip}:${port}`);
+            }
         }
     }
     return out;
