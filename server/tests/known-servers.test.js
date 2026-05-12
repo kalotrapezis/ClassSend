@@ -66,14 +66,14 @@ describe('loadKnownServers — migration & resilience', () => {
         expect(list[0].url).toBe('http://ok:3000');
     });
 
-    it('coerces non-array ips to []', () => {
+    it('coerces non-array addresses to []', () => {
         globalThis.localStorage.setItem('classsend-known-servers', JSON.stringify([
-            { url: 'http://a:3000', ips: 'not-an-array' },
-            { url: 'http://b:3000', ips: null }
+            { url: 'http://a:3000', addresses: 'not-an-array' },
+            { url: 'http://b:3000', addresses: null }
         ]));
         const list = ks.loadKnownServers();
-        expect(list[0].ips).toEqual([]);
-        expect(list[1].ips).toEqual([]);
+        expect(list[0].addresses).toEqual([]);
+        expect(list[1].addresses).toEqual([]);
     });
 });
 
@@ -146,32 +146,32 @@ describe('upsertKnownServer — identity & merge', () => {
     });
 });
 
-// --- multi-NIC ips merge ---------------------------------------------------
+// --- multi-NIC addresses merge ---------------------------------------------
 
-describe('upsertKnownServer — multi-NIC ips merge', () => {
-    it('persists ips on first save', () => {
-        ks.upsertKnownServer({ url: 'http://192.168.1.50:3000', mac: 'm-1', ips: ['192.168.1.50', '10.0.0.50'] });
-        expect(ks.loadKnownServers()[0].ips.sort()).toEqual(['10.0.0.50', '192.168.1.50']);
+describe('upsertKnownServer — multi-NIC addresses merge', () => {
+    it('persists addresses on first save', () => {
+        ks.upsertKnownServer({ url: 'http://192.168.1.50:3000', mac: 'm-1', addresses: ['192.168.1.50', '10.0.0.50'] });
+        expect(ks.loadKnownServers()[0].addresses.sort()).toEqual(['10.0.0.50', '192.168.1.50']);
     });
 
-    it('merges newly seen ips without losing old ones', () => {
-        ks.upsertKnownServer({ url: 'http://192.168.1.50:3000', mac: 'm-1', ips: ['192.168.1.50', '10.0.0.50'] });
+    it('merges newly seen addresses without losing old ones', () => {
+        ks.upsertKnownServer({ url: 'http://192.168.1.50:3000', mac: 'm-1', addresses: ['192.168.1.50', '10.0.0.50'] });
         // Next probe only reaches the teacher via the second NIC — must NOT erase the first
-        ks.upsertKnownServer({ url: 'http://10.0.0.50:3000', mac: 'm-1', ips: ['10.0.0.50'] });
-        expect(ks.loadKnownServers()[0].ips.sort()).toEqual(['10.0.0.50', '192.168.1.50']);
+        ks.upsertKnownServer({ url: 'http://10.0.0.50:3000', mac: 'm-1', addresses: ['10.0.0.50'] });
+        expect(ks.loadKnownServers()[0].addresses.sort()).toEqual(['10.0.0.50', '192.168.1.50']);
     });
 
     it('dedupes when the same IP comes in twice', () => {
-        ks.upsertKnownServer({ url: 'http://a:3000', mac: 'm-1', ips: ['1.1.1.1'] });
-        ks.upsertKnownServer({ url: 'http://a:3000', mac: 'm-1', ips: ['1.1.1.1', '2.2.2.2'] });
-        const ips = ks.loadKnownServers()[0].ips;
-        expect(ips.length).toBe(new Set(ips).size);
-        expect(ips.sort()).toEqual(['1.1.1.1', '2.2.2.2']);
+        ks.upsertKnownServer({ url: 'http://a:3000', mac: 'm-1', addresses: ['1.1.1.1'] });
+        ks.upsertKnownServer({ url: 'http://a:3000', mac: 'm-1', addresses: ['1.1.1.1', '2.2.2.2'] });
+        const addrs = ks.loadKnownServers()[0].addresses;
+        expect(addrs.length).toBe(new Set(addrs).size);
+        expect(addrs.sort()).toEqual(['1.1.1.1', '2.2.2.2']);
     });
 
-    it('rejects falsy items in the ips array', () => {
-        ks.upsertKnownServer({ url: 'http://a:3000', mac: 'm-1', ips: ['1.1.1.1', null, '', undefined, '2.2.2.2'] });
-        expect(ks.loadKnownServers()[0].ips.sort()).toEqual(['1.1.1.1', '2.2.2.2']);
+    it('rejects falsy items in the addresses array', () => {
+        ks.upsertKnownServer({ url: 'http://a:3000', mac: 'm-1', addresses: ['1.1.1.1', null, '', undefined, '2.2.2.2'] });
+        expect(ks.loadKnownServers()[0].addresses.sort()).toEqual(['1.1.1.1', '2.2.2.2']);
     });
 });
 
@@ -191,7 +191,7 @@ describe('expandCandidates', () => {
 
     it('emits one URL per cached NIC IP (multi-NIC teacher)', () => {
         const cands = ks.expandCandidates([{
-            url: 'http://192.168.1.50:3000', host: 'teacher', ips: ['192.168.1.50', '10.0.0.50']
+            url: 'http://192.168.1.50:3000', host: 'teacher', addresses: ['192.168.1.50', '10.0.0.50']
         }], 'http://localhost:5173');
         expect(cands).toContain('http://10.0.0.50:3000');
         expect(cands).toContain('http://192.168.1.50:3000');

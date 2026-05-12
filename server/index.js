@@ -270,7 +270,7 @@ app.get('/api/discovery-info', (req, res) => {
   const advertiseIp = networkDiscovery.pickAdvertiseAddrFor(req.ip || req.socket?.remoteAddress);
   res.json({
     name: 'ClassSend Server',
-    version: '11.5.0',
+    version: '11.5.2',
     serverId: _serverIdentity.serverId,
     hostname: _serverIdentity.hostname,
     mac: _serverIdentity.mac,
