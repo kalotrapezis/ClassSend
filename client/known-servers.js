@@ -31,7 +31,7 @@ export function loadKnownServers() {
     // Migrate legacy string[] format
     const migrated = raw.map(entry => {
         if (typeof entry === 'string') {
-            return { url: _normalizeUrl(entry), host: null, mac: null, serverId: null, teacherName: null, ips: [], lastSeen: 0 };
+            return { url: _normalizeUrl(entry), host: null, mac: null, serverId: null, teacherName: null, addresses: [], lastSeen: 0 };
         }
         if (entry && typeof entry === 'object' && entry.url) {
             return {
@@ -40,10 +40,10 @@ export function loadKnownServers() {
                 mac: entry.mac || null,
                 serverId: entry.serverId || null,
                 teacherName: entry.teacherName || null,
-                // Multi-NIC teachers advertise every NIC IP; we cache them so a
-                // student that moved subnets can still find the teacher even if
-                // the URL we last connected on is the wrong one now.
-                ips: Array.isArray(entry.ips) ? entry.ips.filter(Boolean) : [],
+                // Multi-NIC: every IP the server is reachable on. Used by
+                // expandCandidates so a teacher with two NICs is found from
+                // either subnet.
+                addresses: Array.isArray(entry.addresses) ? entry.addresses.filter(Boolean) : [],
                 lastSeen: Number(entry.lastSeen) || 0
             };
         }
@@ -72,7 +72,7 @@ export function upsertKnownServer(entry) {
         mac: entry.mac || null,
         serverId: entry.serverId || null,
         teacherName: entry.teacherName || null,
-        ips: Array.isArray(entry.ips) ? entry.ips.filter(Boolean) : [],
+        addresses: Array.isArray(entry.addresses) ? entry.addresses.filter(Boolean) : [],
         lastSeen: Date.now()
     };
 
@@ -84,16 +84,21 @@ export function upsertKnownServer(entry) {
         (e.url === entry.url)
     );
     if (matchIdx !== -1) {
-        // Merge — never erase fields we already knew with nulls
+        // Merge — never erase fields we already knew with nulls. For addresses
+        // we union both lists so a server seen first via one NIC and then
+        // another keeps both reachable IPs in history.
         const prev = list[matchIdx];
-        const mergedIps = Array.from(new Set([...(entry.ips || []), ...(prev.ips || [])]));
+        const mergedAddrs = Array.from(new Set([
+            ...(entry.addresses || []),
+            ...(prev.addresses || [])
+        ])).filter(Boolean);
         entry = {
             url: entry.url || prev.url,
             host: entry.host || prev.host,
             mac: entry.mac || prev.mac,
             serverId: entry.serverId || prev.serverId,
             teacherName: entry.teacherName || prev.teacherName,
-            ips: mergedIps,
+            addresses: mergedAddrs,
             lastSeen: entry.lastSeen
         };
         list.splice(matchIdx, 1);
@@ -129,20 +134,20 @@ export function expandCandidates(entries, ownOrigin) {
 
     for (const e of entries) {
         push(e.url);
+        // Multi-NIC: try every advertised address for this server. A teacher PC
+        // with Wi-Fi and Ethernet on different subnets stores both IPs; the
+        // student's network may only route to one of them.
         let port = '3000';
         try { port = new URL(e.url).port || '3000'; } catch { }
+        if (Array.isArray(e.addresses)) {
+            for (const ip of e.addresses) {
+                if (ip) push(`http://${ip}:${port}`);
+            }
+        }
         if (e.host) {
             push(`http://${e.host}:${port}`);
             if (!e.host.endsWith('.local')) {
                 push(`http://${e.host}.local:${port}`);
-            }
-        }
-        // Multi-NIC teacher: also probe every cached NIC IP — if the teacher's
-        // primary URL is on a subnet we can't reach today, the other one might
-        // be reachable.
-        if (Array.isArray(e.ips)) {
-            for (const ip of e.ips) {
-                if (ip) push(`http://${ip}:${port}`);
             }
         }
     }

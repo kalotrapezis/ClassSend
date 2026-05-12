@@ -1,6 +1,6 @@
 {
     "name": "classsend",
-    "version": "11.5.1",
+    "version": "11.5.0",
     "description": "ClassSend - Local Network File Sharing for Education",
     "productName": "ClassSend",
     "author": "ClassSend Team",
@@ -39,6 +39,10 @@
             {
                 "from": "wifi-guard.ps1",
                 "to": "wifi-guard.ps1"
+            },
+            {
+                "from": "audio-mute.ps1",
+                "to": "audio-mute.ps1"
             },
             {
                 "from": "../classsend.conf",

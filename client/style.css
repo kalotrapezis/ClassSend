@@ -6336,3 +6336,38 @@ input:checked+.slider:before {
     border-color: var(--accent-color, #4a9eff);
 }
 .user-item.search-hidden { display: none; }
+
+/* Connection state banner (flow v2) */
+.connection-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #fff;
+    background: #555;
+    border-bottom: 1px solid rgba(0,0,0,0.15);
+    transition: background-color 0.2s ease;
+}
+.connection-banner.hidden { display: none; }
+.connection-banner-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.85);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.15);
+}
+.connection-banner.state-searching    { background: #b8860b; }
+.connection-banner.state-no-teacher   { background: #2563eb; }
+.connection-banner.state-offline      { background: #b91c1c; }
+.connection-banner.state-disconnected { background: #dc2626; }
+.connection-banner.state-connecting   { background: #6b7280; }
+.connection-banner.state-searching .connection-banner-dot,
+.connection-banner.state-connecting .connection-banner-dot {
+    animation: cb-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cb-pulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
+}
+
