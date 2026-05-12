@@ -1,5 +1,15 @@
 # Release Notes
 
+## [11.5.3] - 2026-05-12
+
+Hardens the internet-cutoff allow-list so whitelisting Google and YouTube no longer hands students an unfiltered escape hatch, and locks the Windows proxy-settings UI for the duration of the cutoff. Mirrors the SafeSearch / Restricted Mode / proxy-lock behaviour that already exists in CSec, adapted to ClassSend's no-elevation HKCU registry approach.
+
+### FEATURES
+- **Google SafeSearch forced when `google.com` is in the allow-list**: writes `ForceGoogleSafeSearch = 1` under `HKCU\Software\Policies\Google\Chrome` and `HKCU\Software\Policies\Microsoft\Edge`. Cleared when the cutoff ends.
+- **YouTube Restricted Mode (Strict) when `youtube.com` is in the allow-list**: writes `ForceYouTubeRestrict = 2` under the same Chrome and Edge policy keys.
+- **Windows proxy-settings UI locked for the duration of the cutoff**: writes `Proxy = 1` under `HKCU\Software\Policies\Microsoft\Internet Explorer\Control Panel`. Surfaces the "This setting is managed by your organization" notice in Settings → Network → Proxy and prevents students from disabling the ClassSend proxy. Cleared on enable-internet and on uninstall paths that already clear the proxy values.
+- All three locks are re-applied on startup by `restoreInternetBlockingState()` when the cutoff persists across reboots, matching the existing proxy-restore behaviour.
+
 ## [11.5.2] - 2026-05-12
 
 Hotfix on top of 11.5.1, which had a botched conflict resolution when merged into `beta` over the 11.5.0 work. 11.5.1 reaches `beta` but the server **crashes on startup** there — `TypeError: this.getAllLocalNICs is not a function`. 11.5.2 makes the merged code actually run.
