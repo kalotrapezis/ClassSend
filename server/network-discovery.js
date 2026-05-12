@@ -289,7 +289,7 @@ class NetworkDiscovery extends EventEmitter {
             type: 'classsend',
             port: this.port,
             txt: {
-                version: '11.5.2',
+                version: '11.5.3',
                 classes: classesEncoded,
                 ip: this.localIP,
                 addresses: addressesField
@@ -311,7 +311,7 @@ class NetworkDiscovery extends EventEmitter {
                         // Force the A-record for this service to point at this NIC's IP
                         host: nic.ip,
                         txt: {
-                            version: '11.5.2',
+                            version: '11.5.3',
                             classes: classesEncoded,
                             ip: nic.ip,
                             addresses: addressesField,
