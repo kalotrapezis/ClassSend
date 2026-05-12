@@ -9,6 +9,7 @@ import {
     expandCandidates,
     removeKnownServer
 } from "./known-servers.js";
+import { partitionCandidates, raceWithFallback } from "./subnet-match.js";
 
 // Logger for Advanced Settings
 const capturedLogs = [];
@@ -391,6 +392,27 @@ function saveKnownServer(url, extra) {
 // State for probing lock
 let isProbing = false;
 
+// Cache of this PC's local NICs (asked once from main process, refreshed on
+// network changes). Used to decide whether a candidate IP is "same subnet".
+let _myLocalNICs = null;
+async function _getMyLocalNICs() {
+    if (_myLocalNICs !== null) return _myLocalNICs;
+    try {
+        const ipc = window.electron?.ipcRenderer || window.ipcRenderer;
+        if (ipc) {
+            _myLocalNICs = await ipc.invoke('get-local-nics') || [];
+        } else {
+            _myLocalNICs = [];
+        }
+    } catch (e) {
+        _myLocalNICs = [];
+    }
+    return _myLocalNICs;
+}
+function _invalidateLocalNICs() { _myLocalNICs = null; }
+window.addEventListener('online', _invalidateLocalNICs);
+window.addEventListener('offline', _invalidateLocalNICs);
+
 async function probeKnownServers() {
     if (isProbing) return; // Prevent overlapping probes
     isProbing = true;
@@ -410,7 +432,13 @@ async function probeKnownServers() {
             return;
         }
 
-        console.log(`[Probing] Checking ${knownServers.length} candidates (parallel race)...`);
+        // Same-subnet-first: split candidates into "definitely on one of my
+        // subnets" vs "everything else" (hostnames, .local, unreachable IPs).
+        // Race the first group; only fall through to the second if nothing hit.
+        // Single-NIC schools have nothing in the "other" bucket — zero overhead.
+        const myNICs = await _getMyLocalNICs();
+        const { same: sameSubnet, other: otherCandidates } = partitionCandidates(knownServers, myNICs);
+        console.log(`[Probing] ${sameSubnet.length} same-subnet, ${otherCandidates.length} other candidates`);
 
         // PARALLEL probe: every known server is hit at the same time with a single
         // 2.5s timeout. Sequential probing was causing 7s × N freezes when several
@@ -445,6 +473,7 @@ async function probeKnownServers() {
                 return {
                     name: info.name || "Known Server",
                     ip, port,
+                    ips: advertisedIps,
                     url: serverUrl,
                     host: ping.hostname || info.hostname || null,
                     mac: ping.mac || info.mac || null,
@@ -461,7 +490,14 @@ async function probeKnownServers() {
             }
         };
 
-        const results = await Promise.all(knownServers.map(probeOne));
+        // Two-phase race: same-subnet first, others only if phase 1 misses.
+        // See `client/subnet-match.js` for the policy + unit tests.
+        const fallbackList = sameSubnet.length > 0 ? otherCandidates : knownServers;
+        const phase1 = sameSubnet.length > 0 ? sameSubnet : [];
+        const { results, ranOther } = await raceWithFallback(phase1, fallbackList, probeOne);
+        if (ranOther && sameSubnet.length > 0) {
+            console.log(`[Probing] Same-subnet round empty — fell back to ${otherCandidates.length} other candidates`);
+        }
         let foundAny = false;
         const seenServerIds = new Set();
         for (const serverInfo of results) {
@@ -1573,7 +1609,35 @@ socket.on("connect", () => {
             statusText.textContent = "Connected";
         }
     }
-    connectionStatus.title = "Connected";
+    const statusText = connectionStatus.querySelector('.status-text');
+    if (statusText) {
+        const key = state === 'connected' ? 'status-connected'
+                  : state === 'connecting' ? 'status-connecting'
+                  : 'status-disconnected';
+        const fallback = state === 'connected' ? 'Connected'
+                       : state === 'connecting' ? 'Connecting...'
+                       : 'Disconnected';
+        statusText.setAttribute('data-i18n', key);
+        const lang = (typeof currentLanguage !== 'undefined' && currentLanguage) || null;
+        statusText.textContent = (lang && translations?.[lang]?.[key]) || fallback;
+    }
+}
+
+// Heartbeat: re-sync every 5 s in case a silent transport drop left the UI
+// stale. 5 s is cheap and well within the slowest hardware's idle budget.
+setInterval(() => syncConnectionUI(), 5000);
+
+// Re-sync when the tab becomes visible — laptop wake from sleep is the
+// canonical "indicator is now lying" moment.
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncConnectionUI();
+});
+
+socket.on('reconnect_attempt', () => syncConnectionUI('connecting'));
+socket.on('reconnect_failed',  () => syncConnectionUI('disconnected'));
+
+socket.on("connect", () => {
+    syncConnectionUI('connected');
 
     // Re-join if we were in a class
     if (currentClassId && userName) {
@@ -2579,7 +2643,15 @@ function joinClass(classIdToJoin, nameToUse, isAutoJoin = false) {
                 hasTeacher: hasTeacher,
                 blockAllActive: response.blockAllActive || false,
                 blockUploadsActive: response.blockUploadsActive || false,
-                allowHandsUp: response.allowHandsUp !== undefined ? response.allowHandsUp : true
+                allowHandsUp: response.allowHandsUp !== undefined ? response.allowHandsUp : true,
+                // Late-join sync: capture teacher's current auto-download config so
+                // a student who joins AFTER the toggle was set still auto-downloads.
+                // Without this, files arriving before any toggle change are missed.
+                autoDownloadEnabled: response.autoDownloadEnabled || false,
+                autoDownloadPath: response.autoDownloadPath || '',
+                // URL whitelist comes through even when internet-cut is off, so the
+                // student is primed before the next toggle.
+                urlWhitelist: Array.isArray(response.urlWhitelist) ? response.urlWhitelist : []
             });
 
             // Handle auto-blocked state
@@ -3180,6 +3252,21 @@ socket.on("class-renamed", ({ oldName, newName }) => {
 });
 
 // Send Message
+// One-shot bypass state. Set when the teacher clicks the filter-slash button
+// to resend the most recently blocked message; the next send-message emit
+// includes `bypassFilter: true` and then this resets to false.
+let _pendingBypass = false;
+const btnBypassFilter = document.getElementById("btn-bypass-filter");
+
+function _hideBypassButton() {
+    if (btnBypassFilter) btnBypassFilter.classList.add('hidden');
+}
+function _showBypassButton() {
+    // Teacher-only: students never get to skip filtering.
+    if (currentRole !== 'teacher') return;
+    if (btnBypassFilter) btnBypassFilter.classList.remove('hidden');
+}
+
 function sendMessage() {
     const content = messageInput.value.trim();
     if (!content) return;
@@ -3191,11 +3278,18 @@ function sendMessage() {
         return;
     }
 
-    console.log(`[DEBUG] Sending message: "${content}"`);
+    // Consume the one-shot bypass flag — true only for the click that
+    // followed a `message-blocked`. Sending any other message resets it.
+    const bypassFilter = _pendingBypass === true;
+    _pendingBypass = false;
+    _hideBypassButton();
+
+    console.log(`[DEBUG] Sending message: "${content}"${bypassFilter ? ' [BYPASS]' : ''}`);
     socket.emit("send-message", {
         classId: currentClassId,
         content,
-        type: "text"
+        type: "text",
+        bypassFilter // server ignores this unless sender is a teacher
     });
 
     messageInput.value = "";
@@ -3203,6 +3297,39 @@ function sendMessage() {
 }
 
 btnSendMessage.addEventListener("click", sendMessage);
+
+// Filter-bypass button: resend the most recently blocked message past the
+// filter. One-shot — re-arming requires another block. Only ever visible to
+// the teacher; the handler is also role-gated as belt-and-braces.
+if (btnBypassFilter) {
+    btnBypassFilter.addEventListener('click', () => {
+        if (currentRole !== 'teacher') { _hideBypassButton(); return; }
+        if (!messageInput.value.trim()) { _hideBypassButton(); return; }
+        _pendingBypass = true;
+        sendMessage();
+    });
+}
+
+// Server tells us a message was rejected by the filter. We restore the text
+// into the input (so the user can see exactly what was caught and edit it)
+// and, if the sender is the teacher, reveal the bypass button for one click.
+socket.on('message-blocked', ({ content, reason, confidence }) => {
+    if (typeof content === 'string' && content.length > 0) {
+        // Don't clobber a follow-up the user has already started typing.
+        if (!messageInput.value || messageInput.value === '') {
+            messageInput.value = content;
+        }
+    }
+    if (currentRole === 'teacher') {
+        _showBypassButton();
+    } else {
+        _hideBypassButton();
+    }
+    if (typeof showToast === 'function') {
+        const pct = Number.isFinite(confidence) ? ` (${Math.round(confidence)}%)` : '';
+        showToast(`Message blocked: ${reason || 'filter'}${pct}`, 'warning');
+    }
+});
 
 messageInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {

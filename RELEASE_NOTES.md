@@ -1,29 +1,36 @@
 # Release Notes
 
-## [11.5.0] - 2026-05-10
+## [11.5.1] - 2026-05-12
 
 ### NEW
-- **Multi-NIC Discovery (ClassSend2 v0.0.5 parity)**: A teacher PC with two network adapters on different subnets (e.g. Wi-Fi `192.168.1.x` + Ethernet `10.0.0.x`) is now reachable from **both** subnets. The server enumerates every non-virtual IPv4 NIC, advertises one mDNS service per NIC, and exposes the full address list via `addresses[]` in `/api/ping`, `/api/discovery-info`, and the mDNS TXT record. The student's known-servers history persists every advertised IP and the auto-join flow runs a parallel `/api/ping` race over them, redirecting to the first responsive address. Single-NIC machines behave identically — the new code only kicks in when there is more than one real adapter.
-- **Connection State Banner (flow v2)**: A new banner above the chat surfaces real connection state — *Searching for a class…*, *Waiting for the teacher to join…*, *Disconnected — trying to reconnect…*, *No network connection*, *Connecting…*, *Joining ClassName…*. Replaces the silent spinner that previously gave students no idea why chat was disabled. Wired into `online`/`offline` browser events, socket connect/disconnect, probe results, and class join.
-- **Lobby Gate Removed**: When no real classes are found, the chat shell now renders immediately in "searching" mode instead of force-joining a fake `Lobby` socket room. The old workaround existed to give the UI *something* to render before identity was resolved; with the new identity bootstrap below, the gate is unnecessary. The server-side `join-or-create-lobby` handler is kept for backward compatibility — old clients still work.
-- **Deterministic Identity Bootstrap**: Name and role are now applied synchronously from cached values (`PC-XXXX` fallback, `student` role) so the chat shell unblocks instantly. The OS hostname (`get-hostname`) and installer registry (`get-install-mode`) IPC reads race against a 1.5 s timeout and *upgrade* identity if they win. A hung IPC can no longer leave the user staring at a blank screen.
-- **Teacher → Mute All PCs**: New tool in the Administration column of the teacher's tools menu. Hitting the speaker icon mutes the system master volume on every student PC in the class via the Windows Core Audio API (PowerShell `audio-mute.ps1`). State is persisted on the class so late-joining and reconnecting students inherit the muted state. Press again to unmute. Icon flips between `speaker.svg` and `speaker-mute.svg`.
-- **Per-Event Rate Limiter (overload protection)**: The student client hard-drops teacher-triggered remote commands that exceed configured per-event limits. Caps a buggy or hostile teacher session that would otherwise spam `execute-shutdown`, `launch-app`, `execute-lock-screen`, `request-high-res-frame`, etc., and DOS the student PC. Throttled toast surfaces when limits trigger. Tunable per-event in one place (`_rateConfig` in `client/main.js`).
+- **Multi-NIC Teacher Support**: A teacher PC with two ethernet ports on two different subnets can now host a single class with students from **both** subnets at the same time. The server enumerates every usable NIC, advertises all of them via Bonjour (`ips` TXT field, CSV) alongside the legacy single `ip`, and the discovery endpoints (`/api/ping`, `/api/discovery-info`, `get-server-info`, `network-info`) pick the NIC IP on the subnet the requesting student actually came in on. Old single-NIC clients are unchanged. See `ClassSend2`'s `MULTI-NIC-BUG.md` for the underlying analysis.
+- **Same-Subnet-First Discovery (strict)**: The student's `probeKnownServers` now splits cached candidates into "same subnet as my NIC" vs "everything else" and races the first group; the second is only attempted if every same-subnet probe misses. Most schools have one network, so this eliminates the wasted seconds spent probing an unreachable foreign subnet. Single-NIC environments incur zero extra latency.
+- **Multi-NIC Known-Servers History**: Each cached teacher entry now stores `ips: string[]` — every IP the teacher advertised the last time we saw it. `expandCandidates` emits one probe URL per known NIC IP, so a student that switched subnets between sessions still finds the teacher.
+- **Per-Message Filter Bypass Button (Teacher Only)**: A new button using `filter-slash.svg` appears in the teacher's message box only **after** a message is blocked by the content filter. One click resends that exact message past every filter stage; the button hides immediately and re-arms only if the next message is blocked again. Students can never see or trigger it — the server enforces the role gate even if the client flag is spoofed.
+- **Seeded Wordlists on First Boot**: A fresh install now ships 51 blacklist + 43 whitelist entries (real classroom data from 2026-04-29) so the filter isn't overprotective out of the box. Whitelist's job is exclusively the pre-AI hard-pass — it is **no longer trained as `clean`** in the Naive Bayes model (training it inflated unrelated n-grams: `fast` learned as clean was leaking into `fak`). Existing installs are not re-seeded; the `data/.seeded` marker file guards against overwrites.
 
 ### FIXES
-- **Frozen `joiningInProgress` lock**: `joinClass` and `joinOrCreateLobby` previously had no ACK timeout, so a silent server could leave the lock `true` forever. Both paths now use `socketEmitWithAck()` with a hard timeout (4–5 s); on timeout the lock is cleared, the client re-enters searching mode, and auto-flow is re-armed. Students no longer get stranded when the server doesn't reply.
-- **Visible Network-Loss UX**: Going offline now shows a red banner with a clear message instead of the silent console log + spinner. Coming back online resumes the probe sequence and reconnects the socket automatically.
-- **Empty-/Null-Class Handling**: `updateChatDisabledState()` now treats `currentClassId === null` as "searching" with the right placeholder ("Searching for a class…" or "Offline — waiting for network…"), instead of returning early with a half-rendered composer.
+- **Connection Indicator Stuck**: The connected/disconnected dot could get stuck on either state after laptop sleep/wake, WebSocket transport-level drops, or mid-reconnect. New `syncConnectionUI()` reads `socket.connected` as the source of truth and is bound to `connect`, `disconnect`, `reconnect_attempt`, `reconnect_failed`, `visibilitychange`, and a 5-second heartbeat. A new `connecting` visual state surfaces during reconnect attempts.
+- **Late-Joining Students Missed Class Settings**: The `join-class` callback already shipped `autoDownloadEnabled` / `autoDownloadPath`, but the client dropped them on the floor — students who joined *after* the teacher set the toggle never auto-downloaded files until the teacher toggled it again. Client now reads them into `joinedClasses` on join. Added `urlWhitelist` to the join response so students have the whitelist ready before internet-cut is ever enabled.
+- **Network-Change Rebroadcast on Multi-NIC**: When the teacher's network changes, the IP-change rebroadcast now goes per-socket — each client gets the IP on the subnet it's actually connected from, not the global primary IP.
 
 ### INTERNALS
-- New helpers in `client/main.js`: `_ipcWithTimeout()`, `setConnectionState()` (state machine), `socketEmitWithAck()`, `enterSearchingMode()`, `pickReachableAddress()` (multi-NIC race), `rateGuard()`.
-- New helpers in `server/network-discovery.js`: `getAllLocalIPs()` (multi-NIC enumeration), `getLocalIPs()` (getter for the list). `publishMainService()` now publishes one extra service per NIC on multi-adapter machines.
-- New IPC handler `set-system-mute` in `server/electron-main.js`; new `server/audio-mute.ps1` (Windows Core Audio API via inline C#, no external deps).
-- New socket event `trigger-system-mute` (teacher → server) and `execute-set-system-mute` (server → student) with retry-on-no-ACK via the existing `sendCommandWithAck` harness.
-- `addresses[]` field added to `/api/ping`, `/api/discovery-info`, mDNS TXT records, and known-servers history entries.
+- New `client/subnet-match.js` — pure helpers (`ipv4ToInt`, `isSameSubnet`, `extractIPv4`, `partitionCandidates`, `raceWithFallback`) that drive the same-subnet-first probe ordering. Dependency-free so they're testable in Node.
+- New `server/data/seed-wordlists.js` — first-boot seed data and asEntries helpers.
+- New `get-local-nics` IPC handler in `server/electron-main.js` so the renderer can ask the main process which subnets it's on.
+- `NetworkDiscovery` gained `getAllLocalNICs`, `getAllLocalIPs`, `pickAdvertiseAddrFor(remoteIP)`. `findServers` now surfaces an `ips[]` array alongside the single `ip`. Network monitor compares the full NIC set, not just the primary, so a non-primary NIC going down is detected too.
 
-### PACKAGING
-- `audio-mute.ps1` added to `server/package.json`'s `extraResources` so it ships next to `wifi-guard.ps1` in `resources/`.
+### TESTS
+- Old vitest suite moved to `server/tests-old/` (preserved, not deleted).
+- Fresh suite written from scratch — **104 tests across 7 files**, full run in ~1.3 s:
+  - `network-discovery.test.js` (22) — `pickAdvertiseAddrFor` across /24 /16, IPv4-mapped IPv6, loopback, garbage, single-NIC; mDNS class encode/decode round-trip incl. Greek.
+  - `known-servers.test.js` (29) — rich-history load/save, legacy migration, identity matching (serverId > mac > host > url), case-insensitive host, multi-NIC `ips[]` merge, quota-exceeded localStorage tolerance, MAX_ENTRIES cap.
+  - `subnet-match.test.js` (23) — `ipv4ToInt` rejecting garbage, `isSameSubnet` across /24 /16 /30, `partitionCandidates` ordering preservation, 5000-candidate budget.
+  - `endpoints.test.js` (8) — real Express app, header-injected `req.ip`, proves `/api/ping` + `/api/discovery-info` route per-subnet and survive 50 concurrent requests.
+  - `race-ordering.test.js` (8) — strict "phase 2 never starts before phase 1 ends", parallel timing inside a phase, throwing probes don't crash a round, cold-start fallback.
+  - `stress.test.js` (8) — 30 concurrent students hitting the same endpoint, 800 ms artificial latency timeout handling, heap-drift on 1000 picks, unicode/RTL hostnames, JSON-bomb in TXT decode.
+  - `seed-wordlists.test.js` (6) — non-empty lists, lowercase + trimmed normalization, no duplicates, no overlap between the two lists, valid `SEED_VERSION` date.
+- New `vitest.config.js` scopes the run to `server/tests/**` and excludes stale `.claude/worktrees/` paths.
 
 ---
 
