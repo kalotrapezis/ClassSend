@@ -1,4 +1,4 @@
-﻿import { io } from "socket.io-client";
+import { io } from "socket.io-client";
 // mammoth and xlsx are now dynamically imported
 import { translations } from "./translations.js";
 import { generateRandomName } from "./name-generator.js";
@@ -1594,20 +1594,32 @@ socket.on("connect", () => {
             setConnectionState(ConnState.SEARCHING);
         }
     }
-    connectionStatus.classList.remove("disconnected");
-    connectionStatus.classList.add("connected");
+    syncConnectionUI('connected');
+});
 
-    // Localization-aware update
-    connectionStatus.setAttribute('data-i18n', 'status-connected');
-    const statusText = connectionStatus.querySelector(".status-text");
-    if (statusText) {
-        statusText.setAttribute('data-i18n', 'status-connected');
-        // If translations available, use them immediately
-        if (typeof translations !== 'undefined' && currentLanguage && translations[currentLanguage]) {
-            statusText.textContent = translations[currentLanguage]['status-connected'] || "Connected";
-        } else {
-            statusText.textContent = "Connected";
-        }
+// Idempotent UI sync — reads socket.connected and forces the indicator into
+// the right state. Safe to call any number of times. forcedState:
+//   undefined → infer from socket.connected
+//   'connecting' → show "Connecting..." (mid-reconnect)
+//   'connected' / 'disconnected' → explicit override
+function syncConnectionUI(forcedState) {
+    if (!connectionStatus) return;
+    const state = forcedState || (socket && socket.connected ? 'connected' : 'disconnected');
+    if (state === 'connected') {
+        connectionStatus.classList.remove('disconnected', 'connecting');
+        connectionStatus.classList.add('connected');
+        connectionStatus.title = 'Connected';
+        connectionStatus.setAttribute('data-i18n', 'status-connected');
+    } else if (state === 'connecting') {
+        connectionStatus.classList.remove('connected');
+        connectionStatus.classList.add('disconnected');
+        connectionStatus.title = 'Connecting...';
+        connectionStatus.setAttribute('data-i18n', 'status-connecting');
+    } else {
+        connectionStatus.classList.remove('connected', 'connecting');
+        connectionStatus.classList.add('disconnected');
+        connectionStatus.title = 'Disconnected';
+        connectionStatus.setAttribute('data-i18n', 'status-disconnected');
     }
     const statusText = connectionStatus.querySelector('.status-text');
     if (statusText) {
