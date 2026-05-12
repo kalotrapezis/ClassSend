@@ -1,5 +1,25 @@
 # Release Notes
 
+## [11.5.2] - 2026-05-12
+
+Hotfix on top of 11.5.1, which had a botched conflict resolution when merged into `beta` over the 11.5.0 work. 11.5.1 reaches `beta` but the server **crashes on startup** there — `TypeError: this.getAllLocalNICs is not a function`. 11.5.2 makes the merged code actually run.
+
+### FIXES
+- **Server crash on startup**: `server/network-discovery.js` ended up with two `getLocalIPFallback()` and two `getAllLocalIPs()` definitions after the merge. The second copies (which win in JS classes) called `this.getAllLocalNICs()` — a method that no longer existed on the class. Restored `getAllLocalNICs()` as the canonical OS-enumeration helper (returns `{ ip, netmask, mac, name, iface, priority }`), collapsed the duplicates, and updated `initialize()` + `startNetworkMonitoring()` + `publishMainService()` to call it.
+- **Multi-NIC routing silently dead**: even with the crash fixed, `pickAdvertiseAddrFor` was returning the primary IP for every student because `this.localIPs` was populated from a helper that returned `{iface, ip, mac}` objects with **no `netmask`**. Subnet matching cannot work without netmask, so `_ipInNICSubnet` always returned false and we fell through to the primary IP — exactly the regression 11.5.1 was supposed to fix. Now populated from `getAllLocalNICs()`, which carries netmask.
+- **Bonjour TXT field collision**: the merge produced a hybrid where TXT carried `addresses` (11.5.0's name) but `findServers` read both `service.txt?.ips` (11.5.1's name) and `service.txt?.addresses` in two places, with the second overwriting the first. Standardized on `addresses`. `serverInfo` still exposes both `addresses` and `ips` (alias) so any client shipped with 11.5.1 keeps working.
+- **Versions reverted**: the conflict resolution kept 11.5.0 across all three `package.json` files and the in-server version string. Bumped to 11.5.2 everywhere, including the Bonjour TXT `version` field (was `'4.0.0'` and `'11.5.0'` in two places — now consistently `'11.5.2'`).
+
+### TESTS
+- `server/tests/known-servers.test.js` updated to match the canonical `addresses` field name (was asserting `ips`, the field 11.5.1 introduced before the rename).
+- Full suite: **104 tests across 7 files, all green** in 1.34 s.
+
+### NOT TOUCHED
+- All 11.5.0 features (mute-all, rate limiter, connection state machine, per-NIC mDNS publish loop) are preserved.
+- All 11.5.1 features that survived the merge (subnet-match module, seed wordlists, filter-bypass button, syncConnectionUI, join-class settings sync) are preserved.
+
+---
+
 ## [11.5.1] - 2026-05-12
 
 ### NEW

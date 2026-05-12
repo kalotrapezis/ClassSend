@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@500;600&display=swap"
     rel="stylesheet">
   
-  <script type="module" crossorigin src="/assets/index-64d2153e.js"></script>
+  <script type="module" crossorigin src="/assets/index-9f6dc3fe.js"></script>
   <link rel="stylesheet" href="/assets/index-5b002090.css">
 </head>
 
@@ -1286,6 +1286,15 @@
             <input type="file" id="file-input" class="hidden">
             <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off"
               data-i18n-placeholder="placeholder-message">
+            <!-- Teacher-only filter bypass. Appears for one click after a
+                 message gets blocked, so the teacher can resend the exact
+                 same text past the filter. Hidden by default, made visible
+                 by the `message-blocked` handler in client/main.js. -->
+            <button id="btn-bypass-filter" class="send-btn hidden" type="button"
+              title="Resend this message past the filter"
+              data-i18n-title="btn-bypass-filter-title">
+              <img src="/assets/filter-slash.svg" class="icon-svg" alt="Bypass filter" />
+            </button>
             <button id="btn-send-message" class="send-btn" title="Send Message"
               data-i18n-title="btn-send-message-title"></button>
           </div>

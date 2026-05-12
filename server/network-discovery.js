@@ -46,30 +46,21 @@ class NetworkDiscovery extends EventEmitter {
         this.monitoringInterval = null;
     }
 
-    // Enumerate every non-virtual IPv4 NIC. Returns [{iface, ip, mac}].
-    // This is the multi-NIC fix: a teacher PC with both Wi-Fi and Ethernet
-    // (or two ethernet adapters on different subnets) needs to advertise on
-    // each of them so students from either subnet can reach the server.
-    // Mirrors the ClassSend2 v0.0.5 multi-NIC fix.
-    getAllLocalIPs() {
-        const interfaces = os.networkInterfaces();
-        const virtualKeywords = ['virtual', 'vmware', 'vbox', 'hyperv', 'vethernet', 'wsl', 'loopback', 'docker', 'radmin', 'vpn', 'hamachi'];
-        const out = [];
-        for (const name of Object.keys(interfaces)) {
-            const lower = name.toLowerCase();
-            if (virtualKeywords.some(k => lower.includes(k))) continue;
-            for (const iface of interfaces[name]) {
-                if (iface.family !== 'IPv4' || iface.internal) continue;
-                if (iface.address.startsWith('169.254.')) continue;        // link-local
-                if (iface.address.startsWith('192.168.56.')) continue;     // VirtualBox default
-                out.push({ iface: name, ip: iface.address, mac: iface.mac || null });
-            }
-        }
-        return out;
-    }
-
-    // Fallback method to get local IP using os.networkInterfaces()
-    getLocalIPFallback() {
+    /**
+     * Enumerate every usable IPv4 NIC on this machine.
+     *
+     * Returns: [{ ip, netmask, mac, name, iface, priority }]
+     *  - `iface` is an alias for `name` so older callers (multi-NIC publish
+     *    code in `publishMainService`) still work.
+     *  - `netmask` is REQUIRED — without it `pickAdvertiseAddrFor` cannot
+     *    subnet-match and silently falls back to the primary IP, which
+     *    re-breaks the entire multi-NIC fix. This was the regression that
+     *    11.5.1's first merge introduced.
+     *  - Sorted descending by `priority`: scoring penalizes virtual adapters,
+     *    VirtualBox 192.168.56.x, link-local 169.254.x.x; rewards Wi-Fi and
+     *    Ethernet by name.
+     */
+    getAllLocalNICs() {
         const interfaces = os.networkInterfaces();
         const virtualKeywords = ['virtual', 'vmware', 'vbox', 'hyperv', 'vethernet', 'wsl', 'loopback', 'docker', 'radmin', 'vpn', 'hamachi'];
         const found = [];
@@ -86,13 +77,13 @@ class NetworkDiscovery extends EventEmitter {
                 let p = priority;
                 if (iface.address.startsWith('192.168.56.')) p -= 100;
                 if (iface.address.startsWith('169.254.')) p -= 1000;
-                // Drop hopeless ones entirely
-                if (p <= -500) continue;
+                if (p <= -500) continue; // hopeless — drop entirely
                 found.push({
                     ip: iface.address,
-                    mac: iface.mac,
                     netmask: iface.netmask,
+                    mac: iface.mac || null,
                     name,
+                    iface: name, // alias for the per-NIC publish code below
                     priority: p
                 });
             }
@@ -101,7 +92,7 @@ class NetworkDiscovery extends EventEmitter {
         return found;
     }
 
-    // Back-compat: still returns the single best IP string.
+    /** Back-compat: returns the single best IP string. */
     getLocalIPFallback() {
         const nics = this.getAllLocalNICs();
         console.log('--- Network Interface Discovery ---');
@@ -114,13 +105,16 @@ class NetworkDiscovery extends EventEmitter {
         return bestIP || 'localhost';
     }
 
-    // Given a remote (student) IP, pick the local NIC IP whose subnet contains it.
-    // Falls back to the primary IP. This is the multi-NIC advertise-fix in one helper.
+    /**
+     * Given a remote (student) IP, return the local NIC IP whose subnet
+     * contains it. Falls back to the primary IP. This is the heart of the
+     * multi-NIC fix: a student on subnet B must be told the teacher's IP on
+     * subnet B's NIC, not on subnet A's.
+     */
     pickAdvertiseAddrFor(remoteIP) {
         if (!remoteIP) return this.localIP || 'localhost';
         // Strip IPv6-mapped prefix and zone — node sometimes hands back "::ffff:192.168.1.10"
         const clean = String(remoteIP).replace(/^::ffff:/, '').split('%')[0];
-        // Local connections (loopback / IPv6 ::1) — just hand back localhost
         if (clean === '127.0.0.1' || clean === '::1' || clean === 'localhost') {
             return this.localIP || '127.0.0.1';
         }
@@ -130,7 +124,7 @@ class NetworkDiscovery extends EventEmitter {
         return this.localIP || 'localhost';
     }
 
-    // Returns all advertise-able IPv4 addresses (just the IP strings).
+    /** All advertise-able IPv4 addresses as plain strings (for TXT / API). */
     getAllLocalIPs() {
         return this.localIPs.map(n => n.ip);
     }
@@ -139,12 +133,14 @@ class NetworkDiscovery extends EventEmitter {
         this.port = port;
         this.getClassesCallback = getClassesCallback;
 
-        // Multi-NIC: enumerate every real IPv4 adapter. The "best" one is kept
-        // for legacy callers (single-IP UI), but the full list drives mDNS and
-        // the HTTP discovery endpoints so students on any subnet can reach us.
-        this.localIPs = this.getAllLocalIPs();
-        this.localIP = this.getLocalIPFallback();
-        console.log(`Local IPs (${this.localIPs.length}):`, this.localIPs.map(n => `${n.iface}=${n.ip}`).join(', '));
+        // Multi-NIC: enumerate every real IPv4 adapter as objects with
+        // netmask (required by `pickAdvertiseAddrFor`). The "best" one is
+        // kept as `localIP` for legacy single-IP callers (UI display), but
+        // the full list drives mDNS and the HTTP discovery endpoints so
+        // students on any subnet can reach us.
+        this.localIPs = this.getAllLocalNICs();
+        this.localIP = this.localIPs[0]?.ip || 'localhost';
+        console.log(`Local IPs (${this.localIPs.length}):`, this.localIPs.map(n => `${n.iface}=${n.ip}/${n.netmask}`).join(', '));
         console.log(`Primary IP: ${this.localIP}`);
 
         // Initialize Bonjour
@@ -281,18 +277,19 @@ class NetworkDiscovery extends EventEmitter {
 
         // Refresh NIC list each publish — handles laptops moving between
         // networks mid-session without needing a restart.
-        this.localIPs = this.getAllLocalIPs();
+        this.localIPs = this.getAllLocalNICs();
         const ipList = this.localIPs.map(n => n.ip);
         const addressesField = ipList.join(',');
 
         // 1) Main service (single record, includes addresses[] in TXT for clients
         //    that read TXT). Backwards compat: `ip` still carries the primary.
+        //    `version` is bumped per release; old clients ignore unknown TXT keys.
         this.mainService = this.bonjour.publish({
             name: 'ClassSend Server',
             type: 'classsend',
             port: this.port,
             txt: {
-                version: '4.0.0',
+                version: '11.5.2',
                 classes: classesEncoded,
                 ip: this.localIP,
                 addresses: addressesField
@@ -314,7 +311,7 @@ class NetworkDiscovery extends EventEmitter {
                         // Force the A-record for this service to point at this NIC's IP
                         host: nic.ip,
                         txt: {
-                            version: '4.0.0',
+                            version: '11.5.2',
                             classes: classesEncoded,
                             ip: nic.ip,
                             addresses: addressesField,
@@ -340,21 +337,23 @@ class NetworkDiscovery extends EventEmitter {
                 return;
             }
 
+            // Multi-NIC: TXT.`addresses` is the comma-separated list of every
+            // IP the server can be reached on. The single TXT.`ip` (and the
+            // mDNS-level referer address) are kept as fallbacks for older
+            // servers / single-NIC setups.
             const primaryIp = service.referer?.address || service.host;
-            let ips = [primaryIp].filter(Boolean);
-            if (service.txt?.ips) {
-                const list = String(service.txt.ips).split(',').map(s => s.trim()).filter(Boolean);
-                // Put advertised IPs first; keep referer as a fallback so we never lose
-                // the one IP we *know* reached us via mDNS.
-                ips = Array.from(new Set([...list, ...ips]));
+            let addresses = [primaryIp].filter(Boolean);
+            if (service.txt?.addresses) {
+                const list = String(service.txt.addresses).split(',').map(s => s.trim()).filter(Boolean);
+                addresses = Array.from(new Set([...list, ...addresses]));
             }
             const serverInfo = {
                 name: service.name,
-                ip: ips[0] || primaryIp,
-                ips,
+                ip: addresses[0] || primaryIp,
+                ips: addresses,         // legacy alias for clients shipped in 11.5.1
+                addresses,              // canonical field name (11.5.0+)
                 port: service.port,
                 classes: [],
-                addresses: [],
                 version: service.txt?.version || 'unknown'
             };
 
@@ -365,19 +364,6 @@ class NetworkDiscovery extends EventEmitter {
                 }
             } catch (e) {
                 console.error('Failed to parse classes:', e);
-            }
-
-            // Multi-NIC: TXT carries the comma-separated address list. If
-            // missing (older server), fall back to the single advertised IP.
-            try {
-                if (service.txt?.addresses) {
-                    serverInfo.addresses = String(service.txt.addresses)
-                        .split(',').map(s => s.trim()).filter(Boolean);
-                } else if (serverInfo.ip) {
-                    serverInfo.addresses = [serverInfo.ip];
-                }
-            } catch (e) {
-                serverInfo.addresses = serverInfo.ip ? [serverInfo.ip] : [];
             }
 
             if (onServerFound) {
